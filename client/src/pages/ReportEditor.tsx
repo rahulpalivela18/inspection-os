@@ -195,7 +195,7 @@ export default function ReportEditor() {
                 ) : (
                   <div className="grid grid-cols-1 gap-4">
                     {issues.map((issue) => (
-                      <Card key={issue.id} className="group overflow-hidden border-border hover:border-primary/50 transition-all hover:shadow-sm">
+                      <Card key={issue.id} className="group overflow-hidden border-border hover:border-primary/50 transition-all hover:shadow-sm bg-white">
                         <div className="flex flex-col md:flex-row">
                           <div className="flex-1 p-6">
                             <div className="flex items-start justify-between mb-2">
@@ -236,8 +236,8 @@ export default function ReportEditor() {
                           {issue.images && issue.images.length > 0 && (
                             <div className="w-full md:w-64 flex gap-1 p-2 bg-slate-50 border-l">
                               {issue.images.map((img, idx) => (
-                                <div key={idx} className="flex-1 h-24 md:h-32 bg-slate-200 rounded overflow-hidden">
-                                  <img src={img} alt="Issue" className="w-full h-full object-cover" />
+                                <div key={idx} className="flex-1 h-24 md:h-32 bg-white border border-slate-200 rounded overflow-hidden flex items-center justify-center p-1">
+                                  <img src={img} alt="Issue" className="max-w-full max-h-full object-contain" />
                                 </div>
                               ))}
                             </div>
@@ -373,8 +373,8 @@ export default function ReportEditor() {
                 
                 <div className="grid grid-cols-3 gap-2 mt-4">
                   {formData.images.map((img, idx) => (
-                    <div key={idx} className="relative aspect-square rounded-md overflow-hidden bg-muted group">
-                      <img src={img} alt="Issue" className="w-full h-full object-cover" />
+                    <div key={idx} className="relative aspect-square rounded-md overflow-hidden bg-slate-100 border border-slate-200 group flex items-center justify-center p-1">
+                      <img src={img} alt="Issue" className="max-w-full max-h-full object-contain" />
                       <button 
                         onClick={() => handleRemoveImage(idx)}
                         className="absolute top-1 right-1 bg-black/50 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
