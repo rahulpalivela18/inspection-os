@@ -1,104 +1,158 @@
 import { Project, Report, Issue } from "@/lib/store";
 import { format } from "date-fns";
 
-export default function ReportPreview({ report, issues }: { report: Report, issues: Issue[] }) {
-  // We need to fetch project details from store based on ID, but store hooks 
-  // can't be used conditionally inside map usually, but here we are inside a component.
-  // Ideally, we pass the project as a prop. For now, let's assume we want a clean print view.
-  
+export default function ReportPreview({ report, project, issues }: { report: Report, project: Project, issues: Issue[] }) {
   return (
     <div className="font-sans text-sm text-slate-900 leading-normal">
-      {/* Report Header */}
-      <div className="border-b-2 border-slate-900 pb-6 mb-8 flex justify-between items-end">
-        <div>
-          <h1 className="text-4xl font-bold font-heading text-slate-900 mb-2">{report.title}</h1>
-          <p className="text-slate-500">Report ID: #{report.id.toUpperCase()}</p>
-        </div>
-        <div className="text-right">
-          <div className="text-2xl font-bold text-indigo-600">ReportGen</div>
-          <div className="text-slate-500 text-xs mt-1">Inspection Services Ltd.</div>
-        </div>
-      </div>
-
-      {/* Meta Data Grid */}
-      <div className="grid grid-cols-3 gap-8 mb-10 bg-slate-50 p-6 rounded-lg border border-slate-100">
-        <div>
-          <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Date</h3>
-          <p className="font-medium text-lg">{report.date}</p>
-        </div>
-        <div>
-          <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Author</h3>
-          <p className="font-medium text-lg">{report.author}</p>
-        </div>
-        <div>
-          <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Status</h3>
-          <span className="inline-block px-2 py-0.5 rounded text-sm font-bold bg-slate-200 text-slate-700">
-            {report.status}
-          </span>
-        </div>
-      </div>
-
-      {/* Issues Table */}
-      <div className="mb-8">
-        <h2 className="text-xl font-bold font-heading mb-4 border-b pb-2">Inspection Findings</h2>
+      {/* Cover Page (First Slide) */}
+      <div className="h-[297mm] flex flex-col p-[20mm] bg-white break-after-page relative overflow-hidden">
+        {/* Background Accent */}
+        <div className="absolute top-0 right-0 w-1/2 h-1/2 bg-indigo-50/50 -rotate-12 translate-x-1/4 -translate-y-1/4 rounded-full blur-3xl -z-10" />
         
-        <div className="space-y-8">
+        <div className="flex justify-between items-start mb-24">
+          <div className="text-4xl font-extrabold tracking-tighter text-indigo-600">ReportGen</div>
+          {project.logoUrl && (
+            <div className="w-24 h-24 p-2 border rounded-xl bg-white shadow-sm flex items-center justify-center">
+              <img src={project.logoUrl} alt="Client Logo" className="w-full h-full object-contain" />
+            </div>
+          )}
+        </div>
+
+        <div className="mt-auto">
+          <div className="space-y-4 mb-20">
+            <span className="inline-block px-3 py-1 bg-indigo-100 text-indigo-700 text-xs font-bold uppercase tracking-widest rounded-full">
+              Inspection Report
+            </span>
+            <h1 className="text-6xl font-black font-heading leading-none tracking-tight text-slate-900">
+              {report.title}
+            </h1>
+            <p className="text-2xl text-slate-500 font-medium">
+              {project.title}
+            </p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-12 border-t pt-12">
+            <div className="space-y-6">
+              <div>
+                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Client</h3>
+                <p className="text-xl font-bold">{project.clientName}</p>
+                <p className="text-slate-500">{project.address}</p>
+              </div>
+              <div>
+                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Project Site</h3>
+                <p className="text-lg font-semibold">{project.description}</p>
+              </div>
+            </div>
+            <div className="space-y-6">
+              <div>
+                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Report Date</h3>
+                <p className="text-xl font-bold">{format(new Date(report.date), "MMMM d, yyyy")}</p>
+              </div>
+              <div>
+                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Prepared By</h3>
+                <p className="text-xl font-bold">{report.author}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-24 pt-8 border-t flex justify-between items-center text-slate-400 text-xs font-medium">
+          <span>REPORT ID: {report.id.toUpperCase()}</span>
+          <span>CONFIDENTIAL</span>
+        </div>
+      </div>
+
+      {/* Findings Pages */}
+      <div className="p-[15mm] bg-white min-h-[297mm]">
+        <div className="border-b-2 border-slate-900 pb-4 mb-8 flex justify-between items-center">
+          <h2 className="text-2xl font-black uppercase tracking-tight">Inspection Findings</h2>
+          <span className="text-slate-400 text-xs font-bold">PAGE 2</span>
+        </div>
+        
+        <div className="space-y-12">
           {issues.map((issue, index) => (
-            <div key={issue.id} className="break-inside-avoid border border-slate-200 rounded-lg overflow-hidden">
-              <div className="bg-slate-50 p-3 border-b border-slate-200 flex justify-between items-center">
-                <div className="flex items-center gap-3">
-                  <span className="bg-slate-900 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold">
+            <div key={issue.id} className="break-inside-avoid border border-slate-100 rounded-2xl overflow-hidden shadow-sm">
+              <div className="bg-slate-50 p-4 border-b border-slate-100 flex justify-between items-center">
+                <div className="flex items-center gap-4">
+                  <span className="bg-slate-900 text-white w-8 h-8 rounded-full flex items-center justify-center text-sm font-black">
                     {index + 1}
                   </span>
-                  <h3 className="font-bold text-lg">{issue.title}</h3>
+                  <h3 className="font-bold text-xl tracking-tight">{issue.title}</h3>
                 </div>
-                <div className="flex gap-3 text-xs font-medium">
-                  <span className="px-2 py-1 bg-white border rounded text-slate-600">
-                    {issue.location}
-                  </span>
-                  <span className={`px-2 py-1 rounded border uppercase ${
-                    issue.severity === "Critical" ? "bg-red-50 text-red-700 border-red-200" :
-                    issue.severity === "High" ? "bg-orange-50 text-orange-700 border-orange-200" :
-                    issue.severity === "Medium" ? "bg-amber-50 text-amber-700 border-amber-200" :
-                    "bg-slate-100 text-slate-700 border-slate-200"
+                <div className="flex gap-2">
+                  <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border shadow-sm ${
+                    issue.severity === "Critical" ? "bg-red-500 text-white border-red-600" :
+                    issue.severity === "High" ? "bg-orange-500 text-white border-orange-600" :
+                    issue.severity === "Medium" ? "bg-amber-100 text-amber-800 border-amber-200" :
+                    "bg-slate-100 text-slate-800 border-slate-200"
                   }`}>
                     {issue.severity}
                   </span>
                 </div>
               </div>
               
-              <div className="p-4 flex gap-6">
-                <div className="flex-1">
-                  <h4 className="text-xs font-bold text-slate-400 uppercase mb-1">Description</h4>
-                  <p className="text-slate-700 mb-4">{issue.description}</p>
-                  
-                  <div className="flex gap-4 border-t pt-3 mt-4">
+              <div className="p-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <div className="space-y-6">
                     <div>
-                      <span className="text-xs text-slate-400">Status: </span>
-                      <span className="text-sm font-medium">{issue.status}</span>
+                      <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Observations & Notes</h4>
+                      <p className="text-slate-700 leading-relaxed font-medium">{issue.note}</p>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-4 pt-4 border-t border-slate-100">
+                      <div>
+                        <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Location</h4>
+                        <p className="text-sm font-bold text-indigo-600">{issue.location}</p>
+                      </div>
+                      <div>
+                        <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Responsible</h4>
+                        <p className="text-sm font-bold">{issue.responsibleEngineer}</p>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Visual Evidence</h4>
+                    <div className={cn(
+                      "grid gap-2",
+                      issue.images?.length === 1 ? "grid-cols-1" : 
+                      issue.images?.length === 2 ? "grid-cols-2" : "grid-cols-2"
+                    )}>
+                      {issue.images?.map((img, idx) => (
+                        <div key={idx} className={cn(
+                          "bg-slate-50 border rounded-lg overflow-hidden h-40 shadow-sm",
+                          idx === 0 && issue.images.length === 3 ? "col-span-2 h-48" : ""
+                        )}>
+                          <img src={img} className="w-full h-full object-cover" alt="Finding" />
+                        </div>
+                      ))}
                     </div>
                   </div>
                 </div>
-                
-                {issue.photoUrl && (
-                  <div className="w-48 h-32 bg-slate-100 shrink-0 border rounded-md overflow-hidden">
-                     <img src={issue.photoUrl} className="w-full h-full object-cover" alt="Evidence" />
-                  </div>
-                )}
               </div>
             </div>
           ))}
 
           {issues.length === 0 && (
-            <p className="text-slate-400 italic text-center py-8">No issues recorded in this report.</p>
+            <div className="text-center py-20 border-2 border-dashed border-slate-100 rounded-3xl">
+              <p className="text-slate-300 font-bold italic">No findings documented in this section.</p>
+            </div>
           )}
         </div>
       </div>
 
-      {/* Footer */}
-      <div className="mt-16 pt-8 border-t border-slate-200 text-center text-slate-400 text-xs">
-        <p>Generated by ReportGen on {format(new Date(), "PPP")}</p>
+      {/* Summary Footer */}
+      <div className="mt-auto p-[15mm] text-center">
+        <div className="border-t pt-8 flex justify-between items-center text-slate-400 text-[10px] font-bold uppercase tracking-widest">
+          <span>End of Report</span>
+          <span>ReportGen System v1.0</span>
+          <span>© {new Date().getFullYear()}</span>
+        </div>
       </div>
     </div>
   );
+}
+
+function cn(...classes: (string | undefined | boolean)[]) {
+  return classes.filter(Boolean).join(' ');
 }

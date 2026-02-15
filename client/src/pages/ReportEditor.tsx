@@ -3,18 +3,15 @@ import Layout from "@/components/Layout";
 import { useStore, Issue } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent } from "@/components/ui/card";
-import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { Card } from "@/components/ui/card";
+import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
-  ArrowLeft, Plus, Save, Printer, FileText, Trash2, 
-  AlertTriangle, CheckCircle2, Circle, Search, MoreVertical,
-  Camera, MapPin
+  ArrowLeft, Plus, Printer, FileText, Trash2, 
+  AlertTriangle, CheckCircle2, Circle, Camera, MapPin, User, X
 } from "lucide-react";
 import { Link, useRoute } from "wouter";
 import NotFound from "./not-found";
@@ -24,7 +21,7 @@ import ReportPreview from "@/pages/ReportPreview";
 
 export default function ReportEditor() {
   const [match, params] = useRoute("/report/:id");
-  const { getReport, getReportIssues, addIssue, deleteIssue, updateIssue } = useStore();
+  const { getReport, getReportIssues, addIssue, deleteIssue, updateIssue, getProject } = useStore();
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [editingIssue, setEditingIssue] = useState<Issue | null>(null);
   const [viewMode, setViewMode] = useState<"edit" | "preview">("edit");
@@ -38,35 +35,42 @@ export default function ReportEditor() {
   // Form State
   const [formData, setFormData] = useState<{
     title: string;
-    description: string;
+    note: string;
     location: string;
+    responsibleEngineer: string;
     severity: "Low" | "Medium" | "High" | "Critical";
     status: "Open" | "Resolved" | "Closed";
-    photoUrl: string;
+    images: string[];
   }>({
     title: "",
-    description: "",
+    note: "",
     location: "",
+    responsibleEngineer: "",
     severity: "Low",
     status: "Open",
-    photoUrl: "",
+    images: [],
   });
+
+  const [imageUrl, setImageUrl] = useState("");
 
   if (!match || !params) return <NotFound />;
   const report = getReport(params.id);
   if (!report) return <NotFound />;
+  const project = getProject(report.projectId);
   const issues = getReportIssues(report.id);
 
   const openNewIssueSheet = () => {
     setEditingIssue(null);
     setFormData({
       title: "",
-      description: "",
+      note: "",
       location: "",
+      responsibleEngineer: report.author,
       severity: "Low",
       status: "Open",
-      photoUrl: "",
+      images: [],
     });
+    setImageUrl("");
     setIsSheetOpen(true);
   };
 
@@ -74,17 +78,29 @@ export default function ReportEditor() {
     setEditingIssue(issue);
     setFormData({
       title: issue.title,
-      description: issue.description,
+      note: issue.note,
       location: issue.location,
+      responsibleEngineer: issue.responsibleEngineer,
       severity: issue.severity,
       status: issue.status,
-      photoUrl: issue.photoUrl || "",
+      images: issue.images,
     });
+    setImageUrl("");
     setIsSheetOpen(true);
   };
 
+  const handleAddImage = () => {
+    if (!imageUrl || formData.images.length >= 3) return;
+    setFormData({ ...formData, images: [...formData.images, imageUrl] });
+    setImageUrl("");
+  };
+
+  const handleRemoveImage = (index: number) => {
+    setFormData({ ...formData, images: formData.images.filter((_, i) => i !== index) });
+  };
+
   const handleSaveIssue = () => {
-    if (!formData.title) return;
+    if (!formData.title || !formData.note || formData.images.length === 0) return;
 
     if (editingIssue) {
       updateIssue({
@@ -151,7 +167,7 @@ export default function ReportEditor() {
               </button>
             </div>
             
-            <Button variant="outline" onClick={() => handlePrint && handlePrint()}>
+            <Button variant="outline" onClick={() => handlePrint()}>
               <Printer className="mr-2 h-4 w-4" /> Export PDF
             </Button>
             <Button onClick={openNewIssueSheet} disabled={viewMode === "preview"}>
@@ -172,7 +188,7 @@ export default function ReportEditor() {
                    </div>
                    <h3 className="text-lg font-medium">No issues recorded</h3>
                    <p className="text-muted-foreground max-w-xs mt-2 mb-6">
-                     Start adding issues to your report to track defects and observations.
+                     Start adding issues to your report to track defects and observations. Each issue requires at least one image and a note.
                    </p>
                    <Button onClick={openNewIssueSheet}>Add First Issue</Button>
                  </div>
@@ -200,12 +216,15 @@ export default function ReportEditor() {
                             </div>
                             
                             <p className="text-muted-foreground text-sm mb-4 line-clamp-2">
-                              {issue.description}
+                              {issue.note}
                             </p>
                             
-                            <div className="flex items-center gap-4 text-xs font-medium text-muted-foreground">
+                            <div className="flex flex-wrap items-center gap-4 text-xs font-medium text-muted-foreground">
                               <span className="bg-secondary px-2 py-1 rounded text-secondary-foreground">
                                 {issue.location}
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <User className="h-3 w-3" /> {issue.responsibleEngineer}
                               </span>
                               <span className="flex items-center gap-1">
                                 {issue.status === "Open" ? <Circle className="h-3 w-3 fill-orange-500 text-orange-500" /> : <CheckCircle2 className="h-3 w-3 fill-green-500 text-green-500" />}
@@ -214,9 +233,13 @@ export default function ReportEditor() {
                             </div>
                           </div>
                           
-                          {issue.photoUrl && (
-                            <div className="w-full md:w-48 h-32 md:h-auto bg-slate-100 relative shrink-0">
-                              <img src={issue.photoUrl} alt="Issue" className="w-full h-full object-cover" />
+                          {issue.images && issue.images.length > 0 && (
+                            <div className="w-full md:w-64 flex gap-1 p-2 bg-slate-50 border-l">
+                              {issue.images.map((img, idx) => (
+                                <div key={idx} className="flex-1 h-24 md:h-32 bg-slate-200 rounded overflow-hidden">
+                                  <img src={img} alt="Issue" className="w-full h-full object-cover" />
+                                </div>
+                              ))}
                             </div>
                           )}
                         </div>
@@ -228,8 +251,8 @@ export default function ReportEditor() {
             </div>
           ) : (
             <div className="h-full overflow-y-auto p-8 bg-slate-200/50 flex justify-center">
-              <div ref={componentRef} className="bg-white shadow-xl w-full max-w-[210mm] min-h-[297mm] p-[10mm] md:p-[15mm] print:shadow-none">
-                <ReportPreview report={report} issues={issues} />
+              <div ref={componentRef} className="bg-white shadow-xl w-full max-w-[210mm] min-h-[297mm] p-0 print:shadow-none">
+                {project && <ReportPreview report={report} project={project} issues={issues} />}
               </div>
             </div>
           )}
@@ -241,12 +264,12 @@ export default function ReportEditor() {
             <SheetHeader className="mb-6">
               <SheetTitle>{editingIssue ? "Edit Issue" : "Add New Issue"}</SheetTitle>
               <SheetDescription>
-                Record the details of the observation or defect.
+                Note and at least one image are mandatory.
               </SheetDescription>
             </SheetHeader>
             <div className="space-y-6">
               <div className="space-y-2">
-                <Label htmlFor="issue-title">Issue Title</Label>
+                <Label htmlFor="issue-title">Issue Title *</Label>
                 <Input 
                   id="issue-title" 
                   placeholder="Describe the issue briefly" 
@@ -291,57 +314,91 @@ export default function ReportEditor() {
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="location">Location</Label>
-                <div className="relative">
-                  <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input 
-                    id="location" 
-                    className="pl-9"
-                    placeholder="e.g. Room 101, North Wall" 
-                    value={formData.location}
-                    onChange={(e) => setFormData({...formData, location: e.target.value})}
-                  />
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="location">Location</Label>
+                  <div className="relative">
+                    <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input 
+                      id="location" 
+                      className="pl-9"
+                      placeholder="e.g. Roof" 
+                      value={formData.location}
+                      onChange={(e) => setFormData({...formData, location: e.target.value})}
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="engineer">Responsible Engineer</Label>
+                  <div className="relative">
+                    <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input 
+                      id="engineer" 
+                      className="pl-9"
+                      placeholder="Name" 
+                      value={formData.responsibleEngineer}
+                      onChange={(e) => setFormData({...formData, responsibleEngineer: e.target.value})}
+                    />
+                  </div>
                 </div>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="description">Description</Label>
+                <Label htmlFor="note">Note *</Label>
                 <Textarea 
-                  id="description" 
-                  className="min-h-[120px]"
-                  placeholder="Provide detailed observations..." 
-                  value={formData.description}
-                  onChange={(e) => setFormData({...formData, description: e.target.value})}
+                  id="note" 
+                  className="min-h-[100px]"
+                  placeholder="Mandatory detailed notes..." 
+                  value={formData.note}
+                  onChange={(e) => setFormData({...formData, note: e.target.value})}
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="photo">Photo URL (Mock)</Label>
-                <div className="relative">
-                  <Camera className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input 
-                    id="photo" 
-                    className="pl-9"
-                    placeholder="https://..." 
-                    value={formData.photoUrl}
-                    onChange={(e) => setFormData({...formData, photoUrl: e.target.value})}
-                  />
+                <Label>Images * (Up to 3)</Label>
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <Camera className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input 
+                      className="pl-9"
+                      placeholder="Image URL..." 
+                      value={imageUrl}
+                      onChange={(e) => setImageUrl(e.target.value)}
+                    />
+                  </div>
+                  <Button type="button" variant="secondary" onClick={handleAddImage} disabled={formData.images.length >= 3 || !imageUrl}>
+                    Add
+                  </Button>
                 </div>
-                <p className="text-[10px] text-muted-foreground">For this prototype, paste a direct image URL.</p>
+                
+                <div className="grid grid-cols-3 gap-2 mt-4">
+                  {formData.images.map((img, idx) => (
+                    <div key={idx} className="relative aspect-square rounded-md overflow-hidden bg-muted group">
+                      <img src={img} alt="Issue" className="w-full h-full object-cover" />
+                      <button 
+                        onClick={() => handleRemoveImage(idx)}
+                        className="absolute top-1 right-1 bg-black/50 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  ))}
+                  {formData.images.length === 0 && (
+                    <div className="col-span-3 py-4 text-center border-2 border-dashed rounded-md text-muted-foreground text-xs">
+                      At least one image required
+                    </div>
+                  )}
+                </div>
               </div>
-
-              {formData.photoUrl && (
-                <div className="rounded-lg border overflow-hidden h-40 bg-muted/20 flex items-center justify-center">
-                  <img src={formData.photoUrl} alt="Preview" className="h-full w-full object-cover" 
-                    onError={(e) => (e.currentTarget.style.display = 'none')}
-                  />
-                </div>
-              )}
             </div>
             <SheetFooter className="mt-8">
               <Button variant="outline" onClick={() => setIsSheetOpen(false)}>Cancel</Button>
-              <Button onClick={handleSaveIssue}>Save Issue</Button>
+              <Button 
+                onClick={handleSaveIssue} 
+                disabled={!formData.title || !formData.note || formData.images.length === 0}
+              >
+                Save Issue
+              </Button>
             </SheetFooter>
           </SheetContent>
         </Sheet>

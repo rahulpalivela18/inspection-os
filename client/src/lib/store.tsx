@@ -1,4 +1,4 @@
-import { useState, createContext, useContext, useEffect, ReactNode } from "react";
+import { useState, createContext, useContext, ReactNode } from "react";
 import { format } from "date-fns";
 
 // Types
@@ -8,6 +8,7 @@ export type Project = {
   description: string;
   clientName: string;
   address: string;
+  logoUrl?: string;
   createdAt: string;
 };
 
@@ -25,11 +26,12 @@ export type Issue = {
   id: string;
   reportId: string;
   title: string;
-  description: string;
+  note: string;
   severity: "Low" | "Medium" | "High" | "Critical";
   status: "Open" | "Resolved" | "Closed";
   location: string;
-  photoUrl?: string;
+  responsibleEngineer: string;
+  images: string[];
 };
 
 // Mock Data
@@ -40,15 +42,8 @@ const MOCK_PROJECTS: Project[] = [
     description: "Structural inspection of the main tower and parking garage.",
     clientName: "Metropolis Real Estate",
     address: "101 Main St, Cityville",
+    logoUrl: "https://images.unsplash.com/photo-1599305090748-3663ae578a49?auto=format&fit=crop&q=80&w=100",
     createdAt: new Date().toISOString(),
-  },
-  {
-    id: "p2",
-    title: "Riverside Apartments",
-    description: "Annual safety audit and fire compliance check.",
-    clientName: "Riverside Management",
-    address: "450 River Rd, Waterton",
-    createdAt: new Date(Date.now() - 86400000 * 5).toISOString(),
   },
 ];
 
@@ -62,15 +57,6 @@ const MOCK_REPORTS: Report[] = [
     date: format(new Date(), "yyyy-MM-dd"),
     createdAt: new Date().toISOString(),
   },
-  {
-    id: "r2",
-    projectId: "p1",
-    title: "Parking Garage Initial Survey",
-    status: "Final",
-    author: "John Doe",
-    date: "2024-01-15",
-    createdAt: new Date(Date.now() - 86400000 * 30).toISOString(),
-  },
 ];
 
 const MOCK_ISSUES: Issue[] = [
@@ -78,21 +64,12 @@ const MOCK_ISSUES: Issue[] = [
     id: "i1",
     reportId: "r1",
     title: "Hairline Crack in Column A4",
-    description: "Observed vertical hairline crack extending 20cm. No immediate structural threat but requires monitoring.",
+    note: "Observed vertical hairline crack extending 20cm. Requires monitoring.",
     severity: "Low",
     status: "Open",
     location: "Basement Level 2",
-    photoUrl: "https://images.unsplash.com/photo-1584467541268-b040f83be3fd?auto=format&fit=crop&q=80&w=300",
-  },
-  {
-    id: "i2",
-    reportId: "r1",
-    title: "Water Seepage near Elevator Shaft",
-    description: "Active water leak detected after heavy rainfall. Potential membrane failure.",
-    severity: "High",
-    status: "Open",
-    location: "Roof Access",
-    photoUrl: "https://images.unsplash.com/photo-1621255530704-58a5996b1b5e?auto=format&fit=crop&q=80&w=300",
+    responsibleEngineer: "Jane Engineer",
+    images: ["https://images.unsplash.com/photo-1584467541268-b040f83be3fd?auto=format&fit=crop&q=80&w=300"],
   },
 ];
 

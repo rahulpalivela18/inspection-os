@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Search, MapPin, Calendar, ArrowRight, FolderKanban } from "lucide-react";
+import { Plus, Search, MapPin, Calendar, ArrowRight, FolderKanban, Image as ImageIcon } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { formatDistanceToNow } from "date-fns";
 
@@ -23,6 +23,7 @@ export default function Dashboard() {
     clientName: "",
     address: "",
     description: "",
+    logoUrl: "",
   });
 
   const handleCreateProject = () => {
@@ -30,7 +31,7 @@ export default function Dashboard() {
     
     addProject(newProject);
     setIsDialogOpen(false);
-    setNewProject({ title: "", clientName: "", address: "", description: "" });
+    setNewProject({ title: "", clientName: "", address: "", description: "", logoUrl: "" });
   };
 
   const filteredProjects = projects.filter(p => 
@@ -91,6 +92,19 @@ export default function Dashboard() {
                   />
                 </div>
                 <div className="grid gap-2">
+                  <Label htmlFor="logoUrl">Client Logo URL</Label>
+                  <div className="relative">
+                    <ImageIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input 
+                      id="logoUrl" 
+                      className="pl-9"
+                      placeholder="https://..." 
+                      value={newProject.logoUrl}
+                      onChange={(e) => setNewProject({...newProject, logoUrl: e.target.value})}
+                    />
+                  </div>
+                </div>
+                <div className="grid gap-2">
                   <Label htmlFor="description">Description</Label>
                   <Textarea 
                     id="description" 
@@ -133,7 +147,7 @@ export default function Dashboard() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredProjects.map((project) => (
+            {filteredProjects.map((project: any) => (
               <Card 
                 key={project.id} 
                 className="group hover:shadow-md transition-all duration-300 border-border/60 hover:border-primary/50 cursor-pointer overflow-hidden relative"
@@ -145,6 +159,11 @@ export default function Dashboard() {
                     <CardTitle className="line-clamp-1 text-xl group-hover:text-primary transition-colors">
                       {project.title}
                     </CardTitle>
+                    {project.logoUrl && (
+                      <div className="w-8 h-8 rounded border bg-white overflow-hidden shrink-0">
+                        <img src={project.logoUrl} alt="Logo" className="w-full h-full object-contain" />
+                      </div>
+                    )}
                   </div>
                   <CardDescription className="flex items-center gap-1 mt-1">
                     <MapPin className="h-3 w-3" /> {project.address}
