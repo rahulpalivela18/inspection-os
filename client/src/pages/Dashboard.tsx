@@ -41,18 +41,18 @@ export default function Dashboard() {
 
   return (
     <Layout>
-      <div className="p-8 max-w-7xl mx-auto space-y-8">
+      <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-6 md:space-y-8">
         
         {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight text-foreground">Projects</h1>
-            <p className="text-muted-foreground mt-1">Manage your inspections and client reports.</p>
+            <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground">Projects</h1>
+            <p className="text-sm text-muted-foreground mt-1">Manage your inspections and client reports.</p>
           </div>
           
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
-              <Button size="lg" className="shadow-lg shadow-primary/20 transition-all hover:scale-[1.02]">
+              <Button size="lg" className="w-full sm:w-auto shadow-lg shadow-primary/20 transition-all hover:scale-[1.02]">
                 <Plus className="mr-2 h-4 w-4" /> New Project
               </Button>
             </DialogTrigger>
@@ -123,10 +123,10 @@ export default function Dashboard() {
         </div>
 
         {/* Search & Filter */}
-        <div className="relative">
+        <div className="relative w-full sm:max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input 
-            className="pl-10 max-w-md bg-white" 
+            className="pl-10 bg-white w-full" 
             placeholder="Search projects..." 
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}

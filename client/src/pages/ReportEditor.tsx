@@ -129,28 +129,28 @@ export default function ReportEditor() {
     <Layout>
       <div className="flex h-screen flex-col bg-background">
         {/* Header Toolbar */}
-        <div className="border-b border-border bg-white px-6 py-4 flex items-center justify-between shrink-0 z-10">
-          <div className="flex items-center gap-4">
+        <div className="border-b border-border bg-white px-4 md:px-6 py-4 flex flex-col sm:flex-row items-start sm:items-center justify-between shrink-0 gap-4 z-10">
+          <div className="flex items-center gap-3 md:gap-4 w-full sm:w-auto">
             <Link href={`/project/${report.projectId}`}>
-              <Button variant="ghost" size="icon" className="text-muted-foreground">
+              <Button variant="ghost" size="icon" className="text-muted-foreground shrink-0">
                 <ArrowLeft className="h-5 w-5" />
               </Button>
             </Link>
-            <div>
-              <h1 className="text-xl font-bold text-foreground flex items-center gap-2">
-                <FileText className="h-5 w-5 text-primary" />
+            <div className="min-w-0">
+              <h1 className="text-lg md:text-xl font-bold text-foreground flex items-center gap-2 truncate">
+                <FileText className="h-5 w-5 text-primary shrink-0" />
                 {report.title}
               </h1>
               <p className="text-xs text-muted-foreground">{issues.length} Issues • {report.status}</p>
             </div>
           </div>
           
-          <div className="flex items-center gap-2">
-            <div className="bg-muted p-1 rounded-lg flex items-center mr-4">
+          <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-end">
+            <div className="bg-muted p-1 rounded-lg flex items-center">
               <button 
                 onClick={() => setViewMode("edit")}
                 className={cn(
-                  "px-3 py-1.5 text-sm font-medium rounded-md transition-all",
+                  "px-3 py-1.5 text-xs md:text-sm font-medium rounded-md transition-all",
                   viewMode === "edit" ? "bg-white text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
                 )}
               >
@@ -159,7 +159,7 @@ export default function ReportEditor() {
               <button 
                 onClick={() => setViewMode("preview")}
                 className={cn(
-                  "px-3 py-1.5 text-sm font-medium rounded-md transition-all",
+                  "px-3 py-1.5 text-xs md:text-sm font-medium rounded-md transition-all",
                   viewMode === "preview" ? "bg-white text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
                 )}
               >
@@ -167,22 +167,24 @@ export default function ReportEditor() {
               </button>
             </div>
             
-            <Button variant="outline" onClick={() => handlePrint()}>
-              <Printer className="mr-2 h-4 w-4" /> Export PDF
-            </Button>
-            <Button onClick={openNewIssueSheet} disabled={viewMode === "preview"}>
-              <Plus className="mr-2 h-4 w-4" /> Add Issue
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" onClick={() => handlePrint()} className="h-9 md:h-10">
+                <Printer className="mr-2 h-4 w-4" /> <span className="hidden md:inline">Export PDF</span><span className="md:hidden">Export</span>
+              </Button>
+              <Button size="sm" onClick={openNewIssueSheet} disabled={viewMode === "preview"} className="h-9 md:h-10">
+                <Plus className="mr-2 h-4 w-4" /> <span className="hidden md:inline">Add Issue</span><span className="md:hidden">Add</span>
+              </Button>
+            </div>
           </div>
         </div>
 
         {/* Content Area */}
         <div className="flex-1 overflow-hidden bg-muted/10">
           {viewMode === "edit" ? (
-            <div className="h-full p-8 overflow-y-auto">
-              <div className="max-w-5xl mx-auto space-y-6">
+            <div className="h-full p-4 md:p-8 overflow-y-auto">
+              <div className="max-w-5xl mx-auto space-y-4 md:space-y-6">
                 {issues.length === 0 ? (
-                   <div className="flex flex-col items-center justify-center py-20 text-center border-2 border-dashed border-border rounded-xl bg-white/50">
+                   <div className="flex flex-col items-center justify-center py-12 md:py-20 text-center border-2 border-dashed border-border rounded-xl bg-white/50 px-4">
                    <div className="bg-muted p-4 rounded-full mb-4">
                      <AlertTriangle className="h-8 w-8 text-muted-foreground" />
                    </div>
@@ -197,19 +199,19 @@ export default function ReportEditor() {
                     {issues.map((issue) => (
                       <Card key={issue.id} className="group overflow-hidden border-border hover:border-primary/50 transition-all hover:shadow-sm bg-white">
                         <div className="flex flex-col md:flex-row">
-                          <div className="flex-1 p-6">
+                          <div className="flex-1 p-4 md:p-6">
                             <div className="flex items-start justify-between mb-2">
-                              <div className="flex items-center gap-2">
+                              <div className="flex flex-wrap items-center gap-2">
                                 <Badge variant="outline" className={cn("rounded-sm font-semibold", getSeverityColor(issue.severity))}>
                                   {issue.severity}
                                 </Badge>
-                                <h3 className="font-semibold text-lg">{issue.title}</h3>
+                                <h3 className="font-semibold text-base md:text-lg">{issue.title}</h3>
                               </div>
-                              <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <Button variant="ghost" size="sm" onClick={() => openEditIssueSheet(issue)}>
+                              <div className="flex items-center gap-1 md:gap-2 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity">
+                                <Button variant="ghost" size="sm" className="h-8 px-2 md:px-3" onClick={() => openEditIssueSheet(issue)}>
                                   Edit
                                 </Button>
-                                <Button variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10" onClick={() => deleteIssue(issue.id)}>
+                                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:bg-destructive/10" onClick={() => deleteIssue(issue.id)}>
                                   <Trash2 className="h-4 w-4" />
                                 </Button>
                               </div>
@@ -219,14 +221,14 @@ export default function ReportEditor() {
                               {issue.note}
                             </p>
                             
-                            <div className="flex flex-wrap items-center gap-4 text-xs font-medium text-muted-foreground">
-                              <span className="bg-secondary px-2 py-1 rounded text-secondary-foreground">
+                            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs font-medium text-muted-foreground">
+                              <span className="bg-secondary px-2 py-1 rounded text-secondary-foreground shrink-0">
                                 {issue.location}
                               </span>
-                              <span className="flex items-center gap-1">
+                              <span className="flex items-center gap-1 shrink-0">
                                 <User className="h-3 w-3" /> {issue.responsibleEngineer}
                               </span>
-                              <span className="flex items-center gap-1">
+                              <span className="flex items-center gap-1 shrink-0">
                                 {issue.status === "Open" ? <Circle className="h-3 w-3 fill-orange-500 text-orange-500" /> : <CheckCircle2 className="h-3 w-3 fill-green-500 text-green-500" />}
                                 {issue.status}
                               </span>
@@ -234,9 +236,9 @@ export default function ReportEditor() {
                           </div>
                           
                           {issue.images && issue.images.length > 0 && (
-                            <div className="w-full md:w-64 flex gap-1 p-2 bg-slate-50 border-l">
+                            <div className="w-full md:w-64 flex gap-1 p-2 bg-slate-50 border-t md:border-t-0 md:border-l overflow-x-auto">
                               {issue.images.map((img, idx) => (
-                                <div key={idx} className="flex-1 h-24 md:h-32 bg-white border border-slate-200 rounded overflow-hidden flex items-center justify-center p-1">
+                                <div key={idx} className="flex-shrink-0 w-24 md:flex-1 h-24 md:h-32 bg-white border border-slate-200 rounded overflow-hidden flex items-center justify-center p-1">
                                   <img src={img} alt="Issue" className="max-w-full max-h-full object-contain" />
                                 </div>
                               ))}
@@ -250,8 +252,11 @@ export default function ReportEditor() {
               </div>
             </div>
           ) : (
-            <div className="h-full overflow-y-auto p-8 bg-slate-200/50 flex justify-center">
-              <div ref={componentRef} className="bg-white shadow-xl w-full max-w-[210mm] min-h-[297mm] p-0 print:shadow-none">
+            <div className="h-full overflow-y-auto p-4 md:p-8 bg-slate-200/50 flex justify-center">
+              <div ref={componentRef} className="bg-white shadow-xl w-full max-w-[210mm] min-h-[297mm] p-0 print:shadow-none origin-top transition-transform sm:scale-100">
+                <div className="sm:hidden text-center py-4 bg-amber-50 text-amber-800 text-xs font-medium border-b border-amber-100">
+                  Note: Preview layout is optimized for Desktop/A4 Print.
+                </div>
                 {project && <ReportPreview report={report} project={project} issues={issues} />}
               </div>
             </div>

@@ -62,24 +62,24 @@ export default function ProjectDetails() {
     <Layout>
       <div className="flex flex-col min-h-full">
         {/* Project Header */}
-        <div className="bg-white border-b border-border py-8 px-8">
+        <div className="bg-white border-b border-border py-6 md:py-8 px-4 md:px-8">
           <div className="max-w-7xl mx-auto">
             <Link href="/" className="inline-flex items-center text-sm text-muted-foreground hover:text-primary mb-4 transition-colors">
               <ArrowLeft className="mr-1 h-4 w-4" /> Back to Projects
             </Link>
-            <div className="flex flex-col md:flex-row md:items-start justify-between gap-6">
+            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-6">
               <div>
-                <h1 className="text-3xl font-bold tracking-tight text-foreground">{project.title}</h1>
-                <div className="flex flex-wrap items-center gap-4 mt-2 text-muted-foreground text-sm">
-                  <span className="flex items-center gap-1"><User className="h-4 w-4" /> {project.clientName}</span>
-                  <span className="w-1 h-1 rounded-full bg-slate-300"></span>
-                  <span>{project.address}</span>
+                <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground">{project.title}</h1>
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mt-2 text-muted-foreground text-sm">
+                  <span className="flex items-center gap-1 shrink-0"><User className="h-4 w-4" /> {project.clientName}</span>
+                  <span className="hidden sm:block w-1 h-1 rounded-full bg-slate-300"></span>
+                  <span className="shrink-0">{project.address}</span>
                 </div>
               </div>
               
               <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                 <DialogTrigger asChild>
-                  <Button size="lg" className="shadow-lg shadow-primary/20">
+                  <Button size="lg" className="w-full sm:w-auto shadow-lg shadow-primary/20">
                     <Plus className="mr-2 h-4 w-4" /> New Report
                   </Button>
                 </DialogTrigger>
