@@ -146,14 +146,14 @@ export default function ProjectDetails() {
         </div>
 
         {/* Reports List */}
-        <div className="flex-1 bg-muted/10 p-8">
+        <div className="flex-1 bg-muted/10 p-4 md:p-8">
           <div className="max-w-7xl mx-auto">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-semibold">Reports ({reports.length})</h2>
+              <h2 className="text-lg md:text-xl font-semibold">Reports ({reports.length})</h2>
             </div>
 
             {reports.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-16 text-center border-2 border-dashed border-border rounded-xl bg-white">
+              <div className="flex flex-col items-center justify-center py-12 md:py-16 text-center border-2 border-dashed border-border rounded-xl bg-white px-4">
                 <div className="bg-muted p-4 rounded-full mb-4">
                   <FileText className="h-8 w-8 text-muted-foreground" />
                 </div>
@@ -164,28 +164,28 @@ export default function ProjectDetails() {
                 <Button variant="outline" onClick={() => setIsDialogOpen(true)}>Create Report</Button>
               </div>
             ) : (
-              <div className="grid grid-cols-1 gap-4">
+              <div className="grid grid-cols-1 gap-3 md:gap-4">
                 {reports.map((report) => (
                   <Card 
                     key={report.id} 
                     className="hover:shadow-md transition-shadow cursor-pointer group"
                     onClick={() => setLocation(`/report/${report.id}`)}
                   >
-                    <div className="flex flex-col md:flex-row md:items-center p-6 gap-4">
-                      <div className="flex-shrink-0 bg-primary/10 p-3 rounded-lg text-primary">
-                        <FileText className="h-6 w-6" />
+                    <div className="flex flex-col md:flex-row md:items-center p-4 md:p-6 gap-3 md:gap-4">
+                      <div className="flex-shrink-0 bg-primary/10 p-2 md:p-3 rounded-lg text-primary w-fit md:w-auto">
+                        <FileText className="h-5 w-5 md:h-6 md:w-6" />
                       </div>
                       
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-3 mb-1">
-                          <h3 className="text-lg font-semibold truncate group-hover:text-primary transition-colors">
+                        <div className="flex flex-wrap items-center gap-2 md:gap-3 mb-1">
+                          <h3 className="text-base md:text-lg font-semibold truncate group-hover:text-primary transition-colors">
                             {report.title}
                           </h3>
-                          <Badge variant="outline" className={`${getStatusColor(report.status)} border-0 font-medium`}>
+                          <Badge variant="outline" className={`${getStatusColor(report.status)} border-0 font-medium text-[10px] md:text-xs`}>
                             {report.status}
                           </Badge>
                         </div>
-                        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] md:text-sm text-muted-foreground">
                           <span className="flex items-center gap-1">
                             <User className="h-3 w-3" /> {report.author}
                           </span>
@@ -193,14 +193,14 @@ export default function ProjectDetails() {
                             <Calendar className="h-3 w-3" /> {report.date}
                           </span>
                           <span className="flex items-center gap-1">
-                            <Clock className="h-3 w-3" /> Created {format(new Date(report.createdAt), "MMM d, yyyy")}
+                            <Clock className="h-3 w-3" /> <span className="hidden xs:inline">Created </span>{format(new Date(report.createdAt), "MMM d")}
                           </span>
                         </div>
                       </div>
 
-                      <div className="flex-shrink-0 flex items-center">
-                        <Button variant="ghost" className="group-hover:translate-x-1 transition-transform">
-                          Open Report <ArrowRight className="ml-2 h-4 w-4" />
+                      <div className="flex-shrink-0 flex items-center md:border-l md:pl-4 mt-2 md:mt-0 pt-2 md:pt-0 border-t md:border-t-0">
+                        <Button variant="ghost" size="sm" className="group-hover:translate-x-1 transition-transform w-full md:w-auto justify-between md:justify-start">
+                          Open <ArrowRight className="ml-2 h-4 w-4" />
                         </Button>
                       </div>
                     </div>

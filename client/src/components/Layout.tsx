@@ -41,6 +41,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           return (
             <Link key={item.name} href={item.href}>
               <div
+                onClick={() => setIsMobileOpen(false)}
                 className={cn(
                   "flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-all duration-200 cursor-pointer",
                   isActive
@@ -69,29 +70,37 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   );
 
   return (
-    <div className="flex h-screen w-full bg-background overflow-hidden">
+    <div className="flex h-screen w-full bg-background overflow-hidden relative">
       {/* Desktop Sidebar */}
       <div className="hidden md:block w-64 h-full shrink-0">
         <SidebarContent />
       </div>
 
-      {/* Mobile Sidebar */}
-      <div className="md:hidden fixed top-4 left-4 z-50">
+      {/* Mobile Header */}
+      <div className="md:hidden fixed top-0 left-0 right-0 h-14 bg-background border-b border-sidebar-border px-4 flex items-center justify-between z-40">
+        <div className="flex items-center gap-2 font-heading font-bold text-lg text-primary">
+          <div className="w-6 h-6 rounded bg-primary flex items-center justify-center text-primary-foreground text-[10px]">
+            R
+          </div>
+          ReportGen
+        </div>
         <Sheet open={isMobileOpen} onOpenChange={setIsMobileOpen}>
           <SheetTrigger asChild>
-            <Button variant="outline" size="icon" className="shadow-md">
+            <Button variant="ghost" size="icon" className="h-9 w-9">
               <Menu className="h-5 w-5" />
             </Button>
           </SheetTrigger>
-          <SheetContent side="left" className="p-0 w-64 border-r-0">
+          <SheetContent side="left" className="p-0 w-[280px] border-r-0">
             <SidebarContent />
           </SheetContent>
         </Sheet>
       </div>
 
       {/* Main Content */}
-      <main className="flex-1 h-full overflow-y-auto w-full p-4 md:p-0">
-        {children}
+      <main className="flex-1 h-full overflow-y-auto w-full pt-14 md:pt-0">
+        <div className="min-h-full">
+          {children}
+        </div>
       </main>
     </div>
   );

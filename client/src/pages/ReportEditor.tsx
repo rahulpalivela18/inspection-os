@@ -129,28 +129,28 @@ export default function ReportEditor() {
     <Layout>
       <div className="flex h-screen flex-col bg-background">
         {/* Header Toolbar */}
-        <div className="border-b border-border bg-white px-4 md:px-6 py-4 flex flex-col sm:flex-row items-start sm:items-center justify-between shrink-0 gap-4 z-10">
-          <div className="flex items-center gap-3 md:gap-4 w-full sm:w-auto">
+        <div className="border-b border-border bg-white px-4 md:px-6 py-3 flex flex-col sm:flex-row items-start sm:items-center justify-between shrink-0 gap-3 z-10">
+          <div className="flex items-center gap-2 md:gap-4 w-full sm:w-auto">
             <Link href={`/project/${report.projectId}`}>
-              <Button variant="ghost" size="icon" className="text-muted-foreground shrink-0">
-                <ArrowLeft className="h-5 w-5" />
+              <Button variant="ghost" size="icon" className="text-muted-foreground shrink-0 h-8 w-8">
+                <ArrowLeft className="h-4 w-4" />
               </Button>
             </Link>
             <div className="min-w-0">
-              <h1 className="text-lg md:text-xl font-bold text-foreground flex items-center gap-2 truncate">
-                <FileText className="h-5 w-5 text-primary shrink-0" />
+              <h1 className="text-base md:text-xl font-bold text-foreground flex items-center gap-2 truncate">
+                <FileText className="h-4 w-4 text-primary shrink-0" />
                 {report.title}
               </h1>
-              <p className="text-xs text-muted-foreground">{issues.length} Issues • {report.status}</p>
+              <p className="text-[10px] md:text-xs text-muted-foreground">{issues.length} Issues • {report.status}</p>
             </div>
           </div>
           
-          <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-end">
-            <div className="bg-muted p-1 rounded-lg flex items-center">
+          <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
+            <div className="bg-muted p-1 rounded-lg flex items-center shrink-0">
               <button 
                 onClick={() => setViewMode("edit")}
                 className={cn(
-                  "px-3 py-1.5 text-xs md:text-sm font-medium rounded-md transition-all",
+                  "px-2 md:px-3 py-1 text-[10px] md:text-sm font-medium rounded-md transition-all",
                   viewMode === "edit" ? "bg-white text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
                 )}
               >
@@ -159,7 +159,7 @@ export default function ReportEditor() {
               <button 
                 onClick={() => setViewMode("preview")}
                 className={cn(
-                  "px-3 py-1.5 text-xs md:text-sm font-medium rounded-md transition-all",
+                  "px-2 md:px-3 py-1 text-[10px] md:text-sm font-medium rounded-md transition-all",
                   viewMode === "preview" ? "bg-white text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
                 )}
               >
@@ -167,12 +167,12 @@ export default function ReportEditor() {
               </button>
             </div>
             
-            <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" onClick={() => handlePrint()} className="h-9 md:h-10">
-                <Printer className="mr-2 h-4 w-4" /> <span className="hidden md:inline">Export PDF</span><span className="md:hidden">Export</span>
+            <div className="flex items-center gap-1 md:gap-2">
+              <Button variant="outline" size="sm" onClick={() => handlePrint()} className="h-8 md:h-10 text-[10px] md:text-sm px-2 md:px-3">
+                <Printer className="mr-1 md:mr-2 h-3 w-3 md:h-4 md:w-4" /> <span className="hidden xs:inline md:inline">Export</span><span className="xs:hidden">PDF</span>
               </Button>
-              <Button size="sm" onClick={openNewIssueSheet} disabled={viewMode === "preview"} className="h-9 md:h-10">
-                <Plus className="mr-2 h-4 w-4" /> <span className="hidden md:inline">Add Issue</span><span className="md:hidden">Add</span>
+              <Button size="sm" onClick={openNewIssueSheet} disabled={viewMode === "preview"} className="h-8 md:h-10 text-[10px] md:text-sm px-2 md:px-3">
+                <Plus className="mr-1 md:mr-2 h-3 w-3 md:h-4 md:w-4" /> <span className="hidden xs:inline md:inline">Issue</span><span className="xs:hidden">Add</span>
               </Button>
             </div>
           </div>
