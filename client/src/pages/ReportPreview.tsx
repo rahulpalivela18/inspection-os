@@ -74,95 +74,97 @@ export default function ReportPreview({ report, project, issues }: ReportPreview
         </div>
       </div>
 
-      {/* Findings Pages */}
-      <div className="p-6 md:p-[15mm] bg-white min-h-[297mm]">
-        <div className="border-b-2 border-slate-900 pb-4 mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
-          <h2 className="text-xl md:text-2xl font-black uppercase tracking-tight">Inspection Findings</h2>
-          <span className="text-slate-400 text-[10px] font-bold uppercase tracking-widest">Section 01 / Technical Observations</span>
-        </div>
-        
-        <div className="space-y-8 md:space-y-12">
-          {issues.map((issue, index) => (
-            <div key={issue.id} className="break-inside-avoid border border-slate-100 rounded-2xl overflow-hidden shadow-sm bg-white mb-8">
-              <div className="bg-slate-50 p-4 border-b border-slate-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                <div className="flex items-center gap-4">
-                  <span className="bg-slate-900 text-white w-7 h-7 md:w-8 md:h-8 rounded-full flex items-center justify-center text-xs md:text-sm font-black shrink-0">
-                    {index + 1}
-                  </span>
-                  <h3 className="font-bold text-lg md:text-xl tracking-tight text-slate-900">{issue.title}</h3>
+      {/* Findings Section */}
+      <div className="flex flex-col min-h-[297mm]">
+        <div className="p-6 md:p-[15mm] bg-white flex-1">
+          <div className="border-b-2 border-slate-900 pb-4 mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
+            <h2 className="text-xl md:text-2xl font-black uppercase tracking-tight">Inspection Findings</h2>
+            <span className="text-slate-400 text-[10px] font-bold uppercase tracking-widest">Section 01 / Technical Observations</span>
+          </div>
+          
+          <div className="space-y-8 md:space-y-12">
+            {issues.map((issue, index) => (
+              <div key={issue.id} className="break-inside-avoid border border-slate-100 rounded-2xl overflow-hidden shadow-sm bg-white mb-8">
+                <div className="bg-slate-50 p-4 border-b border-slate-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                  <div className="flex items-center gap-4">
+                    <span className="bg-slate-900 text-white w-7 h-7 md:w-8 md:h-8 rounded-full flex items-center justify-center text-xs md:text-sm font-black shrink-0">
+                      {index + 1}
+                    </span>
+                    <h3 className="font-bold text-lg md:text-xl tracking-tight text-slate-900">{issue.title}</h3>
+                  </div>
+                  <div className="flex gap-2">
+                    <span className={cn(
+                      "px-2 md:px-3 py-1 rounded-full text-[9px] md:text-[10px] font-black uppercase tracking-wider border shadow-sm",
+                      issue.severity === "Critical" ? "bg-red-500 text-white border-red-600" :
+                      issue.severity === "High" ? "bg-orange-500 text-white border-orange-600" :
+                      issue.severity === "Medium" ? "bg-amber-100 text-amber-800 border-amber-200" :
+                      "bg-slate-100 text-slate-800 border-slate-200"
+                    )}>
+                      {issue.severity}
+                    </span>
+                  </div>
                 </div>
-                <div className="flex gap-2">
-                  <span className={cn(
-                    "px-2 md:px-3 py-1 rounded-full text-[9px] md:text-[10px] font-black uppercase tracking-wider border shadow-sm",
-                    issue.severity === "Critical" ? "bg-red-500 text-white border-red-600" :
-                    issue.severity === "High" ? "bg-orange-500 text-white border-orange-600" :
-                    issue.severity === "Medium" ? "bg-amber-100 text-amber-800 border-amber-200" :
-                    "bg-slate-100 text-slate-800 border-slate-200"
-                  )}>
-                    {issue.severity}
-                  </span>
-                </div>
-              </div>
-              
-              <div className="p-4 md:p-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
-                  <div className="space-y-6">
-                    <div>
-                      <h4 className="text-[9px] md:text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Observations & Notes</h4>
-                      <p className="text-sm md:text-base text-slate-700 leading-relaxed font-medium whitespace-pre-wrap">{issue.note}</p>
+                
+                <div className="p-4 md:p-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
+                    <div className="space-y-6">
+                      <div>
+                        <h4 className="text-[9px] md:text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Observations & Notes</h4>
+                        <p className="text-sm md:text-base text-slate-700 leading-relaxed font-medium whitespace-pre-wrap">{issue.note}</p>
+                      </div>
+                      
+                      <div className="grid grid-cols-2 gap-4 pt-4 border-t border-slate-100">
+                        <div>
+                          <h4 className="text-[9px] md:text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Location</h4>
+                          <p className="text-xs md:text-sm font-bold text-indigo-600">{issue.location}</p>
+                        </div>
+                        <div>
+                          <h4 className="text-[9px] md:text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Responsible</h4>
+                          <p className="text-xs md:text-sm font-bold">{issue.responsibleEngineer}</p>
+                        </div>
+                      </div>
                     </div>
                     
-                    <div className="grid grid-cols-2 gap-4 pt-4 border-t border-slate-100">
-                      <div>
-                        <h4 className="text-[9px] md:text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Location</h4>
-                        <p className="text-xs md:text-sm font-bold text-indigo-600">{issue.location}</p>
+                    <div className="space-y-3">
+                      <h4 className="text-[9px] md:text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Visual Evidence</h4>
+                      <div className={cn(
+                        "grid gap-3",
+                        issue.images?.length === 1 ? "grid-cols-1" : "grid-cols-2"
+                      )}>
+                        {issue.images?.map((img, idx) => (
+                          <div key={idx} className={cn(
+                            "bg-slate-50 border border-slate-200 rounded-xl overflow-hidden shadow-sm flex items-center justify-center p-2",
+                            issue.images.length === 1 ? "aspect-video" : (idx === 0 && issue.images.length === 3 ? "col-span-2 aspect-[16/9]" : "aspect-square")
+                          )}>
+                            <img 
+                              src={img} 
+                              className="max-w-full max-h-full object-contain" 
+                              alt={`Finding ${idx + 1}`} 
+                            />
+                          </div>
+                        ))}
                       </div>
-                      <div>
-                        <h4 className="text-[9px] md:text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Responsible</h4>
-                        <p className="text-xs md:text-sm font-bold">{issue.responsibleEngineer}</p>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-3">
-                    <h4 className="text-[9px] md:text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Visual Evidence</h4>
-                    <div className={cn(
-                      "grid gap-3",
-                      issue.images?.length === 1 ? "grid-cols-1" : "grid-cols-2"
-                    )}>
-                      {issue.images?.map((img, idx) => (
-                        <div key={idx} className={cn(
-                          "bg-slate-50 border border-slate-200 rounded-xl overflow-hidden shadow-sm flex items-center justify-center p-2",
-                          idx === 0 && issue.images.length === 3 ? "col-span-2 aspect-[16/9]" : "aspect-square"
-                        )}>
-                          <img 
-                            src={img} 
-                            className="max-w-full max-h-full object-contain" 
-                            alt={`Finding ${idx + 1}`} 
-                          />
-                        </div>
-                      ))}
                     </div>
                   </div>
                 </div>
               </div>
-            </div>
-          ))}
+            ))}
 
-          {issues.length === 0 && (
-            <div className="text-center py-20 border-2 border-dashed border-slate-100 rounded-3xl bg-slate-50/50">
-              <p className="text-slate-300 font-bold italic">No findings documented in this section.</p>
-            </div>
-          )}
+            {issues.length === 0 && (
+              <div className="text-center py-20 border-2 border-dashed border-slate-100 rounded-3xl bg-slate-50/50">
+                <p className="text-slate-300 font-bold italic">No findings documented in this section.</p>
+              </div>
+            )}
+          </div>
         </div>
-      </div>
 
-      {/* Summary Footer */}
-      <div className="p-6 md:p-[15mm] text-center border-t border-slate-100 mt-auto bg-white">
-        <div className="flex flex-col md:flex-row justify-between items-center text-slate-400 text-[9px] md:text-[10px] font-bold uppercase tracking-widest gap-2">
-          <span>End of Report</span>
-          <span>ReportGen System v1.0</span>
-          <span>© {new Date().getFullYear()}</span>
+        {/* Summary Footer */}
+        <div className="p-6 md:p-[15mm] text-center border-t border-slate-100 bg-white">
+          <div className="flex flex-col md:flex-row justify-between items-center text-slate-400 text-[9px] md:text-[10px] font-bold uppercase tracking-widest gap-2">
+            <span>End of Report</span>
+            <span>ReportGen System v1.0</span>
+            <span>© {new Date().getFullYear()}</span>
+          </div>
         </div>
       </div>
     </div>
