@@ -18,8 +18,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const [isMobileOpen, setIsMobileOpen] = useState(false);
 
   const navigation = [
-    { name: "Dashboard", href: "/", icon: LayoutDashboard },
-    { name: "Projects", href: "/", icon: FolderOpen }, // Currently same as dashboard for prototype
+    { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+    { name: "Projects", href: "/dashboard", icon: FolderOpen }, // Currently same as dashboard for prototype
     { name: "Templates", href: "#", icon: FileText },
     { name: "Settings", href: "#", icon: Settings },
   ];

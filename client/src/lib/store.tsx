@@ -79,7 +79,9 @@ type StoreContextType = {
   reports: Report[];
   issues: Issue[];
   addProject: (project: Omit<Project, "id" | "createdAt">) => void;
+  updateProject: (project: Project) => void;
   addReport: (report: Omit<Report, "id" | "createdAt">) => void;
+  updateReport: (report: Report) => void;
   addIssue: (issue: Omit<Issue, "id">) => void;
   updateIssue: (issue: Issue) => void;
   deleteIssue: (id: string) => void;
@@ -105,6 +107,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setProjects([newProject, ...projects]);
   };
 
+  const updateProject = (updatedProject: Project) => {
+    setProjects(projects.map(p => p.id === updatedProject.id ? updatedProject : p));
+  };
+
   const addReport = (report: Omit<Report, "id" | "createdAt">) => {
     const newReport = {
       ...report,
@@ -112,6 +118,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       createdAt: new Date().toISOString(),
     };
     setReports([newReport, ...reports]);
+  };
+
+  const updateReport = (updatedReport: Report) => {
+    setReports(reports.map(r => r.id === updatedReport.id ? updatedReport : r));
   };
 
   const addIssue = (issue: Omit<Issue, "id">) => {
@@ -142,7 +152,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         reports,
         issues,
         addProject,
+        updateProject,
         addReport,
+        updateReport,
         addIssue,
         updateIssue,
         deleteIssue,

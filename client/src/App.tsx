@@ -7,12 +7,14 @@ import { StoreProvider } from "@/lib/store";
 import Dashboard from "@/pages/Dashboard";
 import ProjectDetails from "@/pages/ProjectDetails";
 import ReportEditor from "@/pages/ReportEditor";
+import LandingPage from "@/pages/LandingPage";
 import NotFound from "@/pages/not-found";
 
 function Router() {
   return (
     <Switch>
-      <Route path="/" component={Dashboard} />
+      <Route path="/" component={LandingPage} />
+      <Route path="/dashboard" component={Dashboard} />
       <Route path="/project/:id" component={ProjectDetails} />
       <Route path="/report/:id" component={ReportEditor} />
       <Route component={NotFound} />

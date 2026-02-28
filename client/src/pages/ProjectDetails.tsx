@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Plus, FileText, Calendar, ArrowLeft, ArrowRight, Clock, User } from "lucide-react";
+import { Plus, FileText, Calendar, ArrowLeft, ArrowRight, Clock, User, Settings } from "lucide-react";
 import { Link, useRoute, useLocation } from "wouter";
 import { format } from "date-fns";
 import NotFound from "./not-found";
@@ -16,9 +16,14 @@ import NotFound from "./not-found";
 export default function ProjectDetails() {
   const [match, params] = useRoute("/project/:id");
   const [, setLocation] = useLocation();
-  const { getProject, getProjectReports, addReport } = useStore();
+  const { getProject, getProjectReports, addReport, updateProject, updateReport } = useStore();
   
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isEditProjectOpen, setIsEditProjectOpen] = useState(false);
+  const [isEditReportOpen, setIsEditReportOpen] = useState(false);
+  const [editingReport, setEditingReport] = useState<any>(null);
+
+  const [editProjectData, setEditProjectData] = useState<any>(null);
   const [newReport, setNewReport] = useState({
     title: "",
     author: "",
@@ -32,22 +37,34 @@ export default function ProjectDetails() {
   
   if (!project) return <NotFound />;
 
+  if (!editProjectData && project) {
+    setEditProjectData({
+      title: project.title,
+      clientName: project.clientName,
+      address: project.address,
+      description: project.description,
+      logoUrl: project.logoUrl || "",
+    });
+  }
+
   const reports = getProjectReports(project.id);
 
-  const handleCreateReport = () => {
-    if (!newReport.title || !newReport.author) return;
-    
-    addReport({
-      ...newReport,
-      projectId: project.id,
-    });
-    setIsDialogOpen(false);
-    setNewReport({ 
-      title: "", 
-      author: "", 
-      status: "Draft", 
-      date: format(new Date(), "yyyy-MM-dd") 
-    });
+  const handleUpdateProject = () => {
+    if (!editProjectData.title) return;
+    updateProject({ ...project, ...editProjectData });
+    setIsEditProjectOpen(false);
+  };
+
+  const openEditReport = (report: any, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditingReport(report);
+    setIsEditReportOpen(true);
+  };
+
+  const handleUpdateReport = () => {
+    if (!editingReport.title) return;
+    updateReport(editingReport);
+    setIsEditReportOpen(false);
   };
 
   const getStatusColor = (status: string) => {
@@ -64,20 +81,34 @@ export default function ProjectDetails() {
         {/* Project Header */}
         <div className="bg-white border-b border-border py-6 md:py-8 px-4 md:px-8">
           <div className="max-w-7xl mx-auto">
-            <Link href="/" className="inline-flex items-center text-sm text-muted-foreground hover:text-primary mb-4 transition-colors">
+            <Link href="/dashboard" className="inline-flex items-center text-sm text-muted-foreground hover:text-primary mb-4 transition-colors">
               <ArrowLeft className="mr-1 h-4 w-4" /> Back to Projects
             </Link>
             <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-6">
-              <div>
+              <div className="flex-1">
                 <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground">{project.title}</h1>
                 <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mt-2 text-muted-foreground text-sm">
                   <span className="flex items-center gap-1 shrink-0"><User className="h-4 w-4" /> {project.clientName}</span>
                   <span className="hidden sm:block w-1 h-1 rounded-full bg-slate-300"></span>
                   <span className="shrink-0">{project.address}</span>
                 </div>
+                <Button 
+                  variant="link" 
+                  size="sm" 
+                  className="p-0 h-auto mt-4 text-primary font-semibold hover:no-underline flex items-center gap-1"
+                  onClick={() => setIsEditProjectOpen(true)}
+                >
+                  <Settings className="w-3.5 h-3.5" /> Edit Project Details
+                </Button>
               </div>
               
-              <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+              <div className="flex flex-col gap-3 shrink-0">
+                {project.logoUrl && (
+                  <div className="w-16 h-16 rounded-lg border bg-white p-2 self-end hidden sm:flex items-center justify-center overflow-hidden">
+                    <img src={project.logoUrl} alt="Client Logo" className="max-w-full max-h-full object-contain" />
+                  </div>
+                )}
+                <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                 <DialogTrigger asChild>
                   <Button size="lg" className="w-full sm:w-auto shadow-lg shadow-primary/20">
                     <Plus className="mr-2 h-4 w-4" /> New Report
@@ -198,7 +229,15 @@ export default function ProjectDetails() {
                         </div>
                       </div>
 
-                      <div className="flex-shrink-0 flex items-center md:border-l md:pl-4 mt-2 md:mt-0 pt-2 md:pt-0 border-t md:border-t-0">
+                      <div className="flex-shrink-0 flex flex-col md:flex-row items-center md:border-l md:pl-4 mt-2 md:mt-0 pt-2 md:pt-0 border-t md:border-t-0 gap-2">
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="w-full md:w-auto"
+                          onClick={(e) => openEditReport(report, e)}
+                        >
+                          Edit
+                        </Button>
                         <Button variant="ghost" size="sm" className="group-hover:translate-x-1 transition-transform w-full md:w-auto justify-between md:justify-start">
                           Open <ArrowRight className="ml-2 h-4 w-4" />
                         </Button>
@@ -210,6 +249,109 @@ export default function ProjectDetails() {
             )}
           </div>
         </div>
+
+        {/* Edit Project Dialog */}
+        <Dialog open={isEditProjectOpen} onOpenChange={setIsEditProjectOpen}>
+          <DialogContent className="sm:max-w-[500px]">
+            <DialogHeader>
+              <DialogTitle>Edit Project Details</DialogTitle>
+              <DialogDescription>Update the project and client information.</DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid gap-2">
+                <Label htmlFor="edit-title">Project Title</Label>
+                <Input 
+                  id="edit-title" 
+                  value={editProjectData?.title || ""}
+                  onChange={(e) => setEditProjectData({...editProjectData, title: e.target.value})}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="edit-client">Client Name</Label>
+                <Input 
+                  id="edit-client" 
+                  value={editProjectData?.clientName || ""}
+                  onChange={(e) => setEditProjectData({...editProjectData, clientName: e.target.value})}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="edit-address">Address</Label>
+                <Input 
+                  id="edit-address" 
+                  value={editProjectData?.address || ""}
+                  onChange={(e) => setEditProjectData({...editProjectData, address: e.target.value})}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="edit-logo">Logo URL</Label>
+                <Input 
+                  id="edit-logo" 
+                  value={editProjectData?.logoUrl || ""}
+                  onChange={(e) => setEditProjectData({...editProjectData, logoUrl: e.target.value})}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="edit-description">Description</Label>
+                <Textarea 
+                  id="edit-description" 
+                  value={editProjectData?.description || ""}
+                  onChange={(e) => setEditProjectData({...editProjectData, description: e.target.value})}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsEditProjectOpen(false)}>Cancel</Button>
+              <Button onClick={handleUpdateProject}>Save Changes</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Edit Report Dialog */}
+        <Dialog open={isEditReportOpen} onOpenChange={setIsEditReportOpen}>
+          <DialogContent className="sm:max-w-[500px]">
+            <DialogHeader>
+              <DialogTitle>Edit Report Details</DialogTitle>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid gap-2">
+                <Label htmlFor="edit-report-title">Report Title</Label>
+                <Input 
+                  id="edit-report-title" 
+                  value={editingReport?.title || ""}
+                  onChange={(e) => setEditingReport({...editingReport, title: e.target.value})}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="edit-report-author">Author</Label>
+                <Input 
+                  id="edit-report-author" 
+                  value={editingReport?.author || ""}
+                  onChange={(e) => setEditingReport({...editingReport, author: e.target.value})}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="edit-report-status">Status</Label>
+                <Select 
+                  value={editingReport?.status || "Draft"} 
+                  onValueChange={(val: any) => setEditingReport({...editingReport, status: val})}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Draft">Draft</SelectItem>
+                    <SelectItem value="Review">Review</SelectItem>
+                    <SelectItem value="Final">Final</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsEditReportOpen(false)}>Cancel</Button>
+              <Button onClick={handleUpdateReport}>Save Changes</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </Layout>
   );
