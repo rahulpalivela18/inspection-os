@@ -25,7 +25,7 @@ export default function LandingPage() {
   };
 
   return (
-    <div className="min-h-screen bg-white selection:bg-primary/10">
+    <div className="min-h-screen bg-white selection:bg-primary/10 overflow-x-hidden">
       {/* Navigation */}
       <nav className="border-b bg-white/70 backdrop-blur-xl sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
@@ -48,17 +48,17 @@ export default function LandingPage() {
               <Button variant="ghost" className="font-medium text-slate-600">Login</Button>
             </Link>
             <Link href="/dashboard">
-              <Button className="font-semibold shadow-md">Get Started</Button>
+              <Button className="font-semibold shadow-md rounded-xl">Get Started</Button>
             </Link>
           </motion.div>
         </div>
       </nav>
 
       {/* Hero Section */}
-      <section className="relative pt-24 pb-32 overflow-hidden">
+      <section className="relative pt-24 pb-32">
         {/* Animated Background Elements */}
-        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-primary/5 rounded-full blur-[120px] -translate-y-1/2 translate-x-1/2 animate-pulse" />
-        <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-indigo-500/5 rounded-full blur-[120px] translate-y-1/2 -translate-x-1/2 animate-pulse" />
+        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-primary/5 rounded-full blur-[120px] -translate-y-1/2 translate-x-1/2 pointer-events-none" />
+        <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-indigo-500/5 rounded-full blur-[120px] translate-y-1/2 -translate-x-1/2 pointer-events-none" />
         
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative">
           <motion.div
@@ -66,7 +66,7 @@ export default function LandingPage() {
             animate={{ scale: 1, opacity: 1 }}
             transition={{ duration: 0.5 }}
           >
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-primary/10 text-primary text-xs font-bold uppercase tracking-wider mb-8 border border-primary/20">
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-primary/10 text-primary text-[10px] md:text-xs font-bold uppercase tracking-widest mb-8 border border-primary/20">
               <Zap className="w-3.5 h-3.5 fill-primary" /> The Industry Standard for Engineers
             </div>
           </motion.div>
@@ -75,7 +75,7 @@ export default function LandingPage() {
             initial={{ y: 30, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.2, duration: 0.6 }}
-            className="text-6xl md:text-8xl font-black font-heading tracking-tight text-slate-900 mb-8 leading-[1.05]"
+            className="text-5xl md:text-8xl font-black font-heading tracking-tight text-slate-900 mb-8 leading-[1.05]"
           >
             Generate <span className="bg-gradient-to-r from-primary to-indigo-600 bg-clip-text text-transparent">Professional</span> <br /> Reports Fast
           </motion.h1>
@@ -84,7 +84,7 @@ export default function LandingPage() {
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.4, duration: 0.6 }}
-            className="text-xl md:text-2xl text-slate-600 max-w-3xl mx-auto mb-12 leading-relaxed"
+            className="text-lg md:text-2xl text-slate-600 max-w-3xl mx-auto mb-12 leading-relaxed"
           >
             Stop wasting hours on manual formatting. Document findings, attach evidence, and export boardroom-ready PDF reports with our intelligent platform.
           </motion.p>
@@ -110,10 +110,10 @@ export default function LandingPage() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 1, duration: 1 }}
-            className="mt-16 flex flex-wrap items-center justify-center gap-8 text-slate-400 font-medium grayscale"
+            className="mt-16 flex flex-wrap items-center justify-center gap-8 text-slate-400 font-medium"
           >
-            <span className="flex items-center gap-1"><Users className="w-5 h-5" /> Trusted by 500+ Engineering Firms</span>
-            <span className="flex items-center gap-1"><Star className="w-5 h-5 fill-slate-400" /> 4.9/5 Average Rating</span>
+            <span className="flex items-center gap-2"><Users className="w-5 h-5" /> 500+ Engineering Firms</span>
+            <span className="flex items-center gap-2"><Star className="w-5 h-5 fill-slate-200" /> 4.9/5 Average Rating</span>
           </motion.div>
 
           <motion.div 
@@ -130,7 +130,7 @@ export default function LandingPage() {
                 className="w-full h-auto object-cover opacity-90 group-hover:opacity-100 transition-opacity duration-700"
               />
             </div>
-          </div>
+          </motion.div>
         </div>
       </section>
 
@@ -138,8 +138,8 @@ export default function LandingPage() {
       <section className="py-32 bg-slate-50 border-y">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-24">
-            <h2 className="text-4xl md:text-5xl font-bold font-heading text-slate-900 mb-6">Engineered for Efficiency</h2>
-            <p className="text-xl text-slate-600 max-w-2xl mx-auto">We built the tools we wished we had during field inspections. Everything you need, nothing you don't.</p>
+            <h2 className="text-4xl md:text-5xl font-bold font-heading text-slate-900 mb-6 tracking-tight">Engineered for Efficiency</h2>
+            <p className="text-xl text-slate-600 max-w-2xl mx-auto font-medium">We built the tools we wished we had during field inspections. Everything you need, nothing you don't.</p>
           </div>
 
           <motion.div 
@@ -172,17 +172,17 @@ export default function LandingPage() {
               <motion.div 
                 key={idx}
                 variants={itemVariants}
-                className="bg-white p-10 rounded-[2rem] shadow-sm border border-slate-100 hover:shadow-xl hover:-translate-y-2 transition-all duration-300"
+                className="bg-white p-10 rounded-[2.5rem] shadow-sm border border-slate-100 hover:shadow-2xl hover:-translate-y-2 transition-all duration-500"
               >
-                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-8 shadow-inner ${
+                <div className={`w-16 h-16 rounded-[1.25rem] flex items-center justify-center mb-8 shadow-inner ${
                   feature.color === 'indigo' ? 'bg-indigo-50 text-indigo-600' :
                   feature.color === 'amber' ? 'bg-amber-50 text-amber-600' :
                   'bg-emerald-50 text-emerald-600'
                 }`}>
                   {feature.icon}
                 </div>
-                <h3 className="text-2xl font-bold mb-4 text-slate-900">{feature.title}</h3>
-                <p className="text-slate-600 leading-relaxed text-lg">{feature.desc}</p>
+                <h3 className="text-2xl font-bold mb-4 text-slate-900 tracking-tight">{feature.title}</h3>
+                <p className="text-slate-600 leading-relaxed text-lg font-medium">{feature.desc}</p>
               </motion.div>
             ))}
           </motion.div>
@@ -197,19 +197,19 @@ export default function LandingPage() {
               <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground text-sm shadow-md">
                 R
               </div>
-              <span className="text-slate-900">ReportGen</span>
+              <span className="text-slate-900 tracking-tight">ReportGen</span>
             </div>
-            <div className="flex gap-10 text-slate-500 font-medium">
+            <div className="flex gap-10 text-slate-500 font-bold text-sm uppercase tracking-widest">
               <Link href="/dashboard" className="hover:text-primary transition-colors">Features</Link>
               <Link href="/dashboard" className="hover:text-primary transition-colors">Pricing</Link>
               <Link href="/dashboard" className="hover:text-primary transition-colors">Support</Link>
             </div>
           </div>
           <div className="pt-12 flex flex-col md:flex-row items-center justify-between gap-6">
-            <p className="text-slate-400 text-sm">© 2026 ReportGen. Built for the future of engineering.</p>
+            <p className="text-slate-400 text-sm font-medium">© 2026 ReportGen. Built for the future of engineering.</p>
             <div className="flex gap-6 grayscale opacity-50">
-              <span className="text-xs font-bold uppercase tracking-widest text-slate-400">ISO 9001 Certified</span>
-              <span className="text-xs font-bold uppercase tracking-widest text-slate-400">SOC2 Type II</span>
+              <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">ISO 9001 Certified</span>
+              <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">SOC2 Type II</span>
             </div>
           </div>
         </div>
