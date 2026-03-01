@@ -151,7 +151,7 @@ export default function Dashboard() {
           </Card>
           <Card className="bg-white/50 backdrop-blur-sm border-dashed">
             <CardHeader className="p-4 pb-2">
-              <CardDescription className="text-[10px] uppercase font-bold tracking-wider">Completed</CardTitle>
+              <CardDescription className="text-[10px] uppercase font-bold tracking-wider">Completed</CardDescription>
               <CardTitle className="text-2xl">{reports.filter(r => r.status === "Final").length}</CardTitle>
             </CardHeader>
           </Card>
