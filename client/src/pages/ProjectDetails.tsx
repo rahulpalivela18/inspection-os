@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
 import { Plus, FileText, Calendar, ArrowLeft, ArrowRight, Clock, User, Settings } from "lucide-react";
 import { Link, useRoute, useLocation } from "wouter";
 import { format } from "date-fns";
@@ -37,7 +38,9 @@ export default function ProjectDetails() {
   
   if (!project) return <NotFound />;
 
-  if (!editProjectData && project) {
+  // Initializing edit state if not already set
+  const [hasInitializedEditData, setHasInitializedEditData] = useState(false);
+  if (!hasInitializedEditData && project) {
     setEditProjectData({
       title: project.title,
       clientName: project.clientName,
@@ -45,6 +48,7 @@ export default function ProjectDetails() {
       description: project.description,
       logoUrl: project.logoUrl || "",
     });
+    setHasInitializedEditData(true);
   }
 
   const reports = getProjectReports(project.id);
@@ -65,6 +69,22 @@ export default function ProjectDetails() {
     if (!editingReport.title) return;
     updateReport(editingReport);
     setIsEditReportOpen(false);
+  };
+
+  const handleCreateReport = () => {
+    if (!newReport.title || !newReport.author) return;
+    
+    addReport({
+      ...newReport,
+      projectId: project.id,
+    });
+    setIsDialogOpen(false);
+    setNewReport({ 
+      title: "", 
+      author: "", 
+      status: "Draft", 
+      date: format(new Date(), "yyyy-MM-dd") 
+    });
   };
 
   const getStatusColor = (status: string) => {
@@ -109,69 +129,70 @@ export default function ProjectDetails() {
                   </div>
                 )}
                 <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button size="lg" className="w-full sm:w-auto shadow-lg shadow-primary/20">
-                    <Plus className="mr-2 h-4 w-4" /> New Report
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Create New Report</DialogTitle>
-                    <DialogDescription>Start a new inspection report for this project.</DialogDescription>
-                  </DialogHeader>
-                  <div className="grid gap-4 py-4">
-                    <div className="grid gap-2">
-                      <Label htmlFor="title">Report Title</Label>
-                      <Input 
-                        id="title" 
-                        placeholder="e.g. Initial Site Survey" 
-                        value={newReport.title}
-                        onChange={(e) => setNewReport({...newReport, title: e.target.value})}
-                      />
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
+                  <DialogTrigger asChild>
+                    <Button size="lg" className="w-full sm:w-auto shadow-lg shadow-primary/20">
+                      <Plus className="mr-2 h-4 w-4" /> New Report
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Create New Report</DialogTitle>
+                      <DialogDescription>Start a new inspection report for this project.</DialogDescription>
+                    </DialogHeader>
+                    <div className="grid gap-4 py-4">
                       <div className="grid gap-2">
-                        <Label htmlFor="author">Author</Label>
+                        <Label htmlFor="title">Report Title</Label>
                         <Input 
-                          id="author" 
-                          placeholder="Your Name" 
-                          value={newReport.author}
-                          onChange={(e) => setNewReport({...newReport, author: e.target.value})}
+                          id="title" 
+                          placeholder="e.g. Initial Site Survey" 
+                          value={newReport.title}
+                          onChange={(e) => setNewReport({...newReport, title: e.target.value})}
                         />
                       </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="grid gap-2">
+                          <Label htmlFor="author">Author</Label>
+                          <Input 
+                            id="author" 
+                            placeholder="Your Name" 
+                            value={newReport.author}
+                            onChange={(e) => setNewReport({...newReport, author: e.target.value})}
+                          />
+                        </div>
+                        <div className="grid gap-2">
+                          <Label htmlFor="date">Date</Label>
+                          <Input 
+                            id="date" 
+                            type="date"
+                            value={newReport.date}
+                            onChange={(e) => setNewReport({...newReport, date: e.target.value})}
+                          />
+                        </div>
+                      </div>
                       <div className="grid gap-2">
-                        <Label htmlFor="date">Date</Label>
-                        <Input 
-                          id="date" 
-                          type="date"
-                          value={newReport.date}
-                          onChange={(e) => setNewReport({...newReport, date: e.target.value})}
-                        />
+                        <Label htmlFor="status">Status</Label>
+                        <Select 
+                          value={newReport.status} 
+                          onValueChange={(val: any) => setNewReport({...newReport, status: val})}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select status" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Draft">Draft</SelectItem>
+                            <SelectItem value="Review">Review</SelectItem>
+                            <SelectItem value="Final">Final</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
                     </div>
-                    <div className="grid gap-2">
-                      <Label htmlFor="status">Status</Label>
-                      <Select 
-                        value={newReport.status} 
-                        onValueChange={(val: any) => setNewReport({...newReport, status: val})}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select status" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Draft">Draft</SelectItem>
-                          <SelectItem value="Review">Review</SelectItem>
-                          <SelectItem value="Final">Final</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                  <DialogFooter>
-                    <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
-                    <Button onClick={handleCreateReport}>Create Report</Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
+                    <DialogFooter>
+                      <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
+                      <Button onClick={handleCreateReport}>Create Report</Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              </div>
             </div>
           </div>
         </div>
@@ -234,7 +255,7 @@ export default function ProjectDetails() {
                           variant="outline" 
                           size="sm" 
                           className="w-full md:w-auto"
-                          onClick={(e) => openEditReport(report, e)}
+                          onClick={(e: any) => openEditReport(report, e)}
                         >
                           Edit
                         </Button>
