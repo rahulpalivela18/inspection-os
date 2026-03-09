@@ -16,6 +16,7 @@ export default function Dashboard() {
   const [, setLocation] = useLocation();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [logoPreview, setLogoPreview] = useState("");
   
   // New Project Form State
   const [newProject, setNewProject] = useState({
@@ -25,6 +26,19 @@ export default function Dashboard() {
     description: "",
     logoUrl: "",
   });
+
+  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const base64 = event.target?.result as string;
+      setNewProject({...newProject, logoUrl: base64});
+      setLogoPreview(base64);
+    };
+    reader.readAsDataURL(file);
+  };
 
   const handleCreateProject = () => {
     if (!newProject.title) return;
@@ -98,17 +112,18 @@ export default function Dashboard() {
                     />
                   </div>
                   <div className="grid gap-2">
-                    <Label htmlFor="logoUrl">Client Logo URL</Label>
-                    <div className="relative">
-                      <ImageIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input 
-                        id="logoUrl" 
-                        className="pl-9"
-                        placeholder="https://..." 
-                        value={newProject.logoUrl}
-                        onChange={(e) => setNewProject({...newProject, logoUrl: e.target.value})}
-                      />
-                    </div>
+                    <Label htmlFor="logoUpload">Client Logo</Label>
+                    <Input 
+                      id="logoUpload" 
+                      type="file"
+                      accept="image/*"
+                      onChange={handleLogoUpload}
+                    />
+                    {logoPreview && (
+                      <div className="w-full h-20 border rounded bg-slate-100 p-2 flex items-center justify-center overflow-hidden">
+                        <img src={logoPreview} alt="Logo Preview" className="max-w-full max-h-full object-contain" />
+                      </div>
+                    )}
                   </div>
                   <div className="grid gap-2">
                     <Label htmlFor="description">Description</Label>

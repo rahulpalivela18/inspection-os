@@ -107,6 +107,18 @@ export default function ReportEditor() {
     setImageUrl("");
   };
 
+  const handleImageFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || formData.images.length >= 3) return;
+    
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const base64 = event.target?.result as string;
+      setFormData({ ...formData, images: [...formData.images, base64] });
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleRemoveImage = (index: number) => {
     setFormData({ ...formData, images: formData.images.filter((_, i) => i !== index) });
   };
@@ -556,19 +568,16 @@ export default function ReportEditor() {
               <div className="space-y-2">
                 <Label>Images * (Up to 3)</Label>
                 <div className="flex gap-2">
-                  <div className="relative flex-1">
-                    <Camera className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input 
-                      className="pl-9"
-                      placeholder="Image URL..." 
-                      value={imageUrl}
-                      onChange={(e) => setImageUrl(e.target.value)}
-                    />
-                  </div>
-                  <Button type="button" variant="secondary" onClick={handleAddImage} disabled={formData.images.length >= 3 || !imageUrl}>
-                    Add
-                  </Button>
+                  <Input 
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageFileUpload}
+                    disabled={formData.images.length >= 3}
+                    className="flex-1"
+                  />
+                  <span className="text-xs text-muted-foreground pt-2">{formData.images.length}/3</span>
                 </div>
+                <p className="text-xs text-muted-foreground">Click to upload photos directly from your device</p>
                 
                 <div className="grid grid-cols-3 gap-2 mt-4">
                   {formData.images.map((img, idx) => (

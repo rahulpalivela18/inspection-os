@@ -75,7 +75,14 @@ export default function ReportPreview({ report, project, issues }: ReportPreview
       </div>
 
       {/* Findings Section */}
-      <div className="flex flex-col min-h-[297mm]">
+      <div className="flex flex-col min-h-[297mm] relative">
+        {/* Logo Header */}
+        {project.logoUrl && (
+          <div className="absolute top-4 right-4 w-16 h-16 p-2 border border-slate-100 rounded-lg bg-white flex items-center justify-center overflow-hidden shadow-sm">
+            <img src={project.logoUrl} alt="Client Logo" className="max-w-full max-h-full object-contain" />
+          </div>
+        )}
+        
         <div className="p-6 md:p-[15mm] bg-white flex-1">
           <div className="border-b-2 border-slate-900 pb-4 mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
             <h2 className="text-xl md:text-2xl font-black uppercase tracking-tight">Inspection Findings</h2>

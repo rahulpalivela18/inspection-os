@@ -23,8 +23,22 @@ export default function ProjectDetails() {
   const [isEditProjectOpen, setIsEditProjectOpen] = useState(false);
   const [isEditReportOpen, setIsEditReportOpen] = useState(false);
   const [editingReport, setEditingReport] = useState<any>(null);
+  const [logoPreview, setLogoPreview] = useState("");
 
   const [editProjectData, setEditProjectData] = useState<any>(null);
+
+  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const base64 = event.target?.result as string;
+      setEditProjectData({...editProjectData, logoUrl: base64});
+      setLogoPreview(base64);
+    };
+    reader.readAsDataURL(file);
+  };
   const [newReport, setNewReport] = useState({
     title: "",
     author: "",
@@ -304,12 +318,18 @@ export default function ProjectDetails() {
                 />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="edit-logo">Logo URL</Label>
+                <Label htmlFor="edit-logo">Logo</Label>
                 <Input 
                   id="edit-logo" 
-                  value={editProjectData?.logoUrl || ""}
-                  onChange={(e) => setEditProjectData({...editProjectData, logoUrl: e.target.value})}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleLogoUpload}
                 />
+                {(logoPreview || editProjectData?.logoUrl) && (
+                  <div className="w-full h-20 border rounded bg-slate-100 p-2 flex items-center justify-center overflow-hidden">
+                    <img src={logoPreview || editProjectData?.logoUrl} alt="Logo Preview" className="max-w-full max-h-full object-contain" />
+                  </div>
+                )}
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="edit-description">Description</Label>
