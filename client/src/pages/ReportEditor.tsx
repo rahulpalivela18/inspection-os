@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { 
   ArrowLeft, Plus, Printer, FileText, Trash2, 
-  AlertTriangle, CheckCircle2, Circle, Camera, MapPin, User, X
+  AlertTriangle, CheckCircle2, Circle, Camera, MapPin, User, X, Zap
 } from "lucide-react";
 import { Link, useRoute } from "wouter";
 import NotFound from "./not-found";
@@ -21,7 +21,7 @@ import ReportPreview from "@/pages/ReportPreview";
 
 export default function ReportEditor() {
   const [match, params] = useRoute("/report/:id");
-  const { getReport, getReportIssues, addIssue, deleteIssue, updateIssue, getProject } = useStore();
+  const { getReport, getReportIssues, addIssue, deleteIssue, updateIssue, getProject, issueTemplates, getIssueTemplate } = useStore();
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [editingIssue, setEditingIssue] = useState<Issue | null>(null);
   const [viewMode, setViewMode] = useState<"edit" | "preview">("edit");
@@ -97,6 +97,19 @@ export default function ReportEditor() {
 
   const handleRemoveImage = (index: number) => {
     setFormData({ ...formData, images: formData.images.filter((_, i) => i !== index) });
+  };
+
+  const applyTemplate = (templateId: string) => {
+    const template = getIssueTemplate(templateId);
+    if (template) {
+      setFormData({
+        ...formData,
+        title: template.title,
+        note: template.note,
+        location: template.location,
+        severity: template.severity,
+      });
+    }
   };
 
   const handleSaveIssue = () => {
@@ -272,6 +285,29 @@ export default function ReportEditor() {
                 Note and at least one image are mandatory.
               </SheetDescription>
             </SheetHeader>
+            
+            {!editingIssue && (
+              <div className="mb-6 pb-6 border-b">
+                <div className="flex items-center gap-2 mb-3">
+                  <Zap className="h-4 w-4 text-primary" />
+                  <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Quick Templates</p>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  {issueTemplates.map((template) => (
+                    <Button
+                      key={template.id}
+                      variant="outline"
+                      size="sm"
+                      onClick={() => applyTemplate(template.id)}
+                      className="justify-start text-left h-auto py-2 px-3 font-medium text-xs"
+                    >
+                      {template.name}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            )}
+            
             <div className="space-y-6">
               <div className="space-y-2">
                 <Label htmlFor="issue-title">Issue Title *</Label>

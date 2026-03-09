@@ -34,6 +34,15 @@ export type Issue = {
   images: string[];
 };
 
+export type IssueTemplate = {
+  id: string;
+  name: string;
+  title: string;
+  note: string;
+  location: string;
+  severity: "Low" | "Medium" | "High" | "Critical";
+};
+
 // Mock Data
 const MOCK_PROJECTS: Project[] = [
   {
@@ -73,11 +82,63 @@ const MOCK_ISSUES: Issue[] = [
   },
 ];
 
+const ISSUE_TEMPLATES: IssueTemplate[] = [
+  {
+    id: "t1",
+    name: "Bedroom",
+    title: "Bedroom Wall/Ceiling Damage",
+    note: "Inspect walls for cracks, water damage, or moisture. Check ceiling for signs of leaks or sagging. Note any paint peeling or discoloration.",
+    location: "Master Bedroom",
+    severity: "Medium",
+  },
+  {
+    id: "t2",
+    name: "Bathroom",
+    title: "Bathroom Water Damage/Mold",
+    note: "Check for water stains, mold growth, and ventilation issues. Inspect grout and caulking around tubs/showers. Test for dampness in walls.",
+    location: "Main Bathroom",
+    severity: "High",
+  },
+  {
+    id: "t3",
+    name: "Kitchen",
+    title: "Kitchen Cabinet/Counter Issue",
+    note: "Inspect cabinet integrity, water damage under sink. Check countertop condition and seals. Look for signs of pest damage.",
+    location: "Kitchen",
+    severity: "Medium",
+  },
+  {
+    id: "t4",
+    name: "Foundation",
+    title: "Foundation Crack/Settlement",
+    note: "Document crack width, length, and pattern. Check for signs of active movement. Note location relative to structural elements.",
+    location: "Foundation",
+    severity: "High",
+  },
+  {
+    id: "t5",
+    name: "Roof",
+    title: "Roof Shingle/Leak Issue",
+    note: "Inspect for missing, damaged, or curling shingles. Look for signs of water penetration. Check flashing and chimney seals.",
+    location: "Roof",
+    severity: "High",
+  },
+  {
+    id: "t6",
+    name: "HVAC",
+    title: "HVAC System Maintenance",
+    note: "Check unit age and condition. Inspect filter cleanliness. Listen for unusual noises. Test temperature output.",
+    location: "Mechanical Room",
+    severity: "Low",
+  },
+];
+
 // Context
 type StoreContextType = {
   projects: Project[];
   reports: Report[];
   issues: Issue[];
+  issueTemplates: IssueTemplate[];
   addProject: (project: Omit<Project, "id" | "createdAt">) => void;
   updateProject: (project: Project) => void;
   addReport: (report: Omit<Report, "id" | "createdAt">) => void;
@@ -89,6 +150,7 @@ type StoreContextType = {
   getReport: (id: string) => Report | undefined;
   getProjectReports: (projectId: string) => Report[];
   getReportIssues: (reportId: string) => Issue[];
+  getIssueTemplate: (id: string) => IssueTemplate | undefined;
 };
 
 const StoreContext = createContext<StoreContextType | null>(null);
@@ -144,6 +206,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const getReport = (id: string) => reports.find((r) => r.id === id);
   const getProjectReports = (projectId: string) => reports.filter((r) => r.projectId === projectId);
   const getReportIssues = (reportId: string) => issues.filter((i) => i.reportId === reportId);
+  const getIssueTemplate = (id: string) => ISSUE_TEMPLATES.find((t) => t.id === id);
 
   return (
     <StoreContext.Provider
@@ -151,6 +214,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         projects,
         reports,
         issues,
+        issueTemplates: ISSUE_TEMPLATES,
         addProject,
         updateProject,
         addReport,
@@ -162,6 +226,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         getReport,
         getProjectReports,
         getReportIssues,
+        getIssueTemplate,
       }}
     >
       {children}
