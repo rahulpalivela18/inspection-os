@@ -37,10 +37,12 @@ export type Issue = {
 export type IssueTemplate = {
   id: string;
   name: string;
+  category: string;
   title: string;
   note: string;
   location: string;
   severity: "Low" | "Medium" | "High" | "Critical";
+  isCustom?: boolean;
 };
 
 // Mock Data
@@ -82,10 +84,11 @@ const MOCK_ISSUES: Issue[] = [
   },
 ];
 
-const ISSUE_TEMPLATES: IssueTemplate[] = [
+let ISSUE_TEMPLATES: IssueTemplate[] = [
   {
     id: "t1",
     name: "Bedroom",
+    category: "Living Spaces",
     title: "Bedroom Wall/Ceiling Damage",
     note: "Inspect walls for cracks, water damage, or moisture. Check ceiling for signs of leaks or sagging. Note any paint peeling or discoloration.",
     location: "Master Bedroom",
@@ -94,6 +97,7 @@ const ISSUE_TEMPLATES: IssueTemplate[] = [
   {
     id: "t2",
     name: "Bathroom",
+    category: "Wet Areas",
     title: "Bathroom Water Damage/Mold",
     note: "Check for water stains, mold growth, and ventilation issues. Inspect grout and caulking around tubs/showers. Test for dampness in walls.",
     location: "Main Bathroom",
@@ -102,6 +106,7 @@ const ISSUE_TEMPLATES: IssueTemplate[] = [
   {
     id: "t3",
     name: "Kitchen",
+    category: "Living Spaces",
     title: "Kitchen Cabinet/Counter Issue",
     note: "Inspect cabinet integrity, water damage under sink. Check countertop condition and seals. Look for signs of pest damage.",
     location: "Kitchen",
@@ -110,6 +115,7 @@ const ISSUE_TEMPLATES: IssueTemplate[] = [
   {
     id: "t4",
     name: "Foundation",
+    category: "Structural",
     title: "Foundation Crack/Settlement",
     note: "Document crack width, length, and pattern. Check for signs of active movement. Note location relative to structural elements.",
     location: "Foundation",
@@ -118,6 +124,7 @@ const ISSUE_TEMPLATES: IssueTemplate[] = [
   {
     id: "t5",
     name: "Roof",
+    category: "Structural",
     title: "Roof Shingle/Leak Issue",
     note: "Inspect for missing, damaged, or curling shingles. Look for signs of water penetration. Check flashing and chimney seals.",
     location: "Roof",
@@ -126,10 +133,56 @@ const ISSUE_TEMPLATES: IssueTemplate[] = [
   {
     id: "t6",
     name: "HVAC",
+    category: "Mechanical",
     title: "HVAC System Maintenance",
     note: "Check unit age and condition. Inspect filter cleanliness. Listen for unusual noises. Test temperature output.",
     location: "Mechanical Room",
     severity: "Low",
+  },
+  {
+    id: "t7",
+    name: "Balcony - Flooring",
+    category: "Balcony/Exterior",
+    title: "Balcony Tile Flooring Defects",
+    note: "Check tile corners for right angles. Inspect grout uniformity, color/shade consistency. Look for hollowness, debonding, cracks, or damage. Verify joint uniformity, gaps sealing, slope, offsets, and proper spacer removal.",
+    location: "Balcony",
+    severity: "Medium",
+  },
+  {
+    id: "t8",
+    name: "Balcony - Doors",
+    category: "Balcony/Exterior",
+    title: "Balcony Door Frame & Hardware Issues",
+    note: "Inspect frames/shutters for bends, cracks, warpage. Test smooth operation without noise or gaps. Check for sideways movement when locked. Verify coating integrity, fittings cleanliness, glass condition, frame alignment, sealants, wall damage.",
+    location: "Balcony",
+    severity: "Medium",
+  },
+  {
+    id: "t9",
+    name: "Balcony - Wall Finish",
+    category: "Balcony/Exterior",
+    title: "Balcony Wall & Ceiling Finish Problems",
+    note: "Check for wall/ceiling dampness, uniform paint shade. Look for air bubbles, scratches, peeling, cracks, or damage. Verify surface finish uniformity, electrical cutout sealing, absence of undulations. Inspect corner/edge finish and water leakage signs.",
+    location: "Balcony",
+    severity: "Medium",
+  },
+  {
+    id: "t10",
+    name: "Balcony - Handrails",
+    category: "Balcony/Exterior",
+    title: "Balcony Handrails & Grills Safety Issues",
+    note: "Verify horizontal level alignment (FFL). Check vertical/horizontal junction finish, proper C/C spacing, painting condition. Inspect for corrosion, end caps, fastener caps, rail verticality, anchorage support, and height compliance (1.2m per standards).",
+    location: "Balcony",
+    severity: "High",
+  },
+  {
+    id: "t11",
+    name: "Balcony - Electrical",
+    category: "Balcony/Exterior",
+    title: "Balcony Electrical & Switches Issues",
+    note: "Verify no gaps between switch plate and wall/tile. Check smooth switch operation and functionality. Inspect switch board alignment/level, plate damage/cracks/stains, and proper installation.",
+    location: "Balcony",
+    severity: "Medium",
   },
 ];
 
@@ -151,6 +204,9 @@ type StoreContextType = {
   getProjectReports: (projectId: string) => Report[];
   getReportIssues: (reportId: string) => Issue[];
   getIssueTemplate: (id: string) => IssueTemplate | undefined;
+  addIssueTemplate: (template: Omit<IssueTemplate, "id" | "isCustom">) => void;
+  updateIssueTemplate: (template: IssueTemplate) => void;
+  deleteIssueTemplate: (id: string) => void;
 };
 
 const StoreContext = createContext<StoreContextType | null>(null);
@@ -208,6 +264,23 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const getReportIssues = (reportId: string) => issues.filter((i) => i.reportId === reportId);
   const getIssueTemplate = (id: string) => ISSUE_TEMPLATES.find((t) => t.id === id);
 
+  const addIssueTemplate = (template: Omit<IssueTemplate, "id" | "isCustom">) => {
+    const newTemplate: IssueTemplate = {
+      ...template,
+      id: Math.random().toString(36).substr(2, 9),
+      isCustom: true,
+    };
+    ISSUE_TEMPLATES = [...ISSUE_TEMPLATES, newTemplate];
+  };
+
+  const updateIssueTemplate = (template: IssueTemplate) => {
+    ISSUE_TEMPLATES = ISSUE_TEMPLATES.map((t) => (t.id === template.id ? template : t));
+  };
+
+  const deleteIssueTemplate = (id: string) => {
+    ISSUE_TEMPLATES = ISSUE_TEMPLATES.filter((t) => t.id !== id);
+  };
+
   return (
     <StoreContext.Provider
       value={{
@@ -227,6 +300,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         getProjectReports,
         getReportIssues,
         getIssueTemplate,
+        addIssueTemplate,
+        updateIssueTemplate,
+        deleteIssueTemplate,
       }}
     >
       {children}

@@ -1,16 +1,17 @@
 import { useState, useRef } from "react";
 import Layout from "@/components/Layout";
-import { useStore, Issue } from "@/lib/store";
+import { useStore, Issue, IssueTemplate } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { 
-  ArrowLeft, Plus, Printer, FileText, Trash2, 
+  ArrowLeft, Plus, Printer, FileText, Trash2, Settings,
   AlertTriangle, CheckCircle2, Circle, Camera, MapPin, User, X, Zap
 } from "lucide-react";
 import { Link, useRoute } from "wouter";
@@ -21,11 +22,22 @@ import ReportPreview from "@/pages/ReportPreview";
 
 export default function ReportEditor() {
   const [match, params] = useRoute("/report/:id");
-  const { getReport, getReportIssues, addIssue, deleteIssue, updateIssue, getProject, issueTemplates, getIssueTemplate } = useStore();
+  const { getReport, getReportIssues, addIssue, deleteIssue, updateIssue, getProject, issueTemplates, getIssueTemplate, addIssueTemplate, updateIssueTemplate, deleteIssueTemplate } = useStore();
   const [isSheetOpen, setIsSheetOpen] = useState(false);
+  const [isTemplateManagerOpen, setIsTemplateManagerOpen] = useState(false);
+  const [editingTemplate, setEditingTemplate] = useState<IssueTemplate | null>(null);
   const [editingIssue, setEditingIssue] = useState<Issue | null>(null);
   const [viewMode, setViewMode] = useState<"edit" | "preview">("edit");
   const componentRef = useRef<HTMLDivElement>(null);
+
+  const [templateForm, setTemplateForm] = useState<Omit<IssueTemplate, "id" | "isCustom">>({
+    name: "",
+    category: "",
+    title: "",
+    note: "",
+    location: "",
+    severity: "Medium",
+  });
 
   const handlePrint = useReactToPrint({
     contentRef: componentRef,
@@ -110,6 +122,45 @@ export default function ReportEditor() {
         severity: template.severity,
       });
     }
+  };
+
+  const handleSaveTemplate = () => {
+    if (!templateForm.name || !templateForm.title || !templateForm.note) return;
+    
+    if (editingTemplate) {
+      updateIssueTemplate({
+        ...editingTemplate,
+        ...templateForm,
+      });
+    } else {
+      addIssueTemplate(templateForm);
+    }
+    
+    setTemplateForm({
+      name: "",
+      category: "",
+      title: "",
+      note: "",
+      location: "",
+      severity: "Medium",
+    });
+    setEditingTemplate(null);
+  };
+
+  const openEditTemplate = (template: IssueTemplate) => {
+    setEditingTemplate(template);
+    setTemplateForm({
+      name: template.name,
+      category: template.category,
+      title: template.title,
+      note: template.note,
+      location: template.location,
+      severity: template.severity,
+    });
+  };
+
+  const handleDeleteTemplate = (id: string) => {
+    deleteIssueTemplate(id);
   };
 
   const handleSaveIssue = () => {
@@ -288,9 +339,116 @@ export default function ReportEditor() {
             
             {!editingIssue && (
               <div className="mb-6 pb-6 border-b">
-                <div className="flex items-center gap-2 mb-3">
-                  <Zap className="h-4 w-4 text-primary" />
-                  <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Quick Templates</p>
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <Zap className="h-4 w-4 text-primary" />
+                    <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Quick Templates</p>
+                  </div>
+                  <Dialog open={isTemplateManagerOpen} onOpenChange={setIsTemplateManagerOpen}>
+                    <DialogTrigger asChild>
+                      <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+                        <Settings className="h-3.5 w-3.5" />
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-2xl max-h-[80vh] overflow-y-auto">
+                      <DialogHeader>
+                        <DialogTitle>Manage Issue Templates</DialogTitle>
+                        <DialogDescription>Create, edit, or delete issue templates to speed up issue creation.</DialogDescription>
+                      </DialogHeader>
+                      <div className="space-y-4">
+                        {/* Template Form */}
+                        <div className="border rounded-lg p-4 bg-slate-50">
+                          <h3 className="font-semibold mb-4">{editingTemplate ? "Edit Template" : "Add New Template"}</h3>
+                          <div className="space-y-3">
+                            <div className="grid grid-cols-2 gap-3">
+                              <div className="space-y-1">
+                                <Label htmlFor="tpl-name" className="text-xs">Template Name *</Label>
+                                <Input id="tpl-name" placeholder="e.g. Bedroom" value={templateForm.name} onChange={(e) => setTemplateForm({...templateForm, name: e.target.value})} />
+                              </div>
+                              <div className="space-y-1">
+                                <Label htmlFor="tpl-category" className="text-xs">Category</Label>
+                                <Input id="tpl-category" placeholder="e.g. Living Spaces" value={templateForm.category} onChange={(e) => setTemplateForm({...templateForm, category: e.target.value})} />
+                              </div>
+                            </div>
+                            <div className="space-y-1">
+                              <Label htmlFor="tpl-title" className="text-xs">Issue Title *</Label>
+                              <Input id="tpl-title" placeholder="Brief title" value={templateForm.title} onChange={(e) => setTemplateForm({...templateForm, title: e.target.value})} />
+                            </div>
+                            <div className="space-y-1">
+                              <Label htmlFor="tpl-note" className="text-xs">Description/Checklist *</Label>
+                              <Textarea id="tpl-note" placeholder="Detailed inspection notes..." className="min-h-20 text-xs" value={templateForm.note} onChange={(e) => setTemplateForm({...templateForm, note: e.target.value})} />
+                            </div>
+                            <div className="grid grid-cols-2 gap-3">
+                              <div className="space-y-1">
+                                <Label htmlFor="tpl-location" className="text-xs">Default Location</Label>
+                                <Input id="tpl-location" placeholder="e.g. Master Bedroom" value={templateForm.location} onChange={(e) => setTemplateForm({...templateForm, location: e.target.value})} />
+                              </div>
+                              <div className="space-y-1">
+                                <Label htmlFor="tpl-severity" className="text-xs">Default Severity</Label>
+                                <Select value={templateForm.severity} onValueChange={(val: any) => setTemplateForm({...templateForm, severity: val})}>
+                                  <SelectTrigger className="h-8 text-xs">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="Low">Low</SelectItem>
+                                    <SelectItem value="Medium">Medium</SelectItem>
+                                    <SelectItem value="High">High</SelectItem>
+                                    <SelectItem value="Critical">Critical</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            </div>
+                            <div className="flex gap-2 pt-2">
+                              <Button size="sm" onClick={handleSaveTemplate} className="text-xs h-8">
+                                {editingTemplate ? "Update" : "Add"} Template
+                              </Button>
+                              {editingTemplate && (
+                                <Button size="sm" variant="outline" onClick={() => {
+                                  setEditingTemplate(null);
+                                  setTemplateForm({name: "", category: "", title: "", note: "", location: "", severity: "Medium"});
+                                }} className="text-xs h-8">
+                                  Cancel
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Templates List */}
+                        <div>
+                          <h3 className="font-semibold mb-3 text-sm">All Templates ({issueTemplates.length})</h3>
+                          <div className="space-y-2 max-h-64 overflow-y-auto">
+                            {issueTemplates.map((template) => (
+                              <div key={template.id} className={`p-3 rounded border text-xs ${template.isCustom ? "bg-blue-50 border-blue-200" : "bg-white"}`}>
+                                <div className="flex items-start justify-between">
+                                  <div className="flex-1">
+                                    <p className="font-semibold">{template.name}</p>
+                                    <p className="text-muted-foreground text-[10px]">{template.category}</p>
+                                    <p className="line-clamp-1 text-muted-foreground mt-1">{template.title}</p>
+                                  </div>
+                                  <div className="flex gap-1 shrink-0">
+                                    {template.isCustom && (
+                                      <>
+                                        <Button variant="ghost" size="sm" onClick={() => openEditTemplate(template)} className="h-6 px-2 text-xs">
+                                          Edit
+                                        </Button>
+                                        <Button variant="ghost" size="sm" onClick={() => handleDeleteTemplate(template.id)} className="h-6 w-6 p-0 text-destructive">
+                                          <Trash2 className="h-3 w-3" />
+                                        </Button>
+                                      </>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                      <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsTemplateManagerOpen(false)}>Close</Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   {issueTemplates.map((template) => (
