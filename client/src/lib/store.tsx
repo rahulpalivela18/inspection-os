@@ -20,6 +20,7 @@ export type Report = {
   author: string;
   date: string;
   createdAt: string;
+  templateId?: string;
 };
 
 export type Issue = {

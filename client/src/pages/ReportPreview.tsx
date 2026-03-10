@@ -132,26 +132,28 @@ export default function ReportPreview({ report, project, issues }: ReportPreview
                       </div>
                     </div>
                     
-                    <div className="space-y-3">
-                      <h4 className="text-[9px] md:text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Visual Evidence</h4>
-                      <div className={cn(
-                        "grid gap-3",
-                        issue.images?.length === 1 ? "grid-cols-1" : "grid-cols-2"
-                      )}>
-                        {issue.images?.map((img, idx) => (
-                          <div key={idx} className={cn(
-                            "bg-slate-50 border border-slate-200 rounded-xl overflow-hidden shadow-sm flex items-center justify-center p-2",
-                            issue.images.length === 1 ? "aspect-video" : (idx === 0 && issue.images.length === 3 ? "col-span-2 aspect-[16/9]" : "aspect-square")
-                          )}>
-                            <img 
-                              src={img} 
-                              className="max-w-full max-h-full object-contain" 
-                              alt={`Finding ${idx + 1}`} 
-                            />
-                          </div>
-                        ))}
+                    {issue.images && issue.images.length > 0 && (
+                      <div className="space-y-3">
+                        <h4 className="text-[9px] md:text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Visual Evidence</h4>
+                        <div className={cn(
+                          "grid gap-3",
+                          issue.images?.length === 1 ? "grid-cols-1" : "grid-cols-2"
+                        )}>
+                          {issue.images?.map((img, idx) => (
+                            <div key={idx} className={cn(
+                              "bg-slate-50 border border-slate-200 rounded-xl overflow-hidden shadow-sm flex items-center justify-center p-2",
+                              issue.images.length === 1 ? "aspect-video" : (idx === 0 && issue.images.length === 3 ? "col-span-2 aspect-[16/9]" : "aspect-square")
+                            )}>
+                              <img 
+                                src={img} 
+                                className="max-w-full max-h-full object-contain" 
+                                alt={`Finding ${idx + 1}`} 
+                              />
+                            </div>
+                          ))}
+                        </div>
                       </div>
-                    </div>
+                    )}
                   </div>
                 </div>
               </div>
