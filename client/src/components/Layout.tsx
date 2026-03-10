@@ -19,8 +19,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
   const navigation = [
     { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-    { name: "Projects", href: "/dashboard", icon: FolderOpen }, // Currently same as dashboard for prototype
-    { name: "Templates", href: "#", icon: FileText },
+    { name: "Projects", href: "/dashboard", icon: FolderOpen },
+    { name: "Templates", href: "/templates", icon: FileText },
     { name: "Settings", href: "#", icon: Settings },
   ];
 

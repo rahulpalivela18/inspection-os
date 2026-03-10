@@ -45,6 +45,17 @@ export type IssueTemplate = {
   isCustom?: boolean;
 };
 
+export type ReportTemplate = {
+  id: string;
+  name: string;
+  description: string;
+  layout: "standard" | "detailed" | "compact";
+  includeLogoOnEveryPage: boolean;
+  includeSignature: boolean;
+  colorScheme: "indigo" | "blue" | "slate";
+  isDefault?: boolean;
+};
+
 // Mock Data
 const MOCK_PROJECTS: Project[] = [
   {
@@ -273,6 +284,7 @@ type StoreContextType = {
   reports: Report[];
   issues: Issue[];
   issueTemplates: IssueTemplate[];
+  reportTemplates: ReportTemplate[];
   addProject: (project: Omit<Project, "id" | "createdAt">) => void;
   updateProject: (project: Project) => void;
   addReport: (report: Omit<Report, "id" | "createdAt">) => void;
@@ -288,6 +300,9 @@ type StoreContextType = {
   addIssueTemplate: (template: Omit<IssueTemplate, "id" | "isCustom">) => void;
   updateIssueTemplate: (template: IssueTemplate) => void;
   deleteIssueTemplate: (id: string) => void;
+  addReportTemplate: (template: ReportTemplate) => void;
+  updateReportTemplate: (id: string, updates: Partial<ReportTemplate>) => void;
+  deleteReportTemplate: (id: string) => void;
 };
 
 const StoreContext = createContext<StoreContextType | null>(null);
@@ -296,6 +311,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [projects, setProjects] = useState<Project[]>(MOCK_PROJECTS);
   const [reports, setReports] = useState<Report[]>(MOCK_REPORTS);
   const [issues, setIssues] = useState<Issue[]>(MOCK_ISSUES);
+  const [reportTemplates, setReportTemplates] = useState<ReportTemplate[]>([]);
 
   const addProject = (project: Omit<Project, "id" | "createdAt">) => {
     const newProject = {
@@ -362,6 +378,18 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     ISSUE_TEMPLATES = ISSUE_TEMPLATES.filter((t) => t.id !== id);
   };
 
+  const addReportTemplate = (template: ReportTemplate) => {
+    setReportTemplates([...reportTemplates, template]);
+  };
+
+  const updateReportTemplate = (id: string, updates: Partial<ReportTemplate>) => {
+    setReportTemplates(reportTemplates.map((t) => t.id === id ? {...t, ...updates} : t));
+  };
+
+  const deleteReportTemplate = (id: string) => {
+    setReportTemplates(reportTemplates.filter((t) => t.id !== id));
+  };
+
   return (
     <StoreContext.Provider
       value={{
@@ -369,6 +397,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         reports,
         issues,
         issueTemplates: ISSUE_TEMPLATES,
+        reportTemplates,
         addProject,
         updateProject,
         addReport,
@@ -384,6 +413,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         addIssueTemplate,
         updateIssueTemplate,
         deleteIssueTemplate,
+        addReportTemplate,
+        updateReportTemplate,
+        deleteReportTemplate,
       }}
     >
       {children}
