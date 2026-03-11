@@ -227,15 +227,16 @@ export default function ReportEditor() {
           {/* Template Selector */}
           <div className="flex items-center gap-2 w-full sm:w-auto">
             <Label className="text-xs whitespace-nowrap">Report Template:</Label>
-            <Select value={selectedReportTemplate} onValueChange={(templateId) => {
-              setSelectedReportTemplate(templateId);
-              updateReport({...report, templateId});
+            <Select value={selectedReportTemplate || "default"} onValueChange={(templateId) => {
+              const newTemplateId = templateId === "default" ? "" : templateId;
+              setSelectedReportTemplate(newTemplateId);
+              updateReport({...report, templateId: newTemplateId});
             }}>
               <SelectTrigger className="h-8 text-xs w-32 sm:w-40">
                 <SelectValue placeholder="Standard" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Standard (Default)</SelectItem>
+                <SelectItem value="default">Standard (Default)</SelectItem>
                 {reportTemplates.map((tpl) => (
                   <SelectItem key={tpl.id} value={tpl.id}>{tpl.name}</SelectItem>
                 ))}
