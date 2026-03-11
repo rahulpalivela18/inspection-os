@@ -23,12 +23,15 @@ import ReportPreview from "@/pages/ReportPreview";
 export default function ReportEditor() {
   const [match, params] = useRoute("/report/:id");
   const { getReport, getReportIssues, addIssue, deleteIssue, updateIssue, getProject, issueTemplates, getIssueTemplate, addIssueTemplate, updateIssueTemplate, deleteIssueTemplate, updateReport, reportTemplates } = useStore();
+  
+  const report = params?.id ? getReport(params.id) : undefined;
+
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [isTemplateManagerOpen, setIsTemplateManagerOpen] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<IssueTemplate | null>(null);
   const [editingIssue, setEditingIssue] = useState<Issue | null>(null);
   const [viewMode, setViewMode] = useState<"edit" | "preview">("edit");
-  const [selectedReportTemplate, setSelectedReportTemplate] = useState<string>(report.templateId || "");
+  const [selectedReportTemplate, setSelectedReportTemplate] = useState<string>(report?.templateId || "");
   const componentRef = useRef<HTMLDivElement>(null);
 
   const [templateForm, setTemplateForm] = useState<Omit<IssueTemplate, "id" | "isCustom">>({
@@ -66,9 +69,8 @@ export default function ReportEditor() {
 
   const [imageUrl, setImageUrl] = useState("");
 
-  if (!match || !params) return <NotFound />;
-  const report = getReport(params.id);
-  if (!report) return <NotFound />;
+  if (!match || !params || !report) return <NotFound />;
+  
   const project = getProject(report.projectId);
   const issues = getReportIssues(report.id);
 
