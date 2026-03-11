@@ -17,7 +17,7 @@ import NotFound from "./not-found";
 export default function ProjectDetails() {
   const [match, params] = useRoute("/project/:id");
   const [, setLocation] = useLocation();
-  const { getProject, getProjectReports, addReport, updateProject, updateReport } = useStore();
+  const { getProject, getProjectReports, addReport, updateProject, updateReport, reportTemplates } = useStore();
   
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isEditProjectOpen, setIsEditProjectOpen] = useState(false);
@@ -44,6 +44,7 @@ export default function ProjectDetails() {
     author: "",
     status: "Draft" as const,
     date: format(new Date(), "yyyy-MM-dd"),
+    templateId: "",
   });
 
   if (!match || !params) return <NotFound />;
@@ -199,6 +200,26 @@ export default function ProjectDetails() {
                           </SelectContent>
                         </Select>
                       </div>
+                      
+                      {reportTemplates && reportTemplates.length > 0 && (
+                        <div className="grid gap-2">
+                          <Label htmlFor="template">Report Template</Label>
+                          <Select 
+                            value={newReport.templateId || "default"} 
+                            onValueChange={(val: any) => setNewReport({...newReport, templateId: val === "default" ? "" : val})}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Standard (Default)" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="default">Standard (Default)</SelectItem>
+                              {reportTemplates.map((tpl) => (
+                                <SelectItem key={tpl.id} value={tpl.id}>{tpl.name}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      )}
                     </div>
                     <DialogFooter>
                       <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Cancel</Button>

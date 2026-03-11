@@ -312,7 +312,17 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [projects, setProjects] = useState<Project[]>(MOCK_PROJECTS);
   const [reports, setReports] = useState<Report[]>(MOCK_REPORTS);
   const [issues, setIssues] = useState<Issue[]>(MOCK_ISSUES);
-  const [reportTemplates, setReportTemplates] = useState<ReportTemplate[]>([]);
+  const [reportTemplates, setReportTemplates] = useState<ReportTemplate[]>([
+    {
+      id: "t-default-1",
+      name: "Client A Branded",
+      description: "Standard layout with blue scheme and signature block",
+      layout: "standard",
+      includeLogoOnEveryPage: true,
+      includeSignature: true,
+      colorScheme: "blue"
+    }
+  ]);
 
   const addProject = (project: Omit<Project, "id" | "createdAt">) => {
     const newProject = {

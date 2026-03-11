@@ -28,7 +28,7 @@ export default function ReportEditor() {
   const [editingTemplate, setEditingTemplate] = useState<IssueTemplate | null>(null);
   const [editingIssue, setEditingIssue] = useState<Issue | null>(null);
   const [viewMode, setViewMode] = useState<"edit" | "preview">("edit");
-  const [selectedReportTemplate, setSelectedReportTemplate] = useState<string>("");
+  const [selectedReportTemplate, setSelectedReportTemplate] = useState<string>(report.templateId || "");
   const componentRef = useRef<HTMLDivElement>(null);
 
   const [templateForm, setTemplateForm] = useState<Omit<IssueTemplate, "id" | "isCustom">>({
@@ -223,25 +223,23 @@ export default function ReportEditor() {
           </div>
 
           {/* Template Selector */}
-          {reportTemplates.length > 0 && (
-            <div className="flex items-center gap-2 w-full sm:w-auto">
-              <Label className="text-xs whitespace-nowrap">Report Template:</Label>
-              <Select value={selectedReportTemplate} onValueChange={(templateId) => {
-                setSelectedReportTemplate(templateId);
-                updateReport({...report, templateId});
-              }}>
-                <SelectTrigger className="h-8 text-xs w-32 sm:w-40">
-                  <SelectValue placeholder="Standard" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="">Standard (Default)</SelectItem>
-                  {reportTemplates.map((tpl) => (
-                    <SelectItem key={tpl.id} value={tpl.id}>{tpl.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <Label className="text-xs whitespace-nowrap">Report Template:</Label>
+            <Select value={selectedReportTemplate} onValueChange={(templateId) => {
+              setSelectedReportTemplate(templateId);
+              updateReport({...report, templateId});
+            }}>
+              <SelectTrigger className="h-8 text-xs w-32 sm:w-40">
+                <SelectValue placeholder="Standard" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">Standard (Default)</SelectItem>
+                {reportTemplates.map((tpl) => (
+                  <SelectItem key={tpl.id} value={tpl.id}>{tpl.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
           
           <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
             <div className="bg-muted p-1 rounded-lg flex items-center shrink-0">
