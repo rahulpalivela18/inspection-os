@@ -201,25 +201,12 @@ export default function ProjectDetails() {
                         </Select>
                       </div>
                       
-                      {reportTemplates && reportTemplates.length > 0 && (
-                        <div className="grid gap-2">
-                          <Label htmlFor="template">Report Template</Label>
-                          <Select 
-                            value={newReport.templateId || "default"} 
-                            onValueChange={(val: any) => setNewReport({...newReport, templateId: val === "default" ? "" : val})}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Standard (Default)" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="default">Standard (Default)</SelectItem>
-                              {reportTemplates.map((tpl) => (
-                                <SelectItem key={tpl.id} value={tpl.id}>{tpl.name}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      )}
+                      <div className="grid gap-2 bg-primary/5 p-3 rounded-md border border-primary/20 mt-2">
+                        <Label className="text-primary font-medium text-sm">Custom Report Styles</Label>
+                        <p className="text-xs text-muted-foreground">
+                          We can create the exact report generation style you need per customer. Contact us to set up your custom layouts!
+                        </p>
+                      </div>
                     </div>
                     <DialogFooter>
                       <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Cancel</Button>

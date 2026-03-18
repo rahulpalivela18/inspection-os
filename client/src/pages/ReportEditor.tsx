@@ -208,48 +208,38 @@ export default function ReportEditor() {
     <Layout>
       <div className="flex h-screen flex-col bg-background">
         {/* Header Toolbar */}
-        <div className="border-b border-border bg-white px-4 md:px-6 py-3 flex flex-col sm:flex-row items-start sm:items-center justify-between shrink-0 gap-3 z-10">
-          <div className="flex items-center gap-2 md:gap-4 w-full sm:w-auto">
+        <div className="border-b border-border bg-white px-4 md:px-6 py-3 flex flex-col lg:flex-row items-start lg:items-center justify-between shrink-0 gap-4 z-10">
+          <div className="flex items-center gap-2 md:gap-4 w-full lg:w-auto">
             <Link href={`/project/${report.projectId}`}>
               <Button variant="ghost" size="icon" className="text-muted-foreground shrink-0 h-8 w-8">
                 <ArrowLeft className="h-4 w-4" />
               </Button>
             </Link>
-            <div className="min-w-0">
+            <div className="min-w-0 flex-1">
               <h1 className="text-base md:text-xl font-bold text-foreground flex items-center gap-2 truncate">
                 <FileText className="h-4 w-4 text-primary shrink-0" />
-                {report.title}
+                <span className="truncate">{report.title}</span>
               </h1>
               <p className="text-[10px] md:text-xs text-muted-foreground">{issues.length} Issues • {report.status}</p>
             </div>
           </div>
 
-          {/* Template Selector */}
-          <div className="flex items-center gap-2 w-full sm:w-auto">
-            <Label className="text-xs whitespace-nowrap">Report Template:</Label>
-            <Select value={selectedReportTemplate || "default"} onValueChange={(templateId) => {
-              const newTemplateId = templateId === "default" ? "" : templateId;
-              setSelectedReportTemplate(newTemplateId);
-              updateReport({...report, templateId: newTemplateId});
-            }}>
-              <SelectTrigger className="h-8 text-xs w-32 sm:w-40">
-                <SelectValue placeholder="Standard" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="default">Standard (Default)</SelectItem>
-                {reportTemplates.map((tpl) => (
-                  <SelectItem key={tpl.id} value={tpl.id}>{tpl.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          {/* Custom Template Message */}
+          <div className="flex items-center w-full lg:w-auto">
+            <div className="bg-primary/5 border border-primary/20 rounded-md px-3 py-2 w-full lg:w-auto">
+              <p className="text-xs text-primary font-medium">Custom Report Styles</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5 leading-tight max-w-full lg:max-w-[250px]">
+                We can create the exact report generation style you need per customer. Contact us!
+              </p>
+            </div>
           </div>
           
-          <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
-            <div className="bg-muted p-1 rounded-lg flex items-center shrink-0">
+          <div className="flex flex-col sm:flex-row items-center gap-2 w-full lg:w-auto justify-between lg:justify-end">
+            <div className="bg-muted p-1 rounded-lg flex items-center shrink-0 w-full sm:w-auto">
               <button 
                 onClick={() => setViewMode("edit")}
                 className={cn(
-                  "px-2 md:px-3 py-1 text-[10px] md:text-sm font-medium rounded-md transition-all",
+                  "flex-1 sm:flex-none px-3 md:px-4 py-1.5 md:py-2 text-xs md:text-sm font-medium rounded-md transition-all",
                   viewMode === "edit" ? "bg-white text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
                 )}
               >
@@ -258,7 +248,7 @@ export default function ReportEditor() {
               <button 
                 onClick={() => setViewMode("preview")}
                 className={cn(
-                  "px-2 md:px-3 py-1 text-[10px] md:text-sm font-medium rounded-md transition-all",
+                  "flex-1 sm:flex-none px-3 md:px-4 py-1.5 md:py-2 text-xs md:text-sm font-medium rounded-md transition-all",
                   viewMode === "preview" ? "bg-white text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
                 )}
               >
@@ -266,12 +256,12 @@ export default function ReportEditor() {
               </button>
             </div>
             
-            <div className="flex items-center gap-1 md:gap-2">
-              <Button variant="outline" size="sm" onClick={() => handlePrint()} className="h-8 md:h-10 text-[10px] md:text-sm px-2 md:px-3">
-                <Printer className="mr-1 md:mr-2 h-3 w-3 md:h-4 md:w-4" /> <span className="hidden xs:inline md:inline">Export</span><span className="xs:hidden">PDF</span>
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <Button variant="outline" size="sm" onClick={() => handlePrint()} className="h-9 md:h-10 text-xs md:text-sm px-3 md:px-4 flex-1 sm:flex-none">
+                <Printer className="mr-2 h-3.5 w-3.5 md:h-4 md:w-4" /> <span className="inline">Export PDF</span>
               </Button>
-              <Button size="sm" onClick={openNewIssueSheet} disabled={viewMode === "preview"} className="h-8 md:h-10 text-[10px] md:text-sm px-2 md:px-3">
-                <Plus className="mr-1 md:mr-2 h-3 w-3 md:h-4 md:w-4" /> <span className="hidden xs:inline md:inline">Issue</span><span className="xs:hidden">Add</span>
+              <Button size="sm" onClick={openNewIssueSheet} disabled={viewMode === "preview"} className="h-9 md:h-10 text-xs md:text-sm px-3 md:px-4 flex-1 sm:flex-none">
+                <Plus className="mr-2 h-3.5 w-3.5 md:h-4 md:w-4" /> <span className="inline">Add Issue</span>
               </Button>
             </div>
           </div>
@@ -361,6 +351,19 @@ export default function ReportEditor() {
             </div>
           )}
         </div>
+
+        {/* Mobile FAB for adding issues */}
+        {viewMode === "edit" && (
+          <div className="md:hidden fixed bottom-6 right-6 z-40">
+            <Button 
+              size="icon" 
+              className="h-14 w-14 rounded-full shadow-xl shadow-primary/30"
+              onClick={openNewIssueSheet}
+            >
+              <Plus className="h-6 w-6" />
+            </Button>
+          </div>
+        )}
 
         {/* Issue Editor Sheet */}
         <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>

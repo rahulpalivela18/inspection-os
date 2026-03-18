@@ -20,8 +20,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const navigation = [
     { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
     { name: "Projects", href: "/dashboard", icon: FolderOpen },
-    { name: "Templates", href: "/templates", icon: FileText },
-    { name: "Settings", href: "#", icon: Settings },
+    { name: "Templates (Soon)", href: "#", icon: FileText, disabled: true },
+    { name: "Settings", href: "#", icon: Settings, disabled: true },
   ];
 
   const SidebarContent = () => (
@@ -37,21 +37,34 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       
       <div className="flex-1 px-4 py-4 space-y-1">
         {navigation.map((item) => {
-          const isActive = location === item.href;
+          const isActive = location === item.href && !item.disabled;
+          
+          const content = (
+            <div
+              onClick={() => {
+                if (!item.disabled) setIsMobileOpen(false);
+              }}
+              className={cn(
+                "flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-all duration-200",
+                item.disabled 
+                  ? "opacity-50 cursor-not-allowed text-muted-foreground" 
+                  : "cursor-pointer " + (isActive
+                    ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm"
+                    : "text-muted-foreground hover:bg-sidebar-accent/50 hover:text-foreground")
+              )}
+            >
+              <item.icon className={cn("w-4 h-4", isActive ? "text-primary" : "")} />
+              {item.name}
+            </div>
+          );
+
+          if (item.disabled) {
+            return <div key={item.name}>{content}</div>;
+          }
+
           return (
             <Link key={item.name} href={item.href}>
-              <div
-                onClick={() => setIsMobileOpen(false)}
-                className={cn(
-                  "flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-all duration-200 cursor-pointer",
-                  isActive
-                    ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm"
-                    : "text-muted-foreground hover:bg-sidebar-accent/50 hover:text-foreground"
-                )}
-              >
-                <item.icon className={cn("w-4 h-4", isActive ? "text-primary" : "")} />
-                {item.name}
-              </div>
+              {content}
             </Link>
           );
         })}
