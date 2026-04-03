@@ -335,7 +335,8 @@ export default function ReportEditor() {
                                         item.status === "Y" ? "bg-green-500 text-white shadow-sm" : "text-slate-500 hover:text-slate-700"
                                       )}
                                       onClick={() => {
-                                        const newChecklist = report.checklist?.map(c => c.id === item.id ? {...c, status: "Y" as const} : c);
+                                        const newStatus = item.status === "Y" ? null : "Y";
+                                        const newChecklist = report.checklist?.map(c => c.id === item.id ? {...c, status: newStatus as "Y" | "N" | null} : c);
                                         updateReport({...report, checklist: newChecklist});
                                       }}
                                     >
@@ -347,7 +348,8 @@ export default function ReportEditor() {
                                         item.status === "N" ? "bg-red-500 text-white shadow-sm" : "text-slate-500 hover:text-slate-700"
                                       )}
                                       onClick={() => {
-                                        const newChecklist = report.checklist?.map(c => c.id === item.id ? {...c, status: "N" as const} : c);
+                                        const newStatus = item.status === "N" ? null : "N";
+                                        const newChecklist = report.checklist?.map(c => c.id === item.id ? {...c, status: newStatus as "Y" | "N" | null} : c);
                                         updateReport({...report, checklist: newChecklist});
                                       }}
                                     >
