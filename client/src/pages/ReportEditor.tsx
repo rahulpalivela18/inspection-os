@@ -487,9 +487,9 @@ export default function ReportEditor() {
               </div>
             </div>
           ) : (
-            <div className="h-full overflow-y-auto p-4 md:p-8 bg-slate-200/50 flex justify-center">
-              <div ref={componentRef} className="bg-white shadow-xl w-full max-w-[210mm] min-h-[297mm] p-0 print:shadow-none origin-top transition-transform sm:scale-100">
-                <div className="sm:hidden text-center py-4 bg-amber-50 text-amber-800 text-xs font-medium border-b border-amber-100">
+            <div className="h-full overflow-y-auto p-4 md:p-8 bg-slate-200/50 flex justify-center print:p-0 print:bg-white print:overflow-visible">
+              <div ref={componentRef} className="bg-white shadow-xl w-full max-w-[210mm] min-h-[297mm] p-0 print:shadow-none print:m-0 print:max-w-none origin-top transition-transform sm:scale-100">
+                <div className="sm:hidden text-center py-4 bg-amber-50 text-amber-800 text-xs font-medium border-b border-amber-100 print:hidden">
                   Note: Preview layout is optimized for Desktop/A4 Print.
                 </div>
                 {project && <ReportPreview report={report} project={project} issues={issues} />}

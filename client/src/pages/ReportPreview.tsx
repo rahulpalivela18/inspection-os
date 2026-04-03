@@ -44,10 +44,10 @@ export default function ReportPreview({ report, project, issues }: ReportPreview
   const theme = colors[template.colorScheme as keyof typeof colors] || colors.indigo;
 
   return (
-    <div className="font-sans text-sm text-slate-900 leading-normal bg-white print:p-0 w-full overflow-x-hidden">
+    <div className="font-sans text-sm text-slate-900 leading-normal bg-white print:p-0 w-full max-w-[210mm] print:max-w-full print:w-full mx-auto overflow-hidden print:overflow-visible">
       {/* Cover Page */}
-      <div className="min-h-[296mm] flex flex-col p-6 md:p-[20mm] bg-white break-after-page relative overflow-hidden border-b print:border-0">
-        <div className={cn("absolute top-0 right-0 w-1/2 h-1/2 -rotate-12 translate-x-1/4 -translate-y-1/4 rounded-full blur-3xl -z-10", theme.blob)} />
+      <div className="min-h-[297mm] print:min-h-0 flex flex-col p-6 md:p-[20mm] bg-white break-after-page relative overflow-hidden print:overflow-visible border-b print:border-0">
+        <div className={cn("absolute top-0 right-0 w-1/2 h-1/2 -rotate-12 translate-x-1/4 -translate-y-1/4 rounded-full blur-3xl -z-10 print:hidden", theme.blob)} />
         
         <div className="flex justify-between items-start mb-12 md:mb-24">
           <div className={cn("text-3xl md:text-4xl font-extrabold tracking-tighter", theme.text)}>ReportGen</div>
@@ -63,19 +63,19 @@ export default function ReportPreview({ report, project, issues }: ReportPreview
         </div>
 
         <div className="mt-auto">
-          <div className="space-y-4 mb-12 md:mb-20">
+          <div className="space-y-4 mb-8 md:mb-12">
             <span className={cn("inline-block px-3 py-1 text-[10px] md:text-xs font-bold uppercase tracking-widest rounded-full", theme.badge)}>
               Inspection Report
             </span>
-            <h1 className="text-4xl md:text-6xl font-black font-heading leading-tight md:leading-none tracking-tight text-slate-900">
+            <h1 className="text-4xl md:text-5xl font-black font-heading leading-tight md:leading-none tracking-tight text-slate-900">
               {report.title}
             </h1>
-            <p className="text-xl md:text-2xl text-slate-500 font-medium">
+            <p className="text-xl text-slate-500 font-medium">
               {project.title}
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12 border-t border-slate-100 pt-8 md:pt-12">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 border-t border-slate-100 pt-6">
             <div className="space-y-6">
               <div>
                 <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Client</h3>
@@ -102,14 +102,14 @@ export default function ReportPreview({ report, project, issues }: ReportPreview
           </div>
         </div>
 
-        <div className="mt-12 md:mt-24 pt-8 border-t border-slate-100 flex flex-col md:flex-row justify-between items-center text-slate-400 text-[10px] font-medium gap-2">
+        <div className="mt-8 pt-6 border-t border-slate-100 flex flex-col md:flex-row justify-between items-center text-slate-400 text-[10px] font-medium gap-2">
           <span>REPORT ID: {report.id.toUpperCase()}</span>
           <span>CONFIDENTIAL</span>
         </div>
       </div>
 
       {/* Findings Section */}
-      <div className="flex flex-col min-h-[297mm] relative">
+      <div className="flex flex-col relative print:min-h-0 break-before-page">
         {/* Logo Header */}
         {project.logoUrl && template.includeLogoOnEveryPage && (
           <div className="absolute top-4 right-4 w-16 h-16 p-2 border border-slate-100 rounded-lg bg-white flex items-center justify-center overflow-hidden shadow-sm">
@@ -125,8 +125,8 @@ export default function ReportPreview({ report, project, issues }: ReportPreview
 
           {/* Checklist Summary */}
           {report.checklist && report.checklist.length > 0 && (
-            <div className="mb-12 break-inside-avoid">
-              <h3 className="text-lg font-bold mb-4 flex items-center gap-2 border-b pb-2 text-slate-900">
+            <div className="mb-12">
+              <h3 className="text-lg font-bold mb-4 flex items-center gap-2 border-b pb-2 text-slate-900 break-after-avoid">
                 Checklist Summary
               </h3>
               <div className="border border-slate-200 rounded-xl overflow-hidden">
@@ -135,13 +135,13 @@ export default function ReportPreview({ report, project, issues }: ReportPreview
                   if (!categoryItems || categoryItems.length === 0) return null;
                   
                   return (
-                    <div key={category} className={catIdx > 0 ? "border-t border-slate-200" : ""}>
-                      <div className="bg-slate-100 px-4 py-2 font-bold text-xs uppercase tracking-wider text-slate-700">
+                    <div key={category} className={cn(catIdx > 0 ? "border-t border-slate-200" : "", "break-inside-avoid-page")}>
+                      <div className="bg-slate-100 px-4 py-2 font-bold text-xs uppercase tracking-wider text-slate-700 break-after-avoid">
                         {category}
                       </div>
                       <div className="divide-y divide-slate-100">
                         {categoryItems.map((item, itemIdx) => (
-                          <div key={item.id} className="p-3 md:p-4 flex flex-col md:flex-row gap-3 md:items-start bg-white">
+                          <div key={item.id} className="p-3 md:p-4 flex flex-col md:flex-row gap-3 md:items-start bg-white break-inside-avoid">
                             <div className="flex-1 flex gap-3">
                               <span className="text-xs font-bold text-slate-400 mt-0.5 w-5 shrink-0">{itemIdx + 1}.</span>
                               <p className="text-sm font-medium text-slate-800 leading-tight">{item.point}</p>

@@ -81,3 +81,54 @@
     @apply font-heading font-semibold tracking-tight;
   }
 }
+
+@media print {
+  @page {
+    margin: 10mm;
+  }
+  
+  html, body {
+    width: 100% !important;
+    height: auto !important;
+    min-height: 100% !important;
+    background-color: white !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Reset scale for printing */
+  .sm\:scale-100 {
+    transform: none !important;
+  }
+
+  /* Force page breaks */
+  .break-after-page {
+    page-break-after: always !important;
+    break-after: page !important;
+  }
+  
+  .break-before-page {
+    page-break-before: always !important;
+    break-before: page !important;
+  }
+
+  /* Prevent breaking inside elements */
+  .break-inside-avoid {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  /* Keep headers with their content */
+  .break-after-avoid {
+    page-break-after: avoid !important;
+    break-after: avoid !important;
+  }
+
+  /* Fix background colors missing in print */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}
