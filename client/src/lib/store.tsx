@@ -12,6 +12,14 @@ export type Project = {
   createdAt: string;
 };
 
+export type ChecklistItem = {
+  id: string;
+  category: string;
+  point: string;
+  status: "Y" | "N" | null;
+  image?: string;
+};
+
 export type Report = {
   id: string;
   projectId: string;
@@ -21,6 +29,7 @@ export type Report = {
   date: string;
   createdAt: string;
   templateId?: string;
+  checklist?: ChecklistItem[];
 };
 
 export type Issue = {
@@ -79,6 +88,18 @@ const MOCK_REPORTS: Report[] = [
     author: "Jane Engineer",
     date: format(new Date(), "yyyy-MM-dd"),
     createdAt: new Date().toISOString(),
+    checklist: [
+      { id: "c1", category: "BALCONY", point: "Flooring (Tiles): Are all the room corners in right angle?", status: "N", image: "https://images.unsplash.com/photo-1584467541268-b040f83be3fd?auto=format&fit=crop&q=80&w=300" },
+      { id: "c2", category: "BALCONY", point: "Flooring (Tiles): Are the Butt filling grooves uniform?", status: "Y" },
+      { id: "c3", category: "BALCONY", point: "Flooring (Tiles): Any colour & shade variation observed in floor tiles", status: "Y" },
+      { id: "c4", category: "BALCONY", point: "Flooring (Tiles): Hollowness or debonding observed in floor tiles after fixing", status: null },
+      { id: "c5", category: "BATHROOM", point: "Flooring (Tiles): Are all the room corners in right angle?", status: null },
+      { id: "c6", category: "BATHROOM", point: "Flooring (Tiles): Are the Butt filling grooves uniform?", status: null },
+      { id: "c7", category: "BEDROOM", point: "Are all the room corners in right angle?", status: null },
+      { id: "c8", category: "BEDROOM", point: "Are the Butt filling grooves uniform?", status: null },
+      { id: "c9", category: "Common area", point: "Electrical Work: Are fan regulators working smoothly in all directions", status: null },
+      { id: "c10", category: "EXTERNAL AREA", point: "Modular Kitchen & Kitchen Platform: Is the functioning of the modular furniture doors satisfactory", status: null },
+    ]
   },
 ];
 

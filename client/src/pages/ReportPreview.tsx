@@ -122,8 +122,69 @@ export default function ReportPreview({ report, project, issues }: ReportPreview
             <h2 className="text-xl md:text-2xl font-black uppercase tracking-tight">Inspection Findings</h2>
             <span className="text-slate-400 text-[10px] font-bold uppercase tracking-widest">Section 01 / Technical Observations</span>
           </div>
+
+          {/* Checklist Summary */}
+          {report.checklist && report.checklist.length > 0 && (
+            <div className="mb-12 break-inside-avoid">
+              <h3 className="text-lg font-bold mb-4 flex items-center gap-2 border-b pb-2 text-slate-900">
+                Checklist Summary
+              </h3>
+              <div className="border border-slate-200 rounded-xl overflow-hidden">
+                {Array.from(new Set(report.checklist.map(c => c.category))).map((category, catIdx) => {
+                  const categoryItems = report.checklist?.filter(c => c.category === category);
+                  if (!categoryItems || categoryItems.length === 0) return null;
+                  
+                  return (
+                    <div key={category} className={catIdx > 0 ? "border-t border-slate-200" : ""}>
+                      <div className="bg-slate-100 px-4 py-2 font-bold text-xs uppercase tracking-wider text-slate-700">
+                        {category}
+                      </div>
+                      <div className="divide-y divide-slate-100">
+                        {categoryItems.map((item, itemIdx) => (
+                          <div key={item.id} className="p-3 md:p-4 flex flex-col md:flex-row gap-3 md:items-start bg-white">
+                            <div className="flex-1 flex gap-3">
+                              <span className="text-xs font-bold text-slate-400 mt-0.5 w-5 shrink-0">{itemIdx + 1}.</span>
+                              <p className="text-sm font-medium text-slate-800 leading-tight">{item.point}</p>
+                            </div>
+                            <div className="flex items-center gap-4 pl-8 md:pl-0 shrink-0">
+                              {item.status === 'Y' && (
+                                <span className="px-3 py-1 bg-green-100 text-green-800 text-[10px] font-black uppercase tracking-widest rounded-md border border-green-200">
+                                  PASS
+                                </span>
+                              )}
+                              {item.status === 'N' && (
+                                <span className="px-3 py-1 bg-red-100 text-red-800 text-[10px] font-black uppercase tracking-widest rounded-md border border-red-200">
+                                  FAIL
+                                </span>
+                              )}
+                              {item.status === null && (
+                                <span className="px-3 py-1 bg-slate-100 text-slate-500 text-[10px] font-black uppercase tracking-widest rounded-md border border-slate-200">
+                                  PENDING
+                                </span>
+                              )}
+                              
+                              {item.status === 'N' && item.image && (
+                                <div className="h-10 w-14 rounded bg-slate-100 border overflow-hidden">
+                                  <img src={item.image} alt="Defect" className="w-full h-full object-cover" />
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
           
           <div className="space-y-8 md:space-y-12">
+            {issues.length > 0 && (
+              <h3 className="text-lg font-bold mb-4 flex items-center gap-2 border-b pb-2 text-slate-900 break-inside-avoid">
+                Detailed Issues Log
+              </h3>
+            )}
             {issues.map((issue, index) => (
               <div key={issue.id} className="break-inside-avoid border border-slate-100 rounded-2xl overflow-hidden shadow-sm bg-white mb-8">
                 <div className="bg-slate-50 p-4 border-b border-slate-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">

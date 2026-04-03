@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { 
   ArrowLeft, Plus, Printer, FileText, Trash2, Settings,
-  AlertTriangle, CheckCircle2, Circle, Camera, MapPin, User, X, Zap
+  AlertTriangle, CheckCircle2, Circle, Camera, MapPin, User, X, Zap, Image as ImageIcon
 } from "lucide-react";
 import { Link, useRoute } from "wouter";
 import NotFound from "./not-found";
@@ -267,11 +267,129 @@ export default function ReportEditor() {
           </div>
         </div>
 
-        {/* Content Area */}
+          {/* Content Area */}
         <div className="flex-1 overflow-hidden bg-muted/10">
           {viewMode === "edit" ? (
             <div className="h-full p-4 md:p-8 overflow-y-auto">
               <div className="max-w-5xl mx-auto space-y-4 md:space-y-6">
+                
+                {/* Checklist Section */}
+                {report.checklist && report.checklist.length > 0 && (
+                  <div className="mb-8">
+                    <div className="flex items-center justify-between mb-4">
+                      <h2 className="text-lg font-bold flex items-center gap-2">
+                        <CheckCircle2 className="h-5 w-5 text-primary" />
+                        Inspection Checklist
+                      </h2>
+                      <div className="text-sm text-muted-foreground bg-white px-3 py-1 rounded-full border shadow-sm">
+                        {report.checklist.filter(c => c.status === "Y").length} Pass / {report.checklist.filter(c => c.status === "N").length} Fail / {report.checklist.filter(c => c.status === null).length} Pending
+                      </div>
+                    </div>
+                    
+                    <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
+                      {Array.from(new Set(report.checklist.map(c => c.category))).map((category, catIdx) => (
+                        <div key={category} className={catIdx > 0 ? "border-t border-slate-100" : ""}>
+                          <div className="bg-slate-50 px-4 py-2 font-semibold text-sm border-b border-slate-100 text-slate-700">
+                            {category}
+                          </div>
+                          <div className="divide-y divide-slate-100">
+                            {report.checklist?.filter(c => c.category === category).map(item => (
+                              <div key={item.id} className="p-3 md:p-4 flex flex-col md:flex-row gap-3 md:gap-4 md:items-center hover:bg-slate-50/50 transition-colors">
+                                <div className="flex-1 flex items-start gap-3">
+                                  <div className="mt-0.5 w-5 h-5 rounded-full border border-slate-300 flex items-center justify-center shrink-0 text-[10px] text-slate-400 font-medium">
+                                    {report.checklist?.indexOf(item)! + 1}
+                                  </div>
+                                  <p className="text-sm md:text-base font-medium leading-tight">{item.point}</p>
+                                </div>
+                                
+                                <div className="flex flex-wrap items-center gap-2 pl-8 md:pl-0 shrink-0">
+                                  <div className="flex bg-slate-100 rounded-lg p-1 border">
+                                    <button 
+                                      className={cn(
+                                        "px-3 py-1 text-xs font-bold rounded-md transition-all duration-200",
+                                        item.status === "Y" ? "bg-green-500 text-white shadow-sm" : "text-slate-500 hover:text-slate-700"
+                                      )}
+                                      onClick={() => {
+                                        const newChecklist = report.checklist?.map(c => c.id === item.id ? {...c, status: "Y" as const} : c);
+                                        updateReport({...report, checklist: newChecklist});
+                                      }}
+                                    >
+                                      PASS
+                                    </button>
+                                    <button 
+                                      className={cn(
+                                        "px-3 py-1 text-xs font-bold rounded-md transition-all duration-200",
+                                        item.status === "N" ? "bg-red-500 text-white shadow-sm" : "text-slate-500 hover:text-slate-700"
+                                      )}
+                                      onClick={() => {
+                                        const newChecklist = report.checklist?.map(c => c.id === item.id ? {...c, status: "N" as const} : c);
+                                        updateReport({...report, checklist: newChecklist});
+                                      }}
+                                    >
+                                      FAIL
+                                    </button>
+                                  </div>
+                                  
+                                  {item.status === "N" && (
+                                    <div className="relative">
+                                      {item.image ? (
+                                        <div className="relative h-8 w-12 rounded border bg-slate-100 overflow-hidden group">
+                                          <img src={item.image} alt="Defect" className="object-cover w-full h-full" />
+                                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity cursor-pointer"
+                                            onClick={() => {
+                                              const newChecklist = report.checklist?.map(c => c.id === item.id ? {...c, image: undefined} : c);
+                                              updateReport({...report, checklist: newChecklist});
+                                            }}
+                                          >
+                                            <X className="h-3 w-3 text-white" />
+                                          </div>
+                                        </div>
+                                      ) : (
+                                        <>
+                                          <input 
+                                            type="file" 
+                                            id={`check-img-${item.id}`} 
+                                            className="hidden" 
+                                            accept="image/*"
+                                            onChange={(e) => {
+                                              const file = e.target.files?.[0];
+                                              if (!file) return;
+                                              const reader = new FileReader();
+                                              reader.onload = (event) => {
+                                                const base64 = event.target?.result as string;
+                                                const newChecklist = report.checklist?.map(c => c.id === item.id ? {...c, image: base64} : c);
+                                                updateReport({...report, checklist: newChecklist});
+                                              };
+                                              reader.readAsDataURL(file);
+                                            }}
+                                          />
+                                          <label 
+                                            htmlFor={`check-img-${item.id}`}
+                                            className="flex items-center gap-1 bg-orange-100 text-orange-700 hover:bg-orange-200 border border-orange-200 px-2 py-1.5 rounded-lg text-xs font-medium cursor-pointer transition-colors"
+                                          >
+                                            <ImageIcon className="h-3 w-3" /> Photo
+                                          </label>
+                                        </>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-lg font-bold flex items-center gap-2">
+                    <AlertTriangle className="h-5 w-5 text-primary" />
+                    Detailed Issues
+                  </h2>
+                </div>
+
                 {issues.length === 0 ? (
                    <div className="flex flex-col items-center justify-center py-12 md:py-20 text-center border-2 border-dashed border-border rounded-xl bg-white/50 px-4">
                    <div className="bg-muted p-4 rounded-full mb-4">
