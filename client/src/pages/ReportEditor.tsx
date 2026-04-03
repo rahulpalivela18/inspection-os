@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { 
   ArrowLeft, Plus, Printer, FileText, Trash2, Settings,
-  AlertTriangle, CheckCircle2, Circle, Camera, MapPin, User, X, Zap, Image as ImageIcon
+  AlertTriangle, CheckCircle2, Circle, Camera, MapPin, User, X, Zap, Image as ImageIcon, ChevronDown, ChevronRight
 } from "lucide-react";
 import { Link, useRoute } from "wouter";
 import NotFound from "./not-found";
@@ -73,6 +73,22 @@ export default function ReportEditor() {
   
   const project = getProject(report.projectId);
   const issues = getReportIssues(report.id);
+
+  const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>(
+    report.checklist ? 
+      Array.from(new Set(report.checklist.map(c => c.category))).reduce((acc, cat, idx) => {
+        acc[cat] = idx === 0; // Only expand the first category by default
+        return acc;
+      }, {} as Record<string, boolean>) 
+    : {}
+  );
+
+  const toggleCategory = (category: string) => {
+    setExpandedCategories(prev => ({
+      ...prev,
+      [category]: !prev[category]
+    }));
+  };
 
   const openNewIssueSheet = () => {
     setEditingIssue(null);
@@ -279,11 +295,30 @@ export default function ReportEditor() {
                     <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
                       {Array.from(new Set(report.checklist.map(c => c.category))).map((category, catIdx) => (
                         <div key={category} className={catIdx > 0 ? "border-t border-slate-100" : ""}>
-                          <div className="bg-slate-50 px-4 py-2 font-semibold text-sm border-b border-slate-100 text-slate-700">
-                            {category}
+                          <div 
+                            className="bg-slate-50 px-4 py-3 font-semibold text-sm border-b border-slate-100 text-slate-700 flex justify-between items-center cursor-pointer hover:bg-slate-100 transition-colors"
+                            onClick={() => toggleCategory(category)}
+                          >
+                            <div className="flex items-center gap-2">
+                              {expandedCategories[category] ? 
+                                <ChevronDown className="h-4 w-4 text-slate-500" /> : 
+                                <ChevronRight className="h-4 w-4 text-slate-500" />
+                              }
+                              {category}
+                            </div>
+                            <div className="flex gap-2 text-xs font-normal">
+                              <span className="text-green-600 bg-green-50 px-2 py-0.5 rounded-full">
+                                {report.checklist?.filter(c => c.category === category && c.status === "Y").length || 0} Pass
+                              </span>
+                              <span className="text-red-600 bg-red-50 px-2 py-0.5 rounded-full">
+                                {report.checklist?.filter(c => c.category === category && c.status === "N").length || 0} Fail
+                              </span>
+                            </div>
                           </div>
-                          <div className="divide-y divide-slate-100">
-                            {report.checklist?.filter(c => c.category === category).map(item => (
+                          
+                          {expandedCategories[category] && (
+                            <div className="divide-y divide-slate-100">
+                              {report.checklist?.filter(c => c.category === category).map(item => (
                               <div key={item.id} className="p-3 md:p-4 flex flex-col md:flex-row gap-3 md:gap-4 md:items-center hover:bg-slate-50/50 transition-colors">
                                 <div className="flex-1 flex items-start gap-3">
                                   <div className="mt-0.5 w-5 h-5 rounded-full border border-slate-300 flex items-center justify-center shrink-0 text-[10px] text-slate-400 font-medium">
@@ -366,7 +401,8 @@ export default function ReportEditor() {
                                 </div>
                               </div>
                             ))}
-                          </div>
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>
