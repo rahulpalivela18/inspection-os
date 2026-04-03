@@ -223,16 +223,6 @@ export default function ReportEditor() {
               <p className="text-[10px] md:text-xs text-muted-foreground">{issues.length} Issues • {report.status}</p>
             </div>
           </div>
-
-          {/* Custom Template Message */}
-          <div className="flex items-center w-full lg:w-auto">
-            <div className="bg-primary/5 border border-primary/20 rounded-md px-3 py-2 w-full lg:w-auto">
-              <p className="text-xs text-primary font-medium">Custom Report Styles</p>
-              <p className="text-[10px] text-muted-foreground mt-0.5 leading-tight max-w-full lg:max-w-[250px]">
-                We can create the exact report generation style you need per customer. Contact us!
-              </p>
-            </div>
-          </div>
           
           <div className="flex flex-col sm:flex-row items-center gap-2 w-full lg:w-auto justify-between lg:justify-end">
             <div className="bg-muted p-1 rounded-lg flex items-center shrink-0 w-full sm:w-auto">
