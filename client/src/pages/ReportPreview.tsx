@@ -149,13 +149,25 @@ export default function ReportPreview({ report, project, issues }: ReportPreview
                             <div className="flex items-center gap-4 pl-8 md:pl-0 shrink-0">
                               {item.status === 'Y' && (
                                 <span className="px-3 py-1 bg-green-100 text-green-800 text-[10px] font-black uppercase tracking-widest rounded-md border border-green-200">
-                                  PASS
+                                  YES
                                 </span>
                               )}
                               {item.status === 'N' && (
-                                <span className="px-3 py-1 bg-red-100 text-red-800 text-[10px] font-black uppercase tracking-widest rounded-md border border-red-200">
-                                  FAIL
-                                </span>
+                                <div className="flex flex-col gap-1 items-end">
+                                  <span className="px-3 py-1 bg-red-100 text-red-800 text-[10px] font-black uppercase tracking-widest rounded-md border border-red-200">
+                                    NO
+                                  </span>
+                                  {item.severity && (
+                                    <span className={cn(
+                                      "px-2 py-0.5 text-[8px] font-bold uppercase rounded border",
+                                      item.severity === "MAJOR" ? "bg-red-50 text-red-600 border-red-200" :
+                                      item.severity === "MINOR" ? "bg-orange-50 text-orange-600 border-orange-200" :
+                                      "bg-blue-50 text-blue-600 border-blue-200"
+                                    )}>
+                                      {item.severity}
+                                    </span>
+                                  )}
+                                </div>
                               )}
                               {item.status === null && (
                                 <span className="px-3 py-1 bg-slate-100 text-slate-500 text-[10px] font-black uppercase tracking-widest rounded-md border border-slate-200">

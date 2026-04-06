@@ -288,7 +288,24 @@ export default function ReportEditor() {
                         Inspection Checklist
                       </h2>
                       <div className="text-sm text-muted-foreground bg-white px-3 py-1 rounded-full border shadow-sm">
-                        {report.checklist.filter(c => c.status === "Y").length} Pass / {report.checklist.filter(c => c.status === "N").length} Fail / {report.checklist.filter(c => c.status === null).length} Pending
+                        {report.checklist.filter(c => c.status === "Y").length} Yes / {report.checklist.filter(c => c.status === "N").length} No / {report.checklist.filter(c => c.status === null).length} Pending
+                      </div>
+                    </div>
+                    
+                    <div className="flex gap-4 mb-6 p-4 bg-white rounded-xl border shadow-sm">
+                      <div className="flex flex-col">
+                        <span className="text-xs text-slate-500 uppercase font-semibold">Total Major</span>
+                        <span className="text-xl font-bold text-red-600">{report.checklist.filter(c => c.severity === "MAJOR").length}</span>
+                      </div>
+                      <div className="w-px bg-slate-200"></div>
+                      <div className="flex flex-col">
+                        <span className="text-xs text-slate-500 uppercase font-semibold">Total Minor</span>
+                        <span className="text-xl font-bold text-orange-500">{report.checklist.filter(c => c.severity === "MINOR").length}</span>
+                      </div>
+                      <div className="w-px bg-slate-200"></div>
+                      <div className="flex flex-col">
+                        <span className="text-xs text-slate-500 uppercase font-semibold">Total Cosmetic</span>
+                        <span className="text-xl font-bold text-blue-500">{report.checklist.filter(c => c.severity === "COSMETIC").length}</span>
                       </div>
                     </div>
                     
@@ -308,10 +325,10 @@ export default function ReportEditor() {
                             </div>
                             <div className="flex gap-2 text-xs font-normal">
                               <span className="text-green-600 bg-green-50 px-2 py-0.5 rounded-full">
-                                {report.checklist?.filter(c => c.category === category && c.status === "Y").length || 0} Pass
+                                {report.checklist?.filter(c => c.category === category && c.status === "Y").length || 0} Yes
                               </span>
                               <span className="text-red-600 bg-red-50 px-2 py-0.5 rounded-full">
-                                {report.checklist?.filter(c => c.category === category && c.status === "N").length || 0} Fail
+                                {report.checklist?.filter(c => c.category === category && c.status === "N").length || 0} No
                               </span>
                             </div>
                           </div>
@@ -327,48 +344,68 @@ export default function ReportEditor() {
                                   <p className="text-sm md:text-base font-medium leading-tight">{item.point}</p>
                                 </div>
                                 
-                                <div className="flex flex-wrap items-center gap-2 pl-8 md:pl-0 shrink-0">
-                                  <div className="flex bg-slate-100 rounded-lg p-1 border">
-                                    <button 
-                                      className={cn(
-                                        "px-3 py-1 text-xs font-bold rounded-md transition-all duration-200",
-                                        item.status === "Y" ? "bg-green-500 text-white shadow-sm" : "text-slate-500 hover:text-slate-700"
-                                      )}
-                                      onClick={() => {
-                                        const newStatus = item.status === "Y" ? null : "Y";
-                                        const newChecklist = report.checklist?.map(c => c.id === item.id ? {...c, status: newStatus as "Y" | "N" | null} : c);
-                                        updateReport({...report, checklist: newChecklist});
-                                      }}
-                                    >
-                                      PASS
-                                    </button>
-                                    <button 
-                                      className={cn(
-                                        "px-3 py-1 text-xs font-bold rounded-md transition-all duration-200",
-                                        item.status === "N" ? "bg-red-500 text-white shadow-sm" : "text-slate-500 hover:text-slate-700"
-                                      )}
-                                      onClick={() => {
-                                        const newStatus = item.status === "N" ? null : "N";
-                                        const newChecklist = report.checklist?.map(c => c.id === item.id ? {...c, status: newStatus as "Y" | "N" | null} : c);
-                                        updateReport({...report, checklist: newChecklist});
-                                      }}
-                                    >
-                                      FAIL
-                                    </button>
+                                <div className="flex flex-col gap-2 pl-8 md:pl-0 shrink-0 w-full sm:w-auto mt-2 md:mt-0">
+                                  <div className="flex flex-wrap items-center gap-2 justify-start md:justify-end">
+                                    <div className="flex bg-slate-100 rounded-lg p-1 border">
+                                      <button 
+                                        className={cn(
+                                          "px-3 py-1 text-xs font-bold rounded-md transition-all duration-200",
+                                          item.status === "Y" ? "bg-green-500 text-white shadow-sm" : "text-slate-500 hover:text-slate-700"
+                                        )}
+                                        onClick={() => {
+                                          const newStatus = item.status === "Y" ? null : "Y";
+                                          const newChecklist = report.checklist?.map(c => c.id === item.id ? {...c, status: newStatus as "Y" | "N" | null} : c);
+                                          updateReport({...report, checklist: newChecklist});
+                                        }}
+                                      >
+                                        YES
+                                      </button>
+                                      <button 
+                                        className={cn(
+                                          "px-3 py-1 text-xs font-bold rounded-md transition-all duration-200",
+                                          item.status === "N" ? "bg-red-500 text-white shadow-sm" : "text-slate-500 hover:text-slate-700"
+                                        )}
+                                        onClick={() => {
+                                          const newStatus = item.status === "N" ? null : "N";
+                                          const newChecklist = report.checklist?.map(c => c.id === item.id ? {...c, status: newStatus as "Y" | "N" | null} : c);
+                                          updateReport({...report, checklist: newChecklist});
+                                        }}
+                                      >
+                                        NO
+                                      </button>
+                                    </div>
+                                    
+                                    {item.status === "N" && (
+                                      <div className="relative flex-1 sm:flex-none">
+                                        <select
+                                          className="text-xs border rounded-md px-2 py-1.5 bg-white text-slate-700 w-full sm:w-[110px]"
+                                          value={item.severity || "invalid"}
+                                          onChange={(e) => {
+                                            const newChecklist = report.checklist?.map(c => c.id === item.id ? {...c, severity: (e.target.value || null) as any} : c);
+                                            updateReport({...report, checklist: newChecklist});
+                                          }}
+                                        >
+                                          <option value="invalid" disabled>Severity</option>
+                                          <option value="MAJOR">Major</option>
+                                          <option value="MINOR">Minor</option>
+                                          <option value="COSMETIC">Cosmetic</option>
+                                        </select>
+                                      </div>
+                                    )}
                                   </div>
                                   
                                   {item.status === "N" && (
-                                    <div className="relative">
+                                    <div className="flex justify-start md:justify-end">
                                       {item.image ? (
-                                        <div className="relative h-8 w-12 rounded border bg-slate-100 overflow-hidden group">
+                                        <div className="relative h-10 w-14 sm:h-12 sm:w-16 rounded border overflow-hidden group">
                                           <img src={item.image} alt="Defect" className="object-cover w-full h-full" />
-                                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity cursor-pointer"
+                                          <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity cursor-pointer"
                                             onClick={() => {
                                               const newChecklist = report.checklist?.map(c => c.id === item.id ? {...c, image: undefined} : c);
                                               updateReport({...report, checklist: newChecklist});
                                             }}
                                           >
-                                            <X className="h-3 w-3 text-white" />
+                                            <X className="h-4 w-4 text-white" />
                                           </div>
                                         </div>
                                       ) : (
@@ -392,9 +429,9 @@ export default function ReportEditor() {
                                           />
                                           <label 
                                             htmlFor={`check-img-${item.id}`}
-                                            className="flex items-center gap-1 bg-orange-100 text-orange-700 hover:bg-orange-200 border border-orange-200 px-2 py-1.5 rounded-lg text-xs font-medium cursor-pointer transition-colors"
+                                            className="flex items-center justify-center gap-1 bg-orange-50 hover:bg-orange-100 border border-orange-200 text-orange-700 px-3 py-1.5 rounded-lg text-xs font-medium cursor-pointer transition-colors w-full sm:w-auto"
                                           >
-                                            <ImageIcon className="h-3 w-3" /> Photo
+                                            <ImageIcon className="h-3.5 w-3.5" /> Add Photo
                                           </label>
                                         </>
                                       )}
