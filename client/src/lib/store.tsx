@@ -17,6 +17,7 @@ export type ChecklistItem = {
   category: string;
   point: string;
   status: "Y" | "N" | null;
+  severity?: "MAJOR" | "MINOR" | "COSMETIC" | null;
   image?: string;
 };
 
