@@ -17,7 +17,7 @@ import NotFound from "./not-found";
 export default function ProjectDetails() {
   const [match, params] = useRoute("/project/:id");
   const [, setLocation] = useLocation();
-  const { getProject, getProjectReports, addReport, updateProject, updateReport, reportTemplates } = useStore();
+  const { getProject, getProjectReports, addReport, updateProject, updateReport } = useStore();
   
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isEditProjectOpen, setIsEditProjectOpen] = useState(false);
@@ -44,8 +44,8 @@ export default function ProjectDetails() {
     author: "",
     status: "Draft" as const,
     date: format(new Date(), "yyyy-MM-dd"),
-    templateId: "",
   });
+  const [hasInitializedEditData, setHasInitializedEditData] = useState(false);
 
   if (!match || !params) return <NotFound />;
 
@@ -54,7 +54,6 @@ export default function ProjectDetails() {
   if (!project) return <NotFound />;
 
   // Initializing edit state if not already set
-  const [hasInitializedEditData, setHasInitializedEditData] = useState(false);
   if (!hasInitializedEditData && project) {
     setEditProjectData({
       title: project.title,
@@ -145,15 +144,19 @@ export default function ProjectDetails() {
                 )}
                 <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                   <DialogTrigger asChild>
-                    <Button size="lg" className="w-full sm:w-auto shadow-lg shadow-primary/20">
+                    <Button size="lg" className="w-full sm:w-auto shadow-lg shadow-primary/20" data-testid="button-create-report">
                       <Plus className="mr-2 h-4 w-4" /> New Report
                     </Button>
                   </DialogTrigger>
                   <DialogContent>
                     <DialogHeader>
                       <DialogTitle>Create New Report</DialogTitle>
-                      <DialogDescription>Start a new inspection report for this project.</DialogDescription>
+                      <DialogDescription>Start a new inspection report for this project. The default checklist will be added automatically.</DialogDescription>
                     </DialogHeader>
+                    <div className="rounded-2xl border border-indigo-100 bg-indigo-50/70 p-4 text-sm text-slate-600">
+                      <p className="font-semibold text-slate-900">What happens next</p>
+                      <p className="mt-1">You only enter the report details here. Once the report is created, the checklist is already inside the report and ready to fill.</p>
+                    </div>
                     <div className="grid gap-4 py-4">
                       <div className="grid gap-2">
                         <Label htmlFor="title">Report Title</Label>
@@ -162,6 +165,7 @@ export default function ProjectDetails() {
                           placeholder="e.g. Initial Site Survey" 
                           value={newReport.title}
                           onChange={(e) => setNewReport({...newReport, title: e.target.value})}
+                          data-testid="input-report-title"
                         />
                       </div>
                       <div className="grid grid-cols-2 gap-4">
@@ -172,6 +176,7 @@ export default function ProjectDetails() {
                             placeholder="Your Name" 
                             value={newReport.author}
                             onChange={(e) => setNewReport({...newReport, author: e.target.value})}
+                            data-testid="input-report-author"
                           />
                         </div>
                         <div className="grid gap-2">
@@ -181,6 +186,7 @@ export default function ProjectDetails() {
                             type="date"
                             value={newReport.date}
                             onChange={(e) => setNewReport({...newReport, date: e.target.value})}
+                            data-testid="input-report-date"
                           />
                         </div>
                       </div>
@@ -190,7 +196,7 @@ export default function ProjectDetails() {
                           value={newReport.status} 
                           onValueChange={(val: any) => setNewReport({...newReport, status: val})}
                         >
-                          <SelectTrigger>
+                          <SelectTrigger data-testid="select-report-status">
                             <SelectValue placeholder="Select status" />
                           </SelectTrigger>
                           <SelectContent>
@@ -202,8 +208,8 @@ export default function ProjectDetails() {
                       </div>
                     </div>
                     <DialogFooter>
-                      <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
-                      <Button onClick={handleCreateReport}>Create Report</Button>
+                      <Button variant="outline" onClick={() => setIsDialogOpen(false)} data-testid="button-cancel-report-create">Cancel</Button>
+                      <Button onClick={handleCreateReport} data-testid="button-confirm-report-create">Create Report</Button>
                     </DialogFooter>
                   </DialogContent>
                 </Dialog>
@@ -215,8 +221,14 @@ export default function ProjectDetails() {
         {/* Reports List */}
         <div className="flex-1 bg-muted/10 p-4 md:p-8">
           <div className="max-w-7xl mx-auto">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg md:text-xl font-semibold">Reports ({reports.length})</h2>
+            <div className="mb-6 flex items-center justify-between">
+              <h2 className="text-lg font-semibold md:text-xl">Reports ({reports.length})</h2>
+            </div>
+
+            <div className="mb-6 rounded-2xl border border-indigo-100 bg-white p-4 shadow-sm">
+              <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-indigo-600">Simple flow</p>
+              <h3 className="mt-2 text-base font-semibold text-slate-900">Every new report already includes the default checklist</h3>
+              <p className="mt-1 text-sm text-slate-500">There is no separate checklist selection step for the inspector. Create the report and start filling it immediately.</p>
             </div>
 
             {reports.length === 0 ? (
@@ -226,9 +238,9 @@ export default function ProjectDetails() {
                 </div>
                 <h3 className="text-lg font-medium">No reports yet</h3>
                 <p className="text-muted-foreground max-w-xs mt-2 mb-6">
-                  Create your first report to start documenting issues.
+                  Create your first report and the default checklist will be added automatically.
                 </p>
-                <Button variant="outline" onClick={() => setIsDialogOpen(true)}>Create Report</Button>
+                <Button variant="outline" onClick={() => setIsDialogOpen(true)} data-testid="button-create-first-report">Create Report</Button>
               </div>
             ) : (
               <div className="grid grid-cols-1 gap-3 md:gap-4">

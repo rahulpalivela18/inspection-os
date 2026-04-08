@@ -2,11 +2,10 @@ import { Link, useLocation } from "wouter";
 import {
   LayoutDashboard,
   FolderOpen,
-  ShieldCheck,
   Settings,
   Menu,
   Building2,
-  LockKeyhole,
+  CheckSquare,
 } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -20,15 +19,14 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const navigation = [
     { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
     { name: "Projects", href: "/dashboard", icon: FolderOpen },
-    { name: "Checklist Library", href: "/templates", icon: ShieldCheck },
     { name: "Settings", href: "#", icon: Settings, disabled: true },
   ];
 
   const SidebarContent = () => (
-    <div className="flex h-full flex-col bg-sidebar text-sidebar-foreground border-r border-sidebar-border">
-      <div className="p-6 space-y-4">
-        <div className="flex items-center gap-2 font-heading font-bold text-2xl text-primary">
-          <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground">
+    <div className="flex h-full flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground">
+      <div className="space-y-4 p-6">
+        <div className="flex items-center gap-2 font-heading text-2xl font-bold text-primary">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
             R
           </div>
           ReportGen
@@ -39,15 +37,15 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               <Building2 className="h-4 w-4" />
             </div>
             <div className="min-w-0">
-              <p className="text-[10px] uppercase tracking-[0.2em] text-indigo-600 font-bold">Private workspace</p>
-              <h3 className="text-sm font-semibold text-slate-900 truncate">Metropolis QA Workspace</h3>
-              <p className="text-xs text-slate-500 mt-1">Admin access · Company-only checklist library</p>
+              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-indigo-600">Private workspace</p>
+              <h3 className="truncate text-sm font-semibold text-slate-900">Metropolis QA Workspace</h3>
+              <p className="mt-1 text-xs text-slate-500">One default checklist is added automatically to every new report.</p>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="flex-1 px-4 py-4 space-y-1">
+      <div className="flex-1 space-y-1 px-4 py-4">
         {navigation.map((item) => {
           const isActive = location === item.href && !item.disabled;
 
@@ -57,16 +55,16 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 if (!item.disabled) setIsMobileOpen(false);
               }}
               className={cn(
-                "flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-all duration-200",
+                "flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition-all duration-200",
                 item.disabled
-                  ? "opacity-50 cursor-not-allowed text-muted-foreground"
+                  ? "cursor-not-allowed text-muted-foreground opacity-50"
                   : "cursor-pointer " +
                       (isActive
                         ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm"
                         : "text-muted-foreground hover:bg-sidebar-accent/50 hover:text-foreground")
               )}
             >
-              <item.icon className={cn("w-4 h-4", isActive ? "text-primary" : "")} />
+              <item.icon className={cn("h-4 w-4", isActive ? "text-primary" : "")} />
               {item.name}
             </div>
           );
@@ -83,34 +81,36 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         })}
       </div>
 
-      <div className="p-4 border-t border-sidebar-border">
+      <div className="border-t border-sidebar-border p-4">
         <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
           <div className="flex items-start gap-3">
             <div className="mt-0.5 flex h-9 w-9 items-center justify-center rounded-xl bg-slate-900 text-white">
-              <LockKeyhole className="h-4 w-4" />
+              <CheckSquare className="h-4 w-4" />
             </div>
             <div>
-              <h4 className="font-semibold text-sm text-slate-900">Confidential by design</h4>
-              <p className="text-xs text-slate-500 mt-1">Templates stay inside one company workspace and are copied into each report.</p>
+              <h4 className="text-sm font-semibold text-slate-900">Simple report flow</h4>
+              <p className="mt-1 text-xs text-slate-500">Create a report, open it, and start filling the checklist right away.</p>
             </div>
           </div>
-          <Button size="sm" variant="outline" className="w-full mt-4" data-testid="button-open-checklist-library">
-            Checklist access policy
-          </Button>
+          <Link href="/templates">
+            <Button size="sm" variant="outline" className="mt-4 w-full" data-testid="button-view-default-checklist">
+              View default checklist
+            </Button>
+          </Link>
         </div>
       </div>
     </div>
   );
 
   return (
-    <div className="flex h-screen w-full bg-background overflow-hidden relative">
-      <div className="hidden md:block w-72 h-full shrink-0">
+    <div className="relative flex h-screen w-full overflow-hidden bg-background">
+      <div className="hidden h-full w-72 shrink-0 md:block">
         <SidebarContent />
       </div>
 
-      <div className="md:hidden fixed top-0 left-0 right-0 h-14 bg-background border-b border-sidebar-border px-4 flex items-center justify-between z-40">
-        <div className="flex items-center gap-2 font-heading font-bold text-lg text-primary">
-          <div className="w-6 h-6 rounded bg-primary flex items-center justify-center text-primary-foreground text-[10px]">
+      <div className="fixed left-0 right-0 top-0 z-40 flex h-14 items-center justify-between border-b border-sidebar-border bg-background px-4 md:hidden">
+        <div className="flex items-center gap-2 font-heading text-lg font-bold text-primary">
+          <div className="flex h-6 w-6 items-center justify-center rounded bg-primary text-[10px] text-primary-foreground">
             R
           </div>
           ReportGen
@@ -121,13 +121,13 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               <Menu className="h-5 w-5" />
             </Button>
           </SheetTrigger>
-          <SheetContent side="left" className="p-0 w-[300px] border-r-0">
+          <SheetContent side="left" className="w-[300px] border-r-0 p-0">
             <SidebarContent />
           </SheetContent>
         </Sheet>
       </div>
 
-      <main className="flex-1 h-full overflow-y-auto w-full pt-14 md:pt-0">
+      <main className="h-full w-full flex-1 overflow-y-auto pt-14 md:pt-0">
         <div className="min-h-full">{children}</div>
       </main>
     </div>

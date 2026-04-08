@@ -67,6 +67,23 @@ export type ReportTemplate = {
   isDefault?: boolean;
 };
 
+export const DEFAULT_CHECKLIST_NAME = "Client Master Inspection Checklist";
+
+export const DEFAULT_CHECKLIST: ChecklistItem[] = [
+  { id: "c1", category: "BALCONY", point: "Flooring (Tiles): Are all the room corners in right angle?", status: null },
+  { id: "c2", category: "BALCONY", point: "Flooring (Tiles): Are the Butt filling grooves uniform?", status: null },
+  { id: "c3", category: "BALCONY", point: "Flooring (Tiles): Any colour & shade variation observed in floor tiles", status: null },
+  { id: "c4", category: "BALCONY", point: "Flooring (Tiles): Hollowness or debonding observed in floor tiles after fixing", status: null },
+  { id: "c5", category: "BATHROOM", point: "Flooring (Tiles): Are all the room corners in right angle?", status: null },
+  { id: "c6", category: "BATHROOM", point: "Flooring (Tiles): Are the Butt filling grooves uniform?", status: null },
+  { id: "c7", category: "BEDROOM", point: "Are all the room corners in right angle?", status: null },
+  { id: "c8", category: "BEDROOM", point: "Are the Butt filling grooves uniform?", status: null },
+  { id: "c9", category: "Common area", point: "Electrical Work: Are fan regulators working smoothly in all directions", status: null },
+  { id: "c10", category: "EXTERNAL AREA", point: "Modular Kitchen & Kitchen Platform: Is the functioning of the modular furniture doors satisfactory", status: null },
+];
+
+const cloneDefaultChecklist = () => DEFAULT_CHECKLIST.map((item) => ({ ...item }));
+
 // Mock Data
 const MOCK_PROJECTS: Project[] = [
   {
@@ -90,16 +107,9 @@ const MOCK_REPORTS: Report[] = [
     date: format(new Date(), "yyyy-MM-dd"),
     createdAt: new Date().toISOString(),
     checklist: [
-      { id: "c1", category: "BALCONY", point: "Flooring (Tiles): Are all the room corners in right angle?", status: "N", image: "https://images.unsplash.com/photo-1584467541268-b040f83be3fd?auto=format&fit=crop&q=80&w=300" },
-      { id: "c2", category: "BALCONY", point: "Flooring (Tiles): Are the Butt filling grooves uniform?", status: "Y" },
-      { id: "c3", category: "BALCONY", point: "Flooring (Tiles): Any colour & shade variation observed in floor tiles", status: "Y" },
-      { id: "c4", category: "BALCONY", point: "Flooring (Tiles): Hollowness or debonding observed in floor tiles after fixing", status: null },
-      { id: "c5", category: "BATHROOM", point: "Flooring (Tiles): Are all the room corners in right angle?", status: null },
-      { id: "c6", category: "BATHROOM", point: "Flooring (Tiles): Are the Butt filling grooves uniform?", status: null },
-      { id: "c7", category: "BEDROOM", point: "Are all the room corners in right angle?", status: null },
-      { id: "c8", category: "BEDROOM", point: "Are the Butt filling grooves uniform?", status: null },
-      { id: "c9", category: "Common area", point: "Electrical Work: Are fan regulators working smoothly in all directions", status: null },
-      { id: "c10", category: "EXTERNAL AREA", point: "Modular Kitchen & Kitchen Platform: Is the functioning of the modular furniture doors satisfactory", status: null },
+      { ...cloneDefaultChecklist()[0], status: "N", severity: "MAJOR", image: "https://images.unsplash.com/photo-1584467541268-b040f83be3fd?auto=format&fit=crop&q=80&w=300" },
+      { ...cloneDefaultChecklist()[1], status: "Y" },
+      ...cloneDefaultChecklist().slice(2),
     ]
   },
 ];
@@ -362,6 +372,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const addReport = (report: Omit<Report, "id" | "createdAt">) => {
     const newReport = {
       ...report,
+      checklist: report.checklist ?? cloneDefaultChecklist(),
       id: Math.random().toString(36).substr(2, 9),
       createdAt: new Date().toISOString(),
     };
