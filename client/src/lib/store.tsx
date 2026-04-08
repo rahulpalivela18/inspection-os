@@ -41,6 +41,7 @@ export type Report = {
   author: string;
   date: string;
   createdAt: string;
+  inspectionType?: string;
   templateId?: string;
   spaceCounts?: ReportSpaceCounts;
   dimensionUnit?: DimensionUnit;
@@ -383,9 +384,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     const checklist = report.checklist ?? buildChecklistFromCounts(spaceCounts);
     const dimensionUnit = report.dimensionUnit ?? DEFAULT_DIMENSION_UNIT;
     const dimensions = report.dimensions ?? buildDimensionsFromChecklist(checklist, [], dimensionUnit);
+    const inspectionType = report.inspectionType?.trim() || "Home Inspection";
 
     const newReport = {
       ...report,
+      inspectionType,
       spaceCounts,
       checklist,
       dimensionUnit,

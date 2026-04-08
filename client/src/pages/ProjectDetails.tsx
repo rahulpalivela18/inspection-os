@@ -73,6 +73,7 @@ export default function ProjectDetails() {
   const [newReport, setNewReport] = useState({
     title: "",
     author: "",
+    inspectionType: "Home Inspection",
     status: "Draft" as const,
     date: format(new Date(), "yyyy-MM-dd"),
     spaceCounts: DEFAULT_SPACE_COUNTS,
@@ -121,6 +122,7 @@ export default function ProjectDetails() {
     e.stopPropagation();
     setEditingReport({
       ...report,
+      inspectionType: report.inspectionType || "Home Inspection",
       spaceCounts: normalizeSpaceCounts(report.spaceCounts ?? DEFAULT_SPACE_COUNTS),
     });
     setIsEditReportOpen(true);
@@ -136,6 +138,7 @@ export default function ProjectDetails() {
 
     updateReport({
       ...editingReport,
+      inspectionType: editingReport.inspectionType?.trim() || "Home Inspection",
       spaceCounts: nextSpaceCounts,
       dimensionUnit: nextDimensionUnit,
       dimensions: nextDimensions,
@@ -160,6 +163,7 @@ export default function ProjectDetails() {
     setNewReport({ 
       title: "", 
       author: "", 
+      inspectionType: "Home Inspection",
       status: "Draft", 
       date: format(new Date(), "yyyy-MM-dd"),
       spaceCounts: { ...DEFAULT_SPACE_COUNTS },
@@ -250,15 +254,25 @@ export default function ProjectDetails() {
                               />
                             </div>
                             <div className="grid gap-2">
-                              <Label htmlFor="date">Date</Label>
-                              <Input 
-                                id="date" 
-                                type="date"
-                                value={newReport.date}
-                                onChange={(e) => setNewReport({...newReport, date: e.target.value})}
-                                data-testid="input-report-date"
+                              <Label htmlFor="inspection-type">Type of inspection</Label>
+                              <Input
+                                id="inspection-type"
+                                placeholder="e.g. Home Inspection"
+                                value={newReport.inspectionType}
+                                onChange={(e) => setNewReport({...newReport, inspectionType: e.target.value})}
+                                data-testid="input-report-inspection-type"
                               />
                             </div>
+                          </div>
+                          <div className="grid gap-2">
+                            <Label htmlFor="date">Date</Label>
+                            <Input 
+                              id="date" 
+                              type="date"
+                              value={newReport.date}
+                              onChange={(e) => setNewReport({...newReport, date: e.target.value})}
+                              data-testid="input-report-date"
+                            />
                           </div>
                           <div className="grid gap-2">
                             <Label htmlFor="status">Status</Label>
@@ -526,21 +540,30 @@ export default function ProjectDetails() {
                       />
                     </div>
                     <div className="grid gap-2">
-                      <Label htmlFor="edit-report-status">Status</Label>
-                      <Select 
-                        value={editingReport?.status || "Draft"} 
-                        onValueChange={(val: any) => setEditingReport({...editingReport, status: val})}
-                      >
-                        <SelectTrigger data-testid="select-edit-report-status">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Draft">Draft</SelectItem>
-                          <SelectItem value="Review">Review</SelectItem>
-                          <SelectItem value="Final">Final</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <Label htmlFor="edit-report-inspection-type">Type of inspection</Label>
+                      <Input
+                        id="edit-report-inspection-type"
+                        value={editingReport?.inspectionType || "Home Inspection"}
+                        onChange={(e) => setEditingReport({...editingReport, inspectionType: e.target.value})}
+                        data-testid="input-edit-report-inspection-type"
+                      />
                     </div>
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="edit-report-status">Status</Label>
+                    <Select 
+                      value={editingReport?.status || "Draft"} 
+                      onValueChange={(val: any) => setEditingReport({...editingReport, status: val})}
+                    >
+                      <SelectTrigger data-testid="select-edit-report-status">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Draft">Draft</SelectItem>
+                        <SelectItem value="Review">Review</SelectItem>
+                        <SelectItem value="Final">Final</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
 
