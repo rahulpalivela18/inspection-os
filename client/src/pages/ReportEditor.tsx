@@ -295,17 +295,17 @@ export default function ReportEditor() {
                     <div className="flex gap-4 mb-6 p-4 bg-white rounded-xl border shadow-sm">
                       <div className="flex flex-col">
                         <span className="text-xs text-slate-500 uppercase font-semibold">Total Major</span>
-                        <span className="text-xl font-bold text-red-600">{report.checklist.filter(c => c.severity === "MAJOR").length}</span>
+                        <span className="text-xl font-bold text-red-600">{report.checklist.filter(c => c.status === "N" && c.severity === "MAJOR").length}</span>
                       </div>
                       <div className="w-px bg-slate-200"></div>
                       <div className="flex flex-col">
                         <span className="text-xs text-slate-500 uppercase font-semibold">Total Minor</span>
-                        <span className="text-xl font-bold text-orange-500">{report.checklist.filter(c => c.severity === "MINOR").length}</span>
+                        <span className="text-xl font-bold text-orange-500">{report.checklist.filter(c => c.status === "N" && c.severity === "MINOR").length}</span>
                       </div>
                       <div className="w-px bg-slate-200"></div>
                       <div className="flex flex-col">
                         <span className="text-xs text-slate-500 uppercase font-semibold">Total Cosmetic</span>
-                        <span className="text-xl font-bold text-blue-500">{report.checklist.filter(c => c.severity === "COSMETIC").length}</span>
+                        <span className="text-xl font-bold text-blue-500">{report.checklist.filter(c => c.status === "N" && c.severity === "COSMETIC").length}</span>
                       </div>
                     </div>
                     
@@ -354,7 +354,12 @@ export default function ReportEditor() {
                                         )}
                                         onClick={() => {
                                           const newStatus = item.status === "Y" ? null : "Y";
-                                          const newChecklist = report.checklist?.map(c => c.id === item.id ? {...c, status: newStatus as "Y" | "N" | null} : c);
+                                          const newChecklist = report.checklist?.map(c => c.id === item.id ? {
+                                            ...c,
+                                            status: newStatus as "Y" | "N" | null,
+                                            severity: null,
+                                            image: undefined,
+                                          } : c);
                                           updateReport({...report, checklist: newChecklist});
                                         }}
                                       >
@@ -367,7 +372,12 @@ export default function ReportEditor() {
                                         )}
                                         onClick={() => {
                                           const newStatus = item.status === "N" ? null : "N";
-                                          const newChecklist = report.checklist?.map(c => c.id === item.id ? {...c, status: newStatus as "Y" | "N" | null} : c);
+                                          const newChecklist = report.checklist?.map(c => c.id === item.id ? {
+                                            ...c,
+                                            status: newStatus as "Y" | "N" | null,
+                                            severity: newStatus === "N" ? c.severity ?? null : null,
+                                            image: newStatus === "N" ? c.image : undefined,
+                                          } : c);
                                           updateReport({...report, checklist: newChecklist});
                                         }}
                                       >
