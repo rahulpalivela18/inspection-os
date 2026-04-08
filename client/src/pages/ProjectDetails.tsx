@@ -1,7 +1,7 @@
 import { useState } from "react";
 import Layout from "@/components/Layout";
 import { useStore, type ChecklistItem } from "@/lib/store";
-import { buildChecklistFromCounts, DEFAULT_SPACE_COUNTS, type ReportSpaceCounts } from "@/lib/defaultChecklist";
+import { buildChecklistFromCounts, buildDimensionsFromChecklist, DEFAULT_DIMENSION_UNIT, DEFAULT_SPACE_COUNTS, type ReportSpaceCounts } from "@/lib/defaultChecklist";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
@@ -131,10 +131,14 @@ export default function ProjectDetails() {
 
     const nextSpaceCounts = normalizeSpaceCounts(editingReport.spaceCounts ?? DEFAULT_SPACE_COUNTS);
     const nextChecklist = buildChecklistWithPreservedResponses(editingReport.checklist, nextSpaceCounts);
+    const nextDimensionUnit = editingReport.dimensionUnit ?? DEFAULT_DIMENSION_UNIT;
+    const nextDimensions = buildDimensionsFromChecklist(nextChecklist, editingReport.dimensions ?? [], nextDimensionUnit);
 
     updateReport({
       ...editingReport,
       spaceCounts: nextSpaceCounts,
+      dimensionUnit: nextDimensionUnit,
+      dimensions: nextDimensions,
       checklist: nextChecklist,
     });
     setIsEditReportOpen(false);
@@ -143,9 +147,14 @@ export default function ProjectDetails() {
   const handleCreateReport = () => {
     if (!newReport.title || !newReport.author) return;
     
+    const checklist = buildChecklistFromCounts(newReport.spaceCounts);
+
     const createdReport = addReport({
       ...newReport,
       projectId: project.id,
+      checklist,
+      dimensionUnit: DEFAULT_DIMENSION_UNIT,
+      dimensions: buildDimensionsFromChecklist(checklist, [], DEFAULT_DIMENSION_UNIT),
     });
     setIsDialogOpen(false);
     setNewReport({ 

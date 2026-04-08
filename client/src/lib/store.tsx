@@ -1,6 +1,6 @@
 import { useState, createContext, useContext, ReactNode } from "react";
 import { format } from "date-fns";
-import { DEFAULT_CHECKLIST, DEFAULT_SPACE_COUNTS, buildChecklistFromCounts, type ReportSpaceCounts } from "@/lib/defaultChecklist";
+import { DEFAULT_CHECKLIST, DEFAULT_SPACE_COUNTS, DEFAULT_DIMENSION_UNIT, buildChecklistFromCounts, buildDimensionsFromChecklist, type ReportSpaceCounts } from "@/lib/defaultChecklist";
 
 // Types
 export type Project = {
@@ -22,6 +22,17 @@ export type ChecklistItem = {
   image?: string;
 };
 
+export type DimensionUnit = "ft" | "m";
+
+export type ReportDimension = {
+  id: string;
+  space: string;
+  length: string;
+  width: string;
+  unit: DimensionUnit;
+  notes?: string;
+};
+
 export type Report = {
   id: string;
   projectId: string;
@@ -32,6 +43,8 @@ export type Report = {
   createdAt: string;
   templateId?: string;
   spaceCounts?: ReportSpaceCounts;
+  dimensionUnit?: DimensionUnit;
+  dimensions?: ReportDimension[];
   checklist?: ChecklistItem[];
 };
 
@@ -94,6 +107,14 @@ const MOCK_REPORTS: Report[] = [
     date: format(new Date(), "yyyy-MM-dd"),
     createdAt: new Date().toISOString(),
     spaceCounts: DEFAULT_SPACE_COUNTS,
+    dimensionUnit: DEFAULT_DIMENSION_UNIT,
+    dimensions: [
+      { id: "d1", space: "Balcony 1", length: "8", width: "5", unit: "ft", notes: "Front balcony" },
+      { id: "d2", space: "Bathroom 1", length: "7.5", width: "5", unit: "ft", notes: "Guest bath" },
+      { id: "d3", space: "Bedroom 1", length: "12", width: "11", unit: "ft", notes: "Primary room" },
+      { id: "d4", space: "Common Area", length: "18", width: "14", unit: "ft", notes: "Living + dining" },
+      { id: "d5", space: "External Area", length: "20", width: "9", unit: "ft", notes: "Entrance setback" },
+    ],
     checklist: [
       { ...cloneDefaultChecklist()[0], status: "N", severity: "MAJOR", image: "https://images.unsplash.com/photo-1584467541268-b040f83be3fd?auto=format&fit=crop&q=80&w=300" },
       { ...cloneDefaultChecklist()[1], status: "Y" },
@@ -358,10 +379,17 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   };
 
   const addReport = (report: Omit<Report, "id" | "createdAt">) => {
+    const spaceCounts = report.spaceCounts ?? DEFAULT_SPACE_COUNTS;
+    const checklist = report.checklist ?? buildChecklistFromCounts(spaceCounts);
+    const dimensionUnit = report.dimensionUnit ?? DEFAULT_DIMENSION_UNIT;
+    const dimensions = report.dimensions ?? buildDimensionsFromChecklist(checklist, [], dimensionUnit);
+
     const newReport = {
       ...report,
-      spaceCounts: report.spaceCounts ?? DEFAULT_SPACE_COUNTS,
-      checklist: report.checklist ?? buildChecklistFromCounts(report.spaceCounts ?? DEFAULT_SPACE_COUNTS),
+      spaceCounts,
+      checklist,
+      dimensionUnit,
+      dimensions,
       id: Math.random().toString(36).substr(2, 9),
       createdAt: new Date().toISOString(),
     };

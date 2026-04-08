@@ -1,4 +1,5 @@
 import { Project, Report, Issue, useStore } from "@/lib/store";
+import { buildDimensionsFromChecklist, DEFAULT_DIMENSION_UNIT } from "@/lib/defaultChecklist";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 
@@ -42,6 +43,31 @@ export default function ReportPreview({ report, project, issues }: ReportPreview
   };
 
   const theme = colors[template.colorScheme as keyof typeof colors] || colors.indigo;
+  const dimensionUnit = report.dimensionUnit ?? DEFAULT_DIMENSION_UNIT;
+  const dimensions = buildDimensionsFromChecklist(report.checklist ?? [], report.dimensions ?? [], dimensionUnit);
+  const measuredDimensions = dimensions.filter((dimension) => Number(dimension.length) > 0 && Number(dimension.width) > 0);
+
+  const getAreaInSquareFeet = (length: string, width: string, unit: "ft" | "m") => {
+    const numericLength = Number(length);
+    const numericWidth = Number(width);
+
+    if (!Number.isFinite(numericLength) || !Number.isFinite(numericWidth) || numericLength <= 0 || numericWidth <= 0) {
+      return 0;
+    }
+
+    const area = numericLength * numericWidth;
+    return unit === "m" ? area * 10.7639 : area;
+  };
+
+  const formatArea = (value: number) => new Intl.NumberFormat("en-IN", {
+    maximumFractionDigits: value >= 100 ? 0 : 2,
+  }).format(value);
+
+  const totalAreaSqFt = measuredDimensions.reduce(
+    (sum, dimension) => sum + getAreaInSquareFeet(dimension.length, dimension.width, dimension.unit),
+    0
+  );
+  const totalAreaSqM = totalAreaSqFt / 10.7639;
 
   return (
     <div className="font-sans text-sm text-slate-900 leading-normal bg-white print:p-0 w-full max-w-[210mm] print:max-w-full print:w-full mx-auto overflow-hidden print:overflow-visible">
@@ -187,6 +213,54 @@ export default function ReportPreview({ report, project, issues }: ReportPreview
                     </div>
                   );
                 })}
+              </div>
+            </div>
+          )}
+
+          {measuredDimensions.length > 0 && (
+            <div className="mb-12 break-inside-avoid-page">
+              <h3 className="text-lg font-bold mb-4 flex items-center gap-2 border-b pb-2 text-slate-900">
+                Dimensions & Area Summary
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-5">
+                <div className={cn("rounded-2xl border p-4", theme.bg)}>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Total Measured</p>
+                  <p className="mt-2 text-2xl font-black text-slate-900">{formatArea(totalAreaSqFt)} sq ft</p>
+                </div>
+                <div className="rounded-2xl border border-slate-200 p-4 bg-white">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Metric Equivalent</p>
+                  <p className="mt-2 text-2xl font-black text-slate-900">{formatArea(totalAreaSqM)} sq m</p>
+                </div>
+                <div className="rounded-2xl border border-slate-200 p-4 bg-white">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Spaces Measured</p>
+                  <p className="mt-2 text-2xl font-black text-slate-900">{measuredDimensions.length}</p>
+                </div>
+              </div>
+              <div className="border border-slate-200 rounded-xl overflow-hidden">
+                <div className="grid grid-cols-[1.3fr_0.8fr_0.9fr_0.9fr_1fr] bg-slate-100 px-4 py-2 text-[10px] font-black uppercase tracking-widest text-slate-500">
+                  <span>Space</span>
+                  <span>Unit</span>
+                  <span>Length</span>
+                  <span>Width</span>
+                  <span>Area</span>
+                </div>
+                <div className="divide-y divide-slate-100">
+                  {measuredDimensions.map((dimension) => {
+                    const areaSqFt = getAreaInSquareFeet(dimension.length, dimension.width, dimension.unit);
+                    return (
+                      <div key={dimension.id} className="grid grid-cols-[1.3fr_0.8fr_0.9fr_0.9fr_1fr] gap-2 px-4 py-3 text-sm text-slate-700 break-inside-avoid">
+                        <div>
+                          <p className="font-semibold text-slate-900">{dimension.space}</p>
+                          {dimension.notes && <p className="mt-1 text-xs text-slate-500">{dimension.notes}</p>}
+                        </div>
+                        <span>{dimension.unit === "ft" ? "ft" : "m"}</span>
+                        <span>{dimension.length}</span>
+                        <span>{dimension.width}</span>
+                        <span className="font-semibold text-slate-900">{formatArea(areaSqFt)} sq ft</span>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             </div>
           )}

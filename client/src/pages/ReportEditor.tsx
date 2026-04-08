@@ -1,6 +1,6 @@
 import { useState, useRef } from "react";
 import Layout from "@/components/Layout";
-import { useStore, Issue, IssueTemplate } from "@/lib/store";
+import { useStore, Issue, IssueTemplate, type ReportDimension } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -12,13 +12,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { 
   ArrowLeft, Plus, Printer, FileText, Trash2, Settings,
-  AlertTriangle, CheckCircle2, Circle, Camera, MapPin, User, X, Zap, Image as ImageIcon, ChevronDown, ChevronRight
+  AlertTriangle, CheckCircle2, Circle, MapPin, User, X, Zap, Image as ImageIcon, ChevronDown, ChevronRight, Ruler, SquareStack, Calculator
 } from "lucide-react";
 import { Link, useRoute } from "wouter";
 import NotFound from "./not-found";
 import { useReactToPrint } from "react-to-print";
 import { cn } from "@/lib/utils";
 import ReportPreview from "@/pages/ReportPreview";
+import { buildDimensionsFromChecklist, DEFAULT_DIMENSION_UNIT } from "@/lib/defaultChecklist";
 
 export default function ReportEditor() {
   const [match, params] = useRoute("/report/:id");
@@ -30,7 +31,7 @@ export default function ReportEditor() {
   const [isTemplateManagerOpen, setIsTemplateManagerOpen] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<IssueTemplate | null>(null);
   const [editingIssue, setEditingIssue] = useState<Issue | null>(null);
-  const [viewMode, setViewMode] = useState<"edit" | "preview">("edit");
+  const [viewMode, setViewMode] = useState<"checklist" | "dimensions" | "preview">("checklist");
   const [selectedReportTemplate, setSelectedReportTemplate] = useState<string>(report?.templateId || "");
   const componentRef = useRef<HTMLDivElement>(null);
 
@@ -73,6 +74,57 @@ export default function ReportEditor() {
   
   const project = getProject(report.projectId);
   const issues = getReportIssues(report.id);
+  const dimensionUnit = report.dimensionUnit ?? DEFAULT_DIMENSION_UNIT;
+  const dimensionRows = buildDimensionsFromChecklist(report.checklist ?? [], report.dimensions ?? [], dimensionUnit);
+  const measuredDimensionRows = dimensionRows.filter((dimension) => Number(dimension.length) > 0 && Number(dimension.width) > 0);
+
+  const getAreaInSquareFeet = (dimension: ReportDimension) => {
+    const length = Number(dimension.length);
+    const width = Number(dimension.width);
+
+    if (!Number.isFinite(length) || !Number.isFinite(width) || length <= 0 || width <= 0) {
+      return 0;
+    }
+
+    const baseArea = length * width;
+    return dimension.unit === "m" ? baseArea * 10.7639 : baseArea;
+  };
+
+  const formatArea = (value: number) => {
+    if (!Number.isFinite(value) || value <= 0) {
+      return "—";
+    }
+
+    return new Intl.NumberFormat("en-IN", {
+      maximumFractionDigits: value >= 100 ? 0 : 2,
+    }).format(value);
+  };
+
+  const totalAreaSqFt = measuredDimensionRows.reduce((sum, dimension) => sum + getAreaInSquareFeet(dimension), 0);
+  const totalAreaSqM = totalAreaSqFt / 10.7639;
+
+  const updateDimensions = (nextDimensions: ReportDimension[], nextDimensionUnit = dimensionUnit) => {
+    updateReport({
+      ...report,
+      dimensionUnit: nextDimensionUnit,
+      dimensions: nextDimensions,
+    });
+  };
+
+  const updateDimensionField = (dimensionId: string, field: keyof ReportDimension, value: string) => {
+    updateDimensions(
+      dimensionRows.map((dimension) =>
+        dimension.id === dimensionId ? { ...dimension, [field]: value } : dimension
+      )
+    );
+  };
+
+  const updateDefaultUnit = (nextUnit: "ft" | "m") => {
+    updateDimensions(
+      dimensionRows.map((dimension) => ({ ...dimension, unit: nextUnit })),
+      nextUnit
+    );
+  };
 
   const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>(
     report.checklist ? 
@@ -243,16 +295,28 @@ export default function ReportEditor() {
           <div className="flex flex-col sm:flex-row items-center gap-2 w-full lg:w-auto justify-between lg:justify-end">
             <div className="bg-muted p-1 rounded-lg flex items-center shrink-0 w-full sm:w-auto">
               <button 
-                onClick={() => setViewMode("edit")}
+                onClick={() => setViewMode("checklist")}
+                data-testid="button-tab-checklist"
                 className={cn(
                   "flex-1 sm:flex-none px-3 md:px-4 py-1.5 md:py-2 text-xs md:text-sm font-medium rounded-md transition-all",
-                  viewMode === "edit" ? "bg-white text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                  viewMode === "checklist" ? "bg-white text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
                 )}
               >
-                Editor
+                Checklist
+              </button>
+              <button 
+                onClick={() => setViewMode("dimensions")}
+                data-testid="button-tab-dimensions"
+                className={cn(
+                  "flex-1 sm:flex-none px-3 md:px-4 py-1.5 md:py-2 text-xs md:text-sm font-medium rounded-md transition-all",
+                  viewMode === "dimensions" ? "bg-white text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                Dimensions
               </button>
               <button 
                 onClick={() => setViewMode("preview")}
+                data-testid="button-tab-preview"
                 className={cn(
                   "flex-1 sm:flex-none px-3 md:px-4 py-1.5 md:py-2 text-xs md:text-sm font-medium rounded-md transition-all",
                   viewMode === "preview" ? "bg-white text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
@@ -275,10 +339,153 @@ export default function ReportEditor() {
 
           {/* Content Area */}
         <div className="flex-1 overflow-hidden bg-muted/10">
-          {viewMode === "edit" ? (
+          {viewMode === "preview" ? (
+            <div className="h-full overflow-y-auto p-4 md:p-8 bg-slate-200/50 flex justify-center print:p-0 print:bg-white print:overflow-visible">
+              <div ref={componentRef} className="bg-white shadow-xl w-full max-w-[210mm] min-h-[297mm] p-0 print:shadow-none print:m-0 print:max-w-none origin-top transition-transform sm:scale-100">
+                <div className="sm:hidden text-center py-4 bg-amber-50 text-amber-800 text-xs font-medium border-b border-amber-100 print:hidden">
+                  Note: Preview layout is optimized for Desktop/A4 Print.
+                </div>
+                {project && <ReportPreview report={report} project={project} issues={issues} />}
+              </div>
+            </div>
+          ) : (
             <div className="h-full p-4 md:p-8 overflow-y-auto">
               <div className="max-w-5xl mx-auto space-y-4 md:space-y-6">
-                
+                {viewMode === "dimensions" ? (
+                  <>
+                    <div className="rounded-[28px] border border-indigo-100 bg-gradient-to-br from-white via-indigo-50/50 to-slate-50 p-5 shadow-sm md:p-6">
+                      <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+                        <div className="max-w-2xl">
+                          <div className="inline-flex items-center gap-2 rounded-full border border-indigo-100 bg-white/90 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-indigo-600">
+                            <Ruler className="h-3.5 w-3.5" /> Dimensions tab
+                          </div>
+                          <h2 className="mt-4 text-2xl font-bold tracking-tight text-slate-900">Area calculator for every report space</h2>
+                          <p className="mt-2 text-sm leading-6 text-slate-600">
+                            Enter length and width for each room. We calculate total square feet instantly and keep the layout mobile-friendly for site inspections.
+                          </p>
+                        </div>
+
+                        <div className="grid gap-2 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:min-w-[220px]">
+                          <Label htmlFor="report-default-unit">Default unit</Label>
+                          <Select value={dimensionUnit} onValueChange={(value: "ft" | "m") => updateDefaultUnit(value)}>
+                            <SelectTrigger id="report-default-unit" data-testid="select-dimension-default-unit">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="ft">Feet</SelectItem>
+                              <SelectItem value="m">Meters</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <p className="text-xs text-slate-500">Changing this updates the room inputs in one go.</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                      <Card className="rounded-3xl border-indigo-100 bg-white/90 p-5 shadow-sm">
+                        <div className="flex items-center gap-3">
+                          <div className="rounded-2xl bg-indigo-50 p-3 text-indigo-600">
+                            <Calculator className="h-5 w-5" />
+                          </div>
+                          <div>
+                            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">Total area</p>
+                            <p className="text-2xl font-bold text-slate-900" data-testid="text-total-area-sqft">{formatArea(totalAreaSqFt)} sq ft</p>
+                          </div>
+                        </div>
+                      </Card>
+                      <Card className="rounded-3xl border-slate-200 bg-white/90 p-5 shadow-sm">
+                        <div className="flex items-center gap-3">
+                          <div className="rounded-2xl bg-slate-100 p-3 text-slate-700">
+                            <SquareStack className="h-5 w-5" />
+                          </div>
+                          <div>
+                            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">Metric view</p>
+                            <p className="text-2xl font-bold text-slate-900" data-testid="text-total-area-sqm">{formatArea(totalAreaSqM)} sq m</p>
+                          </div>
+                        </div>
+                      </Card>
+                      <Card className="rounded-3xl border-slate-200 bg-white/90 p-5 shadow-sm">
+                        <div className="flex items-center gap-3">
+                          <div className="rounded-2xl bg-emerald-50 p-3 text-emerald-600">
+                            <Ruler className="h-5 w-5" />
+                          </div>
+                          <div>
+                            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">Measured spaces</p>
+                            <p className="text-2xl font-bold text-slate-900" data-testid="text-measured-space-count">{measuredDimensionRows.length} / {dimensionRows.length}</p>
+                          </div>
+                        </div>
+                      </Card>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+                      {dimensionRows.map((dimension) => {
+                        const areaSqFt = getAreaInSquareFeet(dimension);
+                        const areaSqM = areaSqFt / 10.7639;
+
+                        return (
+                          <Card key={dimension.id} className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-md md:p-6" data-testid={`card-dimension-${dimension.id}`}>
+                            <div className="flex flex-col gap-5">
+                              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                                <div>
+                                  <p className="text-xs font-semibold uppercase tracking-[0.22em] text-indigo-500">Space</p>
+                                  <h3 className="mt-1 text-xl font-semibold text-slate-900" data-testid={`text-dimension-space-${dimension.id}`}>{dimension.space}</h3>
+                                </div>
+                                <div className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-600" data-testid={`text-dimension-unit-${dimension.id}`}>
+                                  Input in {dimension.unit === "ft" ? "ft" : "m"}
+                                </div>
+                              </div>
+
+                              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                                <div className="grid gap-2">
+                                  <Label htmlFor={`dimension-length-${dimension.id}`}>Length</Label>
+                                  <Input
+                                    id={`dimension-length-${dimension.id}`}
+                                    inputMode="decimal"
+                                    placeholder={dimension.unit === "ft" ? "e.g. 12.5" : "e.g. 3.8"}
+                                    value={dimension.length}
+                                    onChange={(e) => updateDimensionField(dimension.id, "length", e.target.value)}
+                                    data-testid={`input-dimension-length-${dimension.id}`}
+                                  />
+                                </div>
+                                <div className="grid gap-2">
+                                  <Label htmlFor={`dimension-width-${dimension.id}`}>Width</Label>
+                                  <Input
+                                    id={`dimension-width-${dimension.id}`}
+                                    inputMode="decimal"
+                                    placeholder={dimension.unit === "ft" ? "e.g. 10" : "e.g. 3.2"}
+                                    value={dimension.width}
+                                    onChange={(e) => updateDimensionField(dimension.id, "width", e.target.value)}
+                                    data-testid={`input-dimension-width-${dimension.id}`}
+                                  />
+                                </div>
+                              </div>
+
+                              <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1.2fr_0.8fr]">
+                                <div className="grid gap-2">
+                                  <Label htmlFor={`dimension-notes-${dimension.id}`}>Notes</Label>
+                                  <Textarea
+                                    id={`dimension-notes-${dimension.id}`}
+                                    placeholder="Optional notes about this measurement"
+                                    className="min-h-[88px]"
+                                    value={dimension.notes || ""}
+                                    onChange={(e) => updateDimensionField(dimension.id, "notes", e.target.value)}
+                                    data-testid={`input-dimension-notes-${dimension.id}`}
+                                  />
+                                </div>
+                                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                                  <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">Calculated area</p>
+                                  <p className="mt-3 text-2xl font-bold text-slate-900" data-testid={`text-dimension-area-sqft-${dimension.id}`}>{formatArea(areaSqFt)} sq ft</p>
+                                  <p className="mt-1 text-sm text-slate-500" data-testid={`text-dimension-area-sqm-${dimension.id}`}>{formatArea(areaSqM)} sq m</p>
+                                </div>
+                              </div>
+                            </div>
+                          </Card>
+                        );
+                      })}
+                    </div>
+                  </>
+                ) : (
+                  <>
                 {/* Checklist Section */}
                 {report.checklist && report.checklist.length > 0 && (
                   <div className="mb-8">
@@ -531,22 +738,15 @@ export default function ReportEditor() {
                     ))}
                   </div>
                 )}
-              </div>
-            </div>
-          ) : (
-            <div className="h-full overflow-y-auto p-4 md:p-8 bg-slate-200/50 flex justify-center print:p-0 print:bg-white print:overflow-visible">
-              <div ref={componentRef} className="bg-white shadow-xl w-full max-w-[210mm] min-h-[297mm] p-0 print:shadow-none print:m-0 print:max-w-none origin-top transition-transform sm:scale-100">
-                <div className="sm:hidden text-center py-4 bg-amber-50 text-amber-800 text-xs font-medium border-b border-amber-100 print:hidden">
-                  Note: Preview layout is optimized for Desktop/A4 Print.
-                </div>
-                {project && <ReportPreview report={report} project={project} issues={issues} />}
+                  </>
+                )}
               </div>
             </div>
           )}
         </div>
 
         {/* Mobile FAB for adding issues */}
-        {viewMode === "edit" && (
+        {viewMode === "checklist" && (
           <div className="md:hidden fixed bottom-6 right-6 z-40">
             <Button 
               size="icon" 
