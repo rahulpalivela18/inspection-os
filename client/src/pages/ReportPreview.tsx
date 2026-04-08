@@ -241,61 +241,63 @@ export default function ReportPreview({ report, project, issues }: ReportPreview
           )}
 
           {failedChecklistItems.map((item, index) => (
-            <div key={item.id} className="min-h-[297mm] break-before-page border-t border-slate-100 bg-white p-6 md:p-[15mm]">
-              <div className="mb-6 flex flex-col gap-3 border-b border-slate-100 pb-4 md:flex-row md:items-center md:justify-between">
-                <div>
-                  <p className="text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Failed checklist item</p>
-                  <h3 className="mt-2 text-2xl font-black tracking-tight text-slate-900">Observation {index + 1}</h3>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <span className="rounded-full border border-red-200 bg-red-100 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-red-700">
-                    NO
-                  </span>
-                  {item.severity && (
-                    <span className={cn(
-                      "rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-widest",
-                      item.severity === "MAJOR" ? "border-red-200 bg-red-50 text-red-700" :
-                      item.severity === "MINOR" ? "border-orange-200 bg-orange-50 text-orange-700" :
-                      "border-blue-200 bg-blue-50 text-blue-700"
-                    )}>
-                      {item.severity}
+            <div key={item.id} className="break-before-page border-t border-slate-100 bg-white p-6 md:p-[15mm]">
+              <div className="mx-auto flex min-h-[255mm] max-w-[180mm] flex-col">
+                <div className="mb-5 flex flex-col gap-3 border-b border-slate-100 pb-4 md:flex-row md:items-center md:justify-between">
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Failed checklist item</p>
+                    <h3 className="mt-2 text-2xl font-black tracking-tight text-slate-900">Observation {index + 1}</h3>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <span className="rounded-full border border-red-200 bg-red-100 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-red-700">
+                      NO
                     </span>
-                  )}
-                </div>
-              </div>
-
-              <div className="grid gap-6">
-                <div className="overflow-hidden rounded-3xl border border-slate-200 bg-slate-50 shadow-sm">
-                  {item.image ? (
-                    <img src={item.image} alt={item.point} className="h-[58vh] min-h-[320px] w-full object-contain bg-white" />
-                  ) : (
-                    <div className="flex h-[58vh] min-h-[320px] items-center justify-center px-8 text-center text-sm font-medium text-slate-400">
-                      No photo was attached for this failed checklist point.
-                    </div>
-                  )}
+                    {item.severity && (
+                      <span className={cn(
+                        "rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-widest",
+                        item.severity === "MAJOR" ? "border-red-200 bg-red-50 text-red-700" :
+                        item.severity === "MINOR" ? "border-orange-200 bg-orange-50 text-orange-700" :
+                        "border-blue-200 bg-blue-50 text-blue-700"
+                      )}>
+                        {item.severity}
+                      </span>
+                    )}
+                  </div>
                 </div>
 
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-[1.4fr_0.6fr]">
-                  <div className="rounded-3xl border border-slate-200 bg-white p-5">
-                    <p className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-400">Checklist point</p>
-                    <p className="mt-3 text-xl font-bold leading-snug text-slate-900">{item.point}</p>
-                    <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
-                      <div>
-                        <p className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-400">Category</p>
-                        <p className="mt-1 text-sm font-semibold text-slate-700">{item.category}</p>
+                <div className="flex flex-1 flex-col gap-5">
+                  <div className="overflow-hidden rounded-3xl border border-slate-200 bg-slate-50 shadow-sm">
+                    {item.image ? (
+                      <img src={item.image} alt={item.point} className="h-[132mm] w-full object-contain bg-white" />
+                    ) : (
+                      <div className="flex h-[132mm] items-center justify-center px-8 text-center text-sm font-medium text-slate-400">
+                        No photo was attached for this failed checklist point.
                       </div>
-                      <div>
-                        <p className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-400">Inspection type</p>
-                        <p className="mt-1 text-sm font-semibold text-slate-700">{inspectionType}</p>
-                      </div>
-                    </div>
+                    )}
                   </div>
 
-                  <div className={cn("rounded-3xl border p-5", theme.bg)}>
-                    <p className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-400">Review note</p>
-                    <p className="mt-3 text-sm leading-relaxed text-slate-700">
-                      This checklist point was marked NO and is shown on a dedicated page so the photo evidence is easier to review during client discussions.
-                    </p>
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-[1.4fr_0.6fr]">
+                    <div className="rounded-3xl border border-slate-200 bg-white p-5">
+                      <p className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-400">Checklist point</p>
+                      <p className="mt-3 text-xl font-bold leading-snug text-slate-900">{item.point}</p>
+                      <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                        <div>
+                          <p className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-400">Category</p>
+                          <p className="mt-1 text-sm font-semibold text-slate-700">{item.category}</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-400">Inspection type</p>
+                          <p className="mt-1 text-sm font-semibold text-slate-700">{inspectionType}</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className={cn("rounded-3xl border p-5", theme.bg)}>
+                      <p className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-400">Review note</p>
+                      <p className="mt-3 text-sm leading-relaxed text-slate-700">
+                        This checklist point was marked NO and is shown on a dedicated page so the photo evidence is easier to review during client discussions.
+                      </p>
+                    </div>
                   </div>
                 </div>
               </div>
