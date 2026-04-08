@@ -43,7 +43,7 @@ export default function ReportPreview({ report, project, issues }: ReportPreview
   };
 
   const theme = colors[template.colorScheme as keyof typeof colors] || colors.indigo;
-  const companyName = project.clientName || project.title;
+  const clientDisplayName = project.clientName?.trim() || project.title;
   const inspectionType = report.inspectionType?.trim() || "Home Inspection";
   const dimensionUnit = report.dimensionUnit ?? DEFAULT_DIMENSION_UNIT;
   const dimensions = buildDimensionsFromChecklist(report.checklist ?? [], report.dimensions ?? [], dimensionUnit);
@@ -79,14 +79,14 @@ export default function ReportPreview({ report, project, issues }: ReportPreview
         
         <div className="mb-12 md:mb-24 flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
           <div className="space-y-3">
-            <p className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400">Prepared for</p>
-            <div className={cn("max-w-2xl text-3xl font-extrabold tracking-tight md:text-5xl", theme.text)}>{companyName}</div>
+            <p className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400">Client</p>
+            <div className={cn("max-w-2xl text-3xl font-extrabold tracking-tight md:text-5xl", theme.text)}>{clientDisplayName}</div>
           </div>
           {project.logoUrl && (
             <div className="h-20 w-20 overflow-hidden rounded-2xl border border-slate-100 bg-white p-2 shadow-sm md:h-32 md:w-32 md:p-4">
               <img 
                 src={project.logoUrl} 
-                alt={`${companyName} logo`} 
+                alt={`${project.title} logo`} 
                 className="max-h-full max-w-full object-contain" 
               />
             </div>
