@@ -45,6 +45,9 @@ export default function ReportPreview({ report, project, issues }: ReportPreview
   const theme = colors[template.colorScheme as keyof typeof colors] || colors.indigo;
   const clientDisplayName = project.clientName?.trim() || project.title;
   const inspectionType = report.inspectionType?.trim() || "Home Inspection";
+  const hasPageLogo = Boolean(project.logoUrl && template.includeLogoOnEveryPage);
+  const pageLogoWrapClass = "absolute right-6 top-6 md:right-[15mm] md:top-[15mm]";
+  const pageLogoImageClass = "h-10 w-auto max-w-[120px] object-contain md:h-12 md:max-w-[140px]";
   const dimensionUnit = report.dimensionUnit ?? DEFAULT_DIMENSION_UNIT;
   const dimensions = buildDimensionsFromChecklist(report.checklist ?? [], report.dimensions ?? [], dimensionUnit);
   const measuredDimensions = dimensions.filter((dimension) => Number(dimension.length) > 0 && Number(dimension.width) > 0);
@@ -79,19 +82,21 @@ export default function ReportPreview({ report, project, issues }: ReportPreview
       {/* Cover Page */}
       <div className="min-h-[297mm] print:min-h-0 flex flex-col p-6 md:p-[20mm] bg-white break-after-page relative overflow-hidden print:overflow-visible border-b print:border-0">
         <div className={cn("absolute top-0 right-0 w-1/2 h-1/2 -rotate-12 translate-x-1/4 -translate-y-1/4 rounded-full blur-3xl -z-10 print:hidden", theme.blob)} />
+        {hasPageLogo && (
+          <div className={pageLogoWrapClass}>
+            <img
+              src={project.logoUrl}
+              alt={`${project.title} logo`}
+              className={pageLogoImageClass}
+            />
+          </div>
+        )}
         
-        <div className="mb-12 md:mb-24 flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
+        <div className="mb-16 pr-24 md:mb-24 md:pr-[160px]">
           <div className="space-y-3">
             <p className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400">Client</p>
             <div className={cn("max-w-2xl text-3xl font-extrabold tracking-tight md:text-5xl", theme.text)}>{clientDisplayName}</div>
           </div>
-          {project.logoUrl && (
-            <img 
-              src={project.logoUrl} 
-              alt={`${project.title} logo`} 
-              className="h-20 w-auto max-w-[120px] object-contain md:h-32 md:max-w-[180px]" 
-            />
-          )}
         </div>
 
         <div className="mt-auto">
@@ -146,10 +151,9 @@ export default function ReportPreview({ report, project, issues }: ReportPreview
 
       {/* Findings Section */}
       <div className="flex flex-col relative print:min-h-0 break-before-page">
-        {/* Logo Header */}
-        {project.logoUrl && template.includeLogoOnEveryPage && (
-          <div className="absolute top-4 right-4 flex items-center justify-center">
-            <img src={project.logoUrl} alt="Client Logo" className="h-12 w-auto max-w-[96px] object-contain md:h-16 md:max-w-[128px]" />
+        {hasPageLogo && (
+          <div className={pageLogoWrapClass}>
+            <img src={project.logoUrl} alt="Client Logo" className={pageLogoImageClass} />
           </div>
         )}
         
@@ -239,17 +243,17 @@ export default function ReportPreview({ report, project, issues }: ReportPreview
           )}
 
           {failedChecklistItems.map((item, index) => (
-            <div key={item.id} className="break-before-page border-t border-slate-100 bg-white p-6 md:p-[15mm]">
+            <div key={item.id} className="break-before-page border-t border-slate-100 bg-white p-6 md:p-[15mm] relative">
+              {hasPageLogo && (
+                <div className={pageLogoWrapClass}>
+                  <img src={project.logoUrl} alt="Client Logo" className={pageLogoImageClass} />
+                </div>
+              )}
               <div className="mx-auto flex min-h-[255mm] max-w-[180mm] flex-col">
-                <div className="mb-5 flex flex-col gap-4 border-b border-slate-100 pb-4 md:flex-row md:items-start md:justify-between">
-                  <div>
-                    <p className="text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Failed checklist item</p>
-                    <h3 className="mt-2 text-2xl font-black tracking-tight text-slate-900">Observation {index + 1}</h3>
-                  </div>
-                  <div className="flex flex-col items-start gap-3 md:items-end">
-                    {project.logoUrl && template.includeLogoOnEveryPage && (
-                      <img src={project.logoUrl} alt="Client Logo" className="h-10 w-auto max-w-[110px] object-contain md:h-12 md:max-w-[130px]" />
-                    )}
+                <div className="mb-5 border-b border-slate-100 pb-4 pr-24 md:pr-[160px]">
+                  <p className="text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Failed checklist item</p>
+                  <div className="mt-2 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                    <h3 className="text-2xl font-black tracking-tight text-slate-900">Observation {index + 1}</h3>
                     <div className="flex flex-wrap gap-2">
                       <span className="rounded-full border border-red-200 bg-red-100 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-red-700">
                         NO
@@ -403,11 +407,6 @@ export default function ReportPreview({ report, project, issues }: ReportPreview
 
         {/* Summary Footer */}
         <div className="border-t border-slate-100 bg-white p-6 text-center md:p-[15mm]">
-          <div className="mb-4 flex justify-center">
-            {project.logoUrl && template.includeLogoOnEveryPage && (
-              <img src={project.logoUrl} alt="Client Logo" className="h-10 w-auto max-w-[120px] object-contain" />
-            )}
-          </div>
           <div className="flex flex-col items-center justify-between gap-2 text-[9px] font-bold uppercase tracking-widest text-slate-400 md:flex-row md:text-[10px]">
             <span>End of Report</span>
             <span>Report generated by ReportGen © {new Date().getFullYear()}</span>
