@@ -48,6 +48,9 @@ export default function ReportPreview({ report, project, issues }: ReportPreview
   const dimensionUnit = report.dimensionUnit ?? DEFAULT_DIMENSION_UNIT;
   const dimensions = buildDimensionsFromChecklist(report.checklist ?? [], report.dimensions ?? [], dimensionUnit);
   const measuredDimensions = dimensions.filter((dimension) => Number(dimension.length) > 0 && Number(dimension.width) > 0);
+  const failedChecklistItems = (report.checklist ?? []).filter((item) => item.status === "N");
+  const majorFailuresCount = failedChecklistItems.filter((item) => item.severity === "MAJOR").length;
+  const photoEvidenceCount = failedChecklistItems.filter((item) => item.image).length;
 
   const getAreaInSquareFeet = (length: string, width: string, unit: "ft" | "m") => {
     const numericLength = Number(length);
@@ -158,73 +161,36 @@ export default function ReportPreview({ report, project, issues }: ReportPreview
             <span className="text-slate-400 text-[10px] font-bold uppercase tracking-widest">Section 01 / Technical Observations</span>
           </div>
 
-          {/* Checklist Summary */}
-          {report.checklist && report.checklist.length > 0 && (
-            <div className="mb-12">
-              <h3 className="text-lg font-bold mb-4 flex items-center gap-2 border-b pb-2 text-slate-900 break-after-avoid">
-                Checklist Summary
-              </h3>
-              <div className="border border-slate-200 rounded-xl overflow-hidden">
-                {Array.from(new Set(report.checklist.map(c => c.category))).map((category, catIdx) => {
-                  const categoryItems = report.checklist?.filter(c => c.category === category);
-                  if (!categoryItems || categoryItems.length === 0) return null;
-                  
-                  return (
-                    <div key={category} className={cn(catIdx > 0 ? "border-t border-slate-200" : "", "break-inside-avoid-page")}>
-                      <div className="bg-slate-100 px-4 py-2 font-bold text-xs uppercase tracking-wider text-slate-700 break-after-avoid">
-                        {category}
-                      </div>
-                      <div className="divide-y divide-slate-100">
-                        {categoryItems.map((item, itemIdx) => (
-                          <div key={item.id} className="p-3 md:p-4 flex flex-col md:flex-row gap-3 md:items-start bg-white break-inside-avoid">
-                            <div className="flex-1 flex gap-3">
-                              <span className="text-xs font-bold text-slate-400 mt-0.5 w-5 shrink-0">{itemIdx + 1}.</span>
-                              <p className="text-sm font-medium text-slate-800 leading-tight">{item.point}</p>
-                            </div>
-                            <div className="flex items-center gap-4 pl-8 md:pl-0 shrink-0">
-                              {item.status === 'Y' && (
-                                <span className="px-3 py-1 bg-green-100 text-green-800 text-[10px] font-black uppercase tracking-widest rounded-md border border-green-200">
-                                  YES
-                                </span>
-                              )}
-                              {item.status === 'N' && (
-                                <div className="flex flex-col gap-1 items-end">
-                                  <span className="px-3 py-1 bg-red-100 text-red-800 text-[10px] font-black uppercase tracking-widest rounded-md border border-red-200">
-                                    NO
-                                  </span>
-                                  {item.severity && (
-                                    <span className={cn(
-                                      "px-2 py-0.5 text-[8px] font-bold uppercase rounded border",
-                                      item.severity === "MAJOR" ? "bg-red-50 text-red-600 border-red-200" :
-                                      item.severity === "MINOR" ? "bg-orange-50 text-orange-600 border-orange-200" :
-                                      "bg-blue-50 text-blue-600 border-blue-200"
-                                    )}>
-                                      {item.severity}
-                                    </span>
-                                  )}
-                                </div>
-                              )}
-                              {item.status === null && (
-                                <span className="px-3 py-1 bg-slate-100 text-slate-500 text-[10px] font-black uppercase tracking-widest rounded-md border border-slate-200">
-                                  PENDING
-                                </span>
-                              )}
-                              
-                              {item.status === 'N' && item.image && (
-                                <div className="h-10 w-14 rounded bg-slate-100 border overflow-hidden">
-                                  <img src={item.image} alt="Defect" className="w-full h-full object-cover" />
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })}
+          <div className="mb-12">
+            <h3 className="text-lg font-bold mb-4 flex items-center gap-2 border-b pb-2 text-slate-900 break-after-avoid">
+              Checklist Exceptions
+            </h3>
+            {failedChecklistItems.length > 0 ? (
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-5">
+                  <div className={cn("rounded-2xl border p-4", theme.bg)}>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Failed Points</p>
+                    <p className="mt-2 text-2xl font-black text-slate-900">{failedChecklistItems.length}</p>
+                  </div>
+                  <div className="rounded-2xl border border-slate-200 p-4 bg-white">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Major Severity</p>
+                    <p className="mt-2 text-2xl font-black text-slate-900">{majorFailuresCount}</p>
+                  </div>
+                  <div className="rounded-2xl border border-slate-200 p-4 bg-white">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Photos Attached</p>
+                    <p className="mt-2 text-2xl font-black text-slate-900">{photoEvidenceCount}</p>
+                  </div>
+                </div>
+                <div className="rounded-2xl border border-amber-200 bg-amber-50/70 p-4 text-sm font-medium text-slate-700 break-inside-avoid-page">
+                  Only failed checklist points are included in the PDF. Each failed item is expanded on its own page for clearer photo review and easier discussion with the client.
+                </div>
+              </>
+            ) : (
+              <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-sm font-medium text-emerald-800 break-inside-avoid-page">
+                No failed checklist points were recorded for this inspection.
               </div>
-            </div>
-          )}
+            )}
+          </div>
 
           {measuredDimensions.length > 0 && (
             <div className="mb-12 break-inside-avoid-page">
@@ -273,6 +239,68 @@ export default function ReportPreview({ report, project, issues }: ReportPreview
               </div>
             </div>
           )}
+
+          {failedChecklistItems.map((item, index) => (
+            <div key={item.id} className="min-h-[297mm] break-before-page border-t border-slate-100 bg-white p-6 md:p-[15mm]">
+              <div className="mb-6 flex flex-col gap-3 border-b border-slate-100 pb-4 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Failed checklist item</p>
+                  <h3 className="mt-2 text-2xl font-black tracking-tight text-slate-900">Observation {index + 1}</h3>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <span className="rounded-full border border-red-200 bg-red-100 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-red-700">
+                    NO
+                  </span>
+                  {item.severity && (
+                    <span className={cn(
+                      "rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-widest",
+                      item.severity === "MAJOR" ? "border-red-200 bg-red-50 text-red-700" :
+                      item.severity === "MINOR" ? "border-orange-200 bg-orange-50 text-orange-700" :
+                      "border-blue-200 bg-blue-50 text-blue-700"
+                    )}>
+                      {item.severity}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <div className="grid gap-6">
+                <div className="overflow-hidden rounded-3xl border border-slate-200 bg-slate-50 shadow-sm">
+                  {item.image ? (
+                    <img src={item.image} alt={item.point} className="h-[58vh] min-h-[320px] w-full object-contain bg-white" />
+                  ) : (
+                    <div className="flex h-[58vh] min-h-[320px] items-center justify-center px-8 text-center text-sm font-medium text-slate-400">
+                      No photo was attached for this failed checklist point.
+                    </div>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-[1.4fr_0.6fr]">
+                  <div className="rounded-3xl border border-slate-200 bg-white p-5">
+                    <p className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-400">Checklist point</p>
+                    <p className="mt-3 text-xl font-bold leading-snug text-slate-900">{item.point}</p>
+                    <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                      <div>
+                        <p className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-400">Category</p>
+                        <p className="mt-1 text-sm font-semibold text-slate-700">{item.category}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-400">Inspection type</p>
+                        <p className="mt-1 text-sm font-semibold text-slate-700">{inspectionType}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className={cn("rounded-3xl border p-5", theme.bg)}>
+                    <p className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-400">Review note</p>
+                    <p className="mt-3 text-sm leading-relaxed text-slate-700">
+                      This checklist point was marked NO and is shown on a dedicated page so the photo evidence is easier to review during client discussions.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
           
           <div className="space-y-8 md:space-y-12">
             {issues.length > 0 && (
