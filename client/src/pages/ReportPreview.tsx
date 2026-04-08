@@ -86,13 +86,11 @@ export default function ReportPreview({ report, project, issues }: ReportPreview
             <div className={cn("max-w-2xl text-3xl font-extrabold tracking-tight md:text-5xl", theme.text)}>{clientDisplayName}</div>
           </div>
           {project.logoUrl && (
-            <div className="h-20 w-20 overflow-hidden rounded-2xl border border-slate-100 bg-white p-2 shadow-sm md:h-32 md:w-32 md:p-4">
-              <img 
-                src={project.logoUrl} 
-                alt={`${project.title} logo`} 
-                className="max-h-full max-w-full object-contain" 
-              />
-            </div>
+            <img 
+              src={project.logoUrl} 
+              alt={`${project.title} logo`} 
+              className="h-20 w-auto max-w-[120px] object-contain md:h-32 md:max-w-[180px]" 
+            />
           )}
         </div>
 
@@ -150,8 +148,8 @@ export default function ReportPreview({ report, project, issues }: ReportPreview
       <div className="flex flex-col relative print:min-h-0 break-before-page">
         {/* Logo Header */}
         {project.logoUrl && template.includeLogoOnEveryPage && (
-          <div className="absolute top-4 right-4 w-16 h-16 p-2 border border-slate-100 rounded-lg bg-white flex items-center justify-center overflow-hidden shadow-sm">
-            <img src={project.logoUrl} alt="Client Logo" className="max-w-full max-h-full object-contain" />
+          <div className="absolute top-4 right-4 flex items-center justify-center">
+            <img src={project.logoUrl} alt="Client Logo" className="h-12 w-auto max-w-[96px] object-contain md:h-16 md:max-w-[128px]" />
           </div>
         )}
         
