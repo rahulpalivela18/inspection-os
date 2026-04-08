@@ -1,7 +1,7 @@
 import { useState } from "react";
 import Layout from "@/components/Layout";
-import { useStore } from "@/lib/store";
-import { buildChecklistFromCounts, DEFAULT_SPACE_COUNTS } from "@/lib/defaultChecklist";
+import { useStore, type ChecklistItem } from "@/lib/store";
+import { buildChecklistFromCounts, DEFAULT_SPACE_COUNTS, type ReportSpaceCounts } from "@/lib/defaultChecklist";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
@@ -14,6 +14,36 @@ import { Plus, FileText, Calendar, ArrowLeft, ArrowRight, Clock, User, Settings 
 import { Link, useRoute, useLocation } from "wouter";
 import { format } from "date-fns";
 import NotFound from "./not-found";
+
+const normalizeSpaceCounts = (spaceCounts?: Partial<ReportSpaceCounts>): ReportSpaceCounts => ({
+  bedrooms: Math.max(0, Number(spaceCounts?.bedrooms) || 0),
+  bathrooms: Math.max(0, Number(spaceCounts?.bathrooms) || 0),
+  balconies: Math.max(0, Number(spaceCounts?.balconies) || 0),
+});
+
+const buildChecklistWithPreservedResponses = (
+  currentChecklist: ChecklistItem[] = [],
+  spaceCounts: ReportSpaceCounts
+): ChecklistItem[] => {
+  const preservedItems = new Map(
+    currentChecklist.map((item) => [`${item.category}:::${item.point}`, item])
+  );
+
+  return buildChecklistFromCounts(spaceCounts).map((item) => {
+    const existingItem = preservedItems.get(`${item.category}:::${item.point}`);
+
+    if (!existingItem) {
+      return item;
+    }
+
+    return {
+      ...item,
+      status: existingItem.status,
+      severity: existingItem.status === "N" ? existingItem.severity ?? null : null,
+      image: existingItem.status === "N" ? existingItem.image : undefined,
+    };
+  });
+};
 
 export default function ProjectDetails() {
   const [match, params] = useRoute("/project/:id");
@@ -89,13 +119,24 @@ export default function ProjectDetails() {
 
   const openEditReport = (report: any, e: React.MouseEvent) => {
     e.stopPropagation();
-    setEditingReport(report);
+    setEditingReport({
+      ...report,
+      spaceCounts: normalizeSpaceCounts(report.spaceCounts ?? DEFAULT_SPACE_COUNTS),
+    });
     setIsEditReportOpen(true);
   };
 
   const handleUpdateReport = () => {
     if (!editingReport.title) return;
-    updateReport(editingReport);
+
+    const nextSpaceCounts = normalizeSpaceCounts(editingReport.spaceCounts ?? DEFAULT_SPACE_COUNTS);
+    const nextChecklist = buildChecklistWithPreservedResponses(editingReport.checklist, nextSpaceCounts);
+
+    updateReport({
+      ...editingReport,
+      spaceCounts: nextSpaceCounts,
+      checklist: nextChecklist,
+    });
     setIsEditReportOpen(false);
   };
 
@@ -164,116 +205,123 @@ export default function ProjectDetails() {
                       <Plus className="mr-2 h-4 w-4" /> New Report
                     </Button>
                   </DialogTrigger>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>Create New Report</DialogTitle>
-                      <DialogDescription>Start a new inspection report for this project. The default checklist will be added automatically.</DialogDescription>
-                    </DialogHeader>
-                    <div className="rounded-2xl border border-indigo-100 bg-indigo-50/70 p-4 text-sm text-slate-600">
-                      <p className="font-semibold text-slate-900">What happens next</p>
-                      <p className="mt-1">Choose how many repeatable spaces this report has. We will create Bedroom 1, Bedroom 2, Bathroom 1 and similar sections automatically, each with the correct checklist points.</p>
+                  <DialogContent className="max-h-[92vh] overflow-hidden p-0 sm:max-w-[640px]">
+                    <div className="flex max-h-[92vh] flex-col">
+                      <DialogHeader className="border-b border-slate-100 px-4 py-4 text-left sm:px-6 sm:py-5">
+                        <DialogTitle>Create New Report</DialogTitle>
+                        <DialogDescription>Start a new inspection report for this project. The default checklist will be added automatically.</DialogDescription>
+                      </DialogHeader>
+
+                      <div className="flex-1 space-y-5 overflow-y-auto px-4 py-4 sm:px-6 sm:py-5">
+                        <div className="rounded-2xl border border-indigo-100 bg-indigo-50/70 p-4 text-sm text-slate-600">
+                          <p className="font-semibold text-slate-900">What happens next</p>
+                          <p className="mt-1">Choose how many repeatable spaces this report has. We will create Bedroom 1, Bedroom 2, Bathroom 1 and similar sections automatically, each with the correct checklist points.</p>
+                        </div>
+
+                        <div className="grid gap-4">
+                          <div className="grid gap-2">
+                            <Label htmlFor="title">Report Title</Label>
+                            <Input 
+                              id="title" 
+                              placeholder="e.g. Initial Site Survey" 
+                              value={newReport.title}
+                              onChange={(e) => setNewReport({...newReport, title: e.target.value})}
+                              data-testid="input-report-title"
+                            />
+                          </div>
+                          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                            <div className="grid gap-2">
+                              <Label htmlFor="author">Author</Label>
+                              <Input 
+                                id="author" 
+                                placeholder="Your Name" 
+                                value={newReport.author}
+                                onChange={(e) => setNewReport({...newReport, author: e.target.value})}
+                                data-testid="input-report-author"
+                              />
+                            </div>
+                            <div className="grid gap-2">
+                              <Label htmlFor="date">Date</Label>
+                              <Input 
+                                id="date" 
+                                type="date"
+                                value={newReport.date}
+                                onChange={(e) => setNewReport({...newReport, date: e.target.value})}
+                                data-testid="input-report-date"
+                              />
+                            </div>
+                          </div>
+                          <div className="grid gap-2">
+                            <Label htmlFor="status">Status</Label>
+                            <Select 
+                              value={newReport.status} 
+                              onValueChange={(val: any) => setNewReport({...newReport, status: val})}
+                            >
+                              <SelectTrigger data-testid="select-report-status">
+                                <SelectValue placeholder="Select status" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="Draft">Draft</SelectItem>
+                                <SelectItem value="Review">Review</SelectItem>
+                                <SelectItem value="Final">Final</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                            <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                              <div>
+                                <p className="text-sm font-semibold text-slate-900">Repeatable spaces</p>
+                                <p className="mt-1 text-xs text-slate-500">We will duplicate the right checklist points for each room instance.</p>
+                              </div>
+                              <div className="rounded-full bg-slate-100 px-3 py-1 text-center text-xs font-semibold text-slate-600" data-testid="text-generated-points">
+                                {checklistPreviewCount} checklist points
+                              </div>
+                            </div>
+                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                              <div className="grid gap-2">
+                                <Label htmlFor="bedrooms">Bedrooms</Label>
+                                <Input
+                                  id="bedrooms"
+                                  type="number"
+                                  min="0"
+                                  value={newReport.spaceCounts.bedrooms}
+                                  onChange={(e) => updateSpaceCount("bedrooms", e.target.value)}
+                                  data-testid="input-bedroom-count"
+                                />
+                              </div>
+                              <div className="grid gap-2">
+                                <Label htmlFor="bathrooms">Bathrooms</Label>
+                                <Input
+                                  id="bathrooms"
+                                  type="number"
+                                  min="0"
+                                  value={newReport.spaceCounts.bathrooms}
+                                  onChange={(e) => updateSpaceCount("bathrooms", e.target.value)}
+                                  data-testid="input-bathroom-count"
+                                />
+                              </div>
+                              <div className="grid gap-2">
+                                <Label htmlFor="balconies">Balconies</Label>
+                                <Input
+                                  id="balconies"
+                                  type="number"
+                                  min="0"
+                                  value={newReport.spaceCounts.balconies}
+                                  onChange={(e) => updateSpaceCount("balconies", e.target.value)}
+                                  data-testid="input-balcony-count"
+                                />
+                              </div>
+                            </div>
+                            <p className="mt-3 text-xs text-slate-500">Common Area and External Area are still added once automatically.</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      <DialogFooter className="border-t border-slate-100 bg-white px-4 py-4 sm:px-6">
+                        <Button variant="outline" className="w-full sm:w-auto" onClick={() => setIsDialogOpen(false)} data-testid="button-cancel-report-create">Cancel</Button>
+                        <Button className="w-full sm:w-auto" onClick={handleCreateReport} data-testid="button-confirm-report-create">Create Report</Button>
+                      </DialogFooter>
                     </div>
-                    <div className="grid gap-4 py-4">
-                      <div className="grid gap-2">
-                        <Label htmlFor="title">Report Title</Label>
-                        <Input 
-                          id="title" 
-                          placeholder="e.g. Initial Site Survey" 
-                          value={newReport.title}
-                          onChange={(e) => setNewReport({...newReport, title: e.target.value})}
-                          data-testid="input-report-title"
-                        />
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="grid gap-2">
-                          <Label htmlFor="author">Author</Label>
-                          <Input 
-                            id="author" 
-                            placeholder="Your Name" 
-                            value={newReport.author}
-                            onChange={(e) => setNewReport({...newReport, author: e.target.value})}
-                            data-testid="input-report-author"
-                          />
-                        </div>
-                        <div className="grid gap-2">
-                          <Label htmlFor="date">Date</Label>
-                          <Input 
-                            id="date" 
-                            type="date"
-                            value={newReport.date}
-                            onChange={(e) => setNewReport({...newReport, date: e.target.value})}
-                            data-testid="input-report-date"
-                          />
-                        </div>
-                      </div>
-                      <div className="grid gap-2">
-                        <Label htmlFor="status">Status</Label>
-                        <Select 
-                          value={newReport.status} 
-                          onValueChange={(val: any) => setNewReport({...newReport, status: val})}
-                        >
-                          <SelectTrigger data-testid="select-report-status">
-                            <SelectValue placeholder="Select status" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="Draft">Draft</SelectItem>
-                            <SelectItem value="Review">Review</SelectItem>
-                            <SelectItem value="Final">Final</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                        <div className="mb-4 flex items-start justify-between gap-3">
-                          <div>
-                            <p className="text-sm font-semibold text-slate-900">Repeatable spaces</p>
-                            <p className="mt-1 text-xs text-slate-500">We will duplicate the right checklist points for each room instance.</p>
-                          </div>
-                          <div className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600" data-testid="text-generated-points">
-                            {checklistPreviewCount} checklist points
-                          </div>
-                        </div>
-                        <div className="grid grid-cols-3 gap-3">
-                          <div className="grid gap-2">
-                            <Label htmlFor="bedrooms">Bedrooms</Label>
-                            <Input
-                              id="bedrooms"
-                              type="number"
-                              min="0"
-                              value={newReport.spaceCounts.bedrooms}
-                              onChange={(e) => updateSpaceCount("bedrooms", e.target.value)}
-                              data-testid="input-bedroom-count"
-                            />
-                          </div>
-                          <div className="grid gap-2">
-                            <Label htmlFor="bathrooms">Bathrooms</Label>
-                            <Input
-                              id="bathrooms"
-                              type="number"
-                              min="0"
-                              value={newReport.spaceCounts.bathrooms}
-                              onChange={(e) => updateSpaceCount("bathrooms", e.target.value)}
-                              data-testid="input-bathroom-count"
-                            />
-                          </div>
-                          <div className="grid gap-2">
-                            <Label htmlFor="balconies">Balconies</Label>
-                            <Input
-                              id="balconies"
-                              type="number"
-                              min="0"
-                              value={newReport.spaceCounts.balconies}
-                              onChange={(e) => updateSpaceCount("balconies", e.target.value)}
-                              data-testid="input-balcony-count"
-                            />
-                          </div>
-                        </div>
-                        <p className="mt-3 text-xs text-slate-500">Common Area and External Area are still added once automatically.</p>
-                      </div>
-                    </div>
-                    <DialogFooter>
-                      <Button variant="outline" onClick={() => setIsDialogOpen(false)} data-testid="button-cancel-report-create">Cancel</Button>
-                      <Button onClick={handleCreateReport} data-testid="button-confirm-report-create">Create Report</Button>
-                    </DialogFooter>
                   </DialogContent>
                 </Dialog>
               </div>
@@ -438,48 +486,127 @@ export default function ProjectDetails() {
 
         {/* Edit Report Dialog */}
         <Dialog open={isEditReportOpen} onOpenChange={setIsEditReportOpen}>
-          <DialogContent className="sm:max-w-[500px]">
-            <DialogHeader>
-              <DialogTitle>Edit Report Details</DialogTitle>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="grid gap-2">
-                <Label htmlFor="edit-report-title">Report Title</Label>
-                <Input 
-                  id="edit-report-title" 
-                  value={editingReport?.title || ""}
-                  onChange={(e) => setEditingReport({...editingReport, title: e.target.value})}
-                />
+          <DialogContent className="max-h-[92vh] overflow-hidden p-0 sm:max-w-[640px]">
+            <div className="flex max-h-[92vh] flex-col">
+              <DialogHeader className="border-b border-slate-100 px-4 py-4 text-left sm:px-6 sm:py-5">
+                <DialogTitle>Edit Report Details</DialogTitle>
+                <DialogDescription>
+                  You can update room counts later. Existing checklist answers stay matched wherever the room and point still exist.
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="flex-1 space-y-5 overflow-y-auto px-4 py-4 sm:px-6 sm:py-5">
+                <div className="grid gap-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="edit-report-title">Report Title</Label>
+                    <Input 
+                      id="edit-report-title" 
+                      value={editingReport?.title || ""}
+                      onChange={(e) => setEditingReport({...editingReport, title: e.target.value})}
+                      data-testid="input-edit-report-title"
+                    />
+                  </div>
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <div className="grid gap-2">
+                      <Label htmlFor="edit-report-author">Author</Label>
+                      <Input 
+                        id="edit-report-author" 
+                        value={editingReport?.author || ""}
+                        onChange={(e) => setEditingReport({...editingReport, author: e.target.value})}
+                        data-testid="input-edit-report-author"
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="edit-report-status">Status</Label>
+                      <Select 
+                        value={editingReport?.status || "Draft"} 
+                        onValueChange={(val: any) => setEditingReport({...editingReport, status: val})}
+                      >
+                        <SelectTrigger data-testid="select-edit-report-status">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Draft">Draft</SelectItem>
+                          <SelectItem value="Review">Review</SelectItem>
+                          <SelectItem value="Final">Final</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
+                  <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                      <p className="text-sm font-semibold text-slate-900">Repeatable spaces</p>
+                      <p className="mt-1 text-xs text-slate-500">Add or reduce rooms even after report creation. The checklist updates when you save.</p>
+                    </div>
+                    <div className="rounded-full bg-white px-3 py-1 text-center text-xs font-semibold text-slate-600" data-testid="text-edit-generated-points">
+                      {buildChecklistFromCounts(editingReport?.spaceCounts ?? DEFAULT_SPACE_COUNTS).length} checklist points
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                    <div className="grid gap-2">
+                      <Label htmlFor="edit-report-bedrooms">Bedrooms</Label>
+                      <Input
+                        id="edit-report-bedrooms"
+                        type="number"
+                        min="0"
+                        value={editingReport?.spaceCounts?.bedrooms ?? 0}
+                        onChange={(e) => setEditingReport({
+                          ...editingReport,
+                          spaceCounts: {
+                            ...normalizeSpaceCounts(editingReport?.spaceCounts),
+                            bedrooms: Math.max(0, Number(e.target.value) || 0),
+                          },
+                        })}
+                        data-testid="input-edit-bedroom-count"
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="edit-report-bathrooms">Bathrooms</Label>
+                      <Input
+                        id="edit-report-bathrooms"
+                        type="number"
+                        min="0"
+                        value={editingReport?.spaceCounts?.bathrooms ?? 0}
+                        onChange={(e) => setEditingReport({
+                          ...editingReport,
+                          spaceCounts: {
+                            ...normalizeSpaceCounts(editingReport?.spaceCounts),
+                            bathrooms: Math.max(0, Number(e.target.value) || 0),
+                          },
+                        })}
+                        data-testid="input-edit-bathroom-count"
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="edit-report-balconies">Balconies</Label>
+                      <Input
+                        id="edit-report-balconies"
+                        type="number"
+                        min="0"
+                        value={editingReport?.spaceCounts?.balconies ?? 0}
+                        onChange={(e) => setEditingReport({
+                          ...editingReport,
+                          spaceCounts: {
+                            ...normalizeSpaceCounts(editingReport?.spaceCounts),
+                            balconies: Math.max(0, Number(e.target.value) || 0),
+                          },
+                        })}
+                        data-testid="input-edit-balcony-count"
+                      />
+                    </div>
+                  </div>
+                </div>
               </div>
-              <div className="grid gap-2">
-                <Label htmlFor="edit-report-author">Author</Label>
-                <Input 
-                  id="edit-report-author" 
-                  value={editingReport?.author || ""}
-                  onChange={(e) => setEditingReport({...editingReport, author: e.target.value})}
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="edit-report-status">Status</Label>
-                <Select 
-                  value={editingReport?.status || "Draft"} 
-                  onValueChange={(val: any) => setEditingReport({...editingReport, status: val})}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Draft">Draft</SelectItem>
-                    <SelectItem value="Review">Review</SelectItem>
-                    <SelectItem value="Final">Final</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+
+              <DialogFooter className="border-t border-slate-100 bg-white px-4 py-4 sm:px-6">
+                <Button variant="outline" className="w-full sm:w-auto" onClick={() => setIsEditReportOpen(false)} data-testid="button-cancel-report-edit">Cancel</Button>
+                <Button className="w-full sm:w-auto" onClick={handleUpdateReport} data-testid="button-save-report-edit">Save Changes</Button>
+              </DialogFooter>
             </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setIsEditReportOpen(false)}>Cancel</Button>
-              <Button onClick={handleUpdateReport}>Save Changes</Button>
-            </DialogFooter>
           </DialogContent>
         </Dialog>
       </div>
