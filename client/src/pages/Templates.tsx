@@ -1,355 +1,272 @@
-import { useState } from "react";
-import { Plus, Edit, Trash2, Eye } from "lucide-react";
+import { useMemo, useState } from "react";
+import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useStore } from "@/lib/store";
-import Layout from "@/components/Layout";
+import { Badge } from "@/components/ui/badge";
+import { Plus, ShieldCheck, LockKeyhole, CopyCheck, Layers3, Building2 } from "lucide-react";
+
+type ChecklistLibraryItem = {
+  id: string;
+  name: string;
+  scope: string;
+  categories: number;
+  points: number;
+  owner: string;
+  updatedAt: string;
+};
+
+const initialLibraries: ChecklistLibraryItem[] = [
+  {
+    id: "cl-1",
+    name: "Structural Handover Checklist",
+    scope: "Residential towers · QA walkthrough",
+    categories: 8,
+    points: 64,
+    owner: "Admin",
+    updatedAt: "Updated today",
+  },
+  {
+    id: "cl-2",
+    name: "Waterproofing Audit Checklist",
+    scope: "Wet areas · Terrace · Podium",
+    categories: 5,
+    points: 38,
+    owner: "Admin",
+    updatedAt: "Updated 2 days ago",
+  },
+  {
+    id: "cl-3",
+    name: "Unit Snag Inspection",
+    scope: "Interior finish and services",
+    categories: 6,
+    points: 52,
+    owner: "Admin",
+    updatedAt: "Updated this week",
+  },
+];
 
 export default function Templates() {
-  const { reportTemplates, addReportTemplate, updateReportTemplate, deleteReportTemplate } = useStore();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [editingTemplate, setEditingTemplate] = useState<any>(null);
+  const [libraries, setLibraries] = useState<ChecklistLibraryItem[]>(initialLibraries);
   const [formData, setFormData] = useState({
     name: "",
-    description: "",
-    layout: "standard" as "standard" | "detailed" | "compact",
-    includeLogoOnEveryPage: true,
-    includeSignature: false,
-    colorScheme: "indigo" as "indigo" | "blue" | "slate",
+    scope: "",
+    categories: "",
+    points: "",
   });
 
+  const totals = useMemo(() => {
+    return libraries.reduce(
+      (acc, item) => {
+        acc.categories += item.categories;
+        acc.points += item.points;
+        return acc;
+      },
+      { categories: 0, points: 0 }
+    );
+  }, [libraries]);
+
   const handleCreate = () => {
-    if (!formData.name) return;
-    addReportTemplate({
-      ...formData,
-      id: Date.now().toString(),
-      isDefault: false,
-    });
-    setFormData({
-      name: "",
-      description: "",
-      layout: "standard",
-      includeLogoOnEveryPage: true,
-      includeSignature: false,
-      colorScheme: "indigo",
-    });
+    if (!formData.name || !formData.scope) return;
+
+    setLibraries([
+      {
+        id: Date.now().toString(),
+        name: formData.name,
+        scope: formData.scope,
+        categories: Number(formData.categories) || 0,
+        points: Number(formData.points) || 0,
+        owner: "Admin",
+        updatedAt: "Just now",
+      },
+      ...libraries,
+    ]);
+
+    setFormData({ name: "", scope: "", categories: "", points: "" });
     setIsCreateOpen(false);
-  };
-
-  const handleEdit = (template: any) => {
-    setEditingTemplate(template);
-    setFormData(template);
-  };
-
-  const handleUpdate = () => {
-    if (!editingTemplate) return;
-    updateReportTemplate(editingTemplate.id, formData);
-    setEditingTemplate(null);
-    setFormData({
-      name: "",
-      description: "",
-      layout: "standard",
-      includeLogoOnEveryPage: true,
-      includeSignature: false,
-      colorScheme: "indigo",
-    });
-  };
-
-  const handleDelete = (id: string) => {
-    if (confirm("Delete this template? This cannot be undone.")) {
-      deleteReportTemplate(id);
-    }
   };
 
   return (
     <Layout>
-      <div className="p-6 md:p-8 max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div>
-              <h1 className="text-3xl md:text-4xl font-black tracking-tight text-slate-900">Report Templates</h1>
-              <p className="text-slate-500 mt-2 text-lg">Create and manage custom PDF report layouts</p>
+      <div className="p-6 md:p-8 max-w-7xl mx-auto space-y-8">
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <div className="inline-flex items-center gap-2 rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.22em] text-indigo-700">
+              <LockKeyhole className="h-3.5 w-3.5" /> Confidential company assets
             </div>
-            <Button onClick={() => setIsCreateOpen(true)} className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700">
-              <Plus className="w-4 h-4" />
-              New Template
-            </Button>
+            <h1 className="mt-4 text-3xl md:text-4xl font-black tracking-tight text-slate-900">Checklist Library</h1>
+            <p className="mt-2 max-w-3xl text-slate-500 text-base md:text-lg">
+              Private checklist templates for one company workspace. These templates are managed once, then copied into reports so client-specific inspection logic stays protected.
+            </p>
           </div>
+          <Button onClick={() => setIsCreateOpen(true)} className="bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-600/20" data-testid="button-create-private-checklist">
+            <Plus className="mr-2 h-4 w-4" /> New Private Checklist
+          </Button>
         </div>
 
-        {/* Default Templates Info */}
-        <Card className="mb-8 border-indigo-100 bg-indigo-50/30">
-          <CardHeader>
-            <CardTitle className="text-sm text-indigo-900">Standard Templates</CardTitle>
-            <CardDescription>These are built-in templates. Create custom ones for your specific needs.</CardDescription>
-          </CardHeader>
-        </Card>
-
-        {/* Templates Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {/* Default Template */}
-          <Card className="border-slate-200 hover:shadow-lg transition-shadow">
-            <CardHeader>
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <CardTitle className="text-lg">Professional Standard</CardTitle>
-                  <CardDescription>Classic layout with indigo theme</CardDescription>
-                </div>
-                <span className="px-2 py-1 bg-slate-100 text-slate-700 text-[10px] font-bold uppercase rounded">Default</span>
-              </div>
+        <div className="grid gap-4 md:grid-cols-4">
+          <Card className="border-dashed bg-white/80">
+            <CardHeader className="pb-2">
+              <CardDescription className="text-[10px] font-bold uppercase tracking-[0.22em]">Company</CardDescription>
+              <CardTitle className="text-xl">Metropolis QA</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2 text-sm text-slate-600">
-                <div className="flex items-center gap-2">
-                  <span className="text-indigo-600">✓</span> Logo on every page
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-indigo-600">✓</span> Professional formatting
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-indigo-600">✓</span> High contrast design
-                </div>
-              </div>
-              <Button variant="outline" className="w-full" disabled>
-                <Eye className="w-4 h-4 mr-2" />
-                Currently Active
-              </Button>
-            </CardContent>
           </Card>
+          <Card className="border-dashed bg-white/80">
+            <CardHeader className="pb-2">
+              <CardDescription className="text-[10px] font-bold uppercase tracking-[0.22em]">Libraries</CardDescription>
+              <CardTitle className="text-xl">{libraries.length}</CardTitle>
+            </CardHeader>
+          </Card>
+          <Card className="border-dashed bg-white/80">
+            <CardHeader className="pb-2">
+              <CardDescription className="text-[10px] font-bold uppercase tracking-[0.22em]">Categories</CardDescription>
+              <CardTitle className="text-xl">{totals.categories}</CardTitle>
+            </CardHeader>
+          </Card>
+          <Card className="border-dashed bg-white/80">
+            <CardHeader className="pb-2">
+              <CardDescription className="text-[10px] font-bold uppercase tracking-[0.22em]">Checklist points</CardDescription>
+              <CardTitle className="text-xl">{totals.points}</CardTitle>
+            </CardHeader>
+          </Card>
+        </div>
 
-          {/* Custom Templates */}
-          {reportTemplates.map((template) => (
-            <Card key={template.id} className="border-slate-200 hover:shadow-lg transition-shadow">
+        <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+          <div className="grid gap-6 md:grid-cols-2">
+            {libraries.map((library) => (
+              <Card key={library.id} className="overflow-hidden border-slate-200 shadow-sm hover:shadow-xl transition-all duration-300 bg-white">
+                <CardHeader className="space-y-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <CardTitle className="text-xl tracking-tight">{library.name}</CardTitle>
+                      <CardDescription className="mt-2 text-sm leading-relaxed">{library.scope}</CardDescription>
+                    </div>
+                    <Badge variant="outline" className="rounded-full border-indigo-200 bg-indigo-50 text-indigo-700">
+                      Private
+                    </Badge>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="rounded-2xl border border-slate-100 bg-slate-50 p-3">
+                      <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-slate-400">Categories</p>
+                      <p className="mt-2 text-2xl font-black text-slate-900">{library.categories}</p>
+                    </div>
+                    <div className="rounded-2xl border border-slate-100 bg-slate-50 p-3">
+                      <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-slate-400">Points</p>
+                      <p className="mt-2 text-2xl font-black text-slate-900">{library.points}</p>
+                    </div>
+                  </div>
+                  <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4 text-sm text-slate-500 space-y-2">
+                    <div className="flex items-center justify-between gap-3">
+                      <span>Managed by</span>
+                      <span className="font-semibold text-slate-900">{library.owner}</span>
+                    </div>
+                    <div className="flex items-center justify-between gap-3">
+                      <span>Last activity</span>
+                      <span className="font-semibold text-slate-900">{library.updatedAt}</span>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Button variant="outline" className="flex-1" data-testid={`button-review-library-${library.id}`}>
+                      Review Structure
+                    </Button>
+                    <Button className="flex-1 bg-slate-900 hover:bg-slate-800" data-testid={`button-use-library-${library.id}`}>
+                      Use in Reports
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          <div className="space-y-6">
+            <Card className="border-indigo-100 bg-gradient-to-br from-indigo-50 via-white to-slate-50 shadow-sm">
               <CardHeader>
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <CardTitle className="text-lg">{template.name}</CardTitle>
-                    <CardDescription>{template.description}</CardDescription>
-                  </div>
-                </div>
+                <CardTitle className="flex items-center gap-2 text-slate-900">
+                  <ShieldCheck className="h-5 w-5 text-indigo-600" /> Access Rules
+                </CardTitle>
+                <CardDescription>How confidentiality should work in Phase 1.</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2 text-sm text-slate-600">
-                  <div className="flex items-center gap-2">
-                    <span className="text-indigo-600">•</span> Layout: <span className="font-medium capitalize">{template.layout}</span>
+              <CardContent className="space-y-4 text-sm text-slate-600">
+                <div className="flex items-start gap-3 rounded-2xl border border-white/70 bg-white/80 p-4">
+                  <Building2 className="h-4 w-4 mt-0.5 text-indigo-600" />
+                  <div>
+                    <p className="font-semibold text-slate-900">Company-scoped only</p>
+                    <p className="mt-1">One client cannot see another client’s checklist templates.</p>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-indigo-600">•</span> Color: <span className="font-medium capitalize">{template.colorScheme}</span>
-                  </div>
-                  {template.includeLogoOnEveryPage && (
-                    <div className="flex items-center gap-2">
-                      <span className="text-indigo-600">✓</span> Logo on every page
-                    </div>
-                  )}
-                  {template.includeSignature && (
-                    <div className="flex items-center gap-2">
-                      <span className="text-indigo-600">✓</span> Signature block
-                    </div>
-                  )}
                 </div>
-                <div className="flex gap-2 pt-2">
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="flex-1"
-                    onClick={() => handleEdit(template)}
-                  >
-                    <Edit className="w-4 h-4 mr-1" />
-                    Edit
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="flex-1 text-destructive hover:text-destructive"
-                    onClick={() => handleDelete(template.id)}
-                  >
-                    <Trash2 className="w-4 h-4 mr-1" />
-                    Delete
-                  </Button>
+                <div className="flex items-start gap-3 rounded-2xl border border-white/70 bg-white/80 p-4">
+                  <LockKeyhole className="h-4 w-4 mt-0.5 text-indigo-600" />
+                  <div>
+                    <p className="font-semibold text-slate-900">Admin-managed library</p>
+                    <p className="mt-1">Only the company admin should create or edit checklist templates.</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3 rounded-2xl border border-white/70 bg-white/80 p-4">
+                  <CopyCheck className="h-4 w-4 mt-0.5 text-indigo-600" />
+                  <div>
+                    <p className="font-semibold text-slate-900">Copy into reports</p>
+                    <p className="mt-1">When a report starts, the checklist is copied so old reports never change later.</p>
+                  </div>
                 </div>
               </CardContent>
             </Card>
-          ))}
+
+            <Card className="shadow-sm">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-slate-900">
+                  <Layers3 className="h-5 w-5 text-slate-700" /> Next backend milestone
+                </CardTitle>
+                <CardDescription>Needed to make this truly secure beyond the prototype.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-2 text-sm text-slate-600">
+                <p>• real login</p>
+                <p>• company-based data ownership</p>
+                <p>• role-based permissions</p>
+                <p>• private checklist storage in database</p>
+              </CardContent>
+            </Card>
+          </div>
         </div>
 
-        {reportTemplates.length === 0 && (
-          <div className="text-center py-16 border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50/50">
-            <p className="text-slate-400 font-medium mb-4">No custom templates yet</p>
-            <Button onClick={() => setIsCreateOpen(true)}>
-              <Plus className="w-4 h-4 mr-2" />
-              Create Your First Template
-            </Button>
-          </div>
-        )}
+        <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+          <DialogContent className="sm:max-w-[520px]">
+            <DialogHeader>
+              <DialogTitle>Create Private Checklist</DialogTitle>
+              <DialogDescription>Set up a company-only checklist library for a client workflow.</DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-2">
+              <div className="grid gap-2">
+                <Label htmlFor="checklist-name">Checklist name</Label>
+                <Input id="checklist-name" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} placeholder="e.g. Residential QA Handover" data-testid="input-checklist-name" />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="checklist-scope">Scope</Label>
+                <Textarea id="checklist-scope" value={formData.scope} onChange={(e) => setFormData({ ...formData, scope: e.target.value })} placeholder="What kind of inspection this checklist covers" className="resize-none" data-testid="textarea-checklist-scope" />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="checklist-categories">Categories</Label>
+                  <Input id="checklist-categories" value={formData.categories} onChange={(e) => setFormData({ ...formData, categories: e.target.value })} placeholder="8" data-testid="input-checklist-categories" />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="checklist-points">Checklist points</Label>
+                  <Input id="checklist-points" value={formData.points} onChange={(e) => setFormData({ ...formData, points: e.target.value })} placeholder="60" data-testid="input-checklist-points" />
+                </div>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsCreateOpen(false)} data-testid="button-cancel-checklist-create">Cancel</Button>
+              <Button onClick={handleCreate} className="bg-indigo-600 hover:bg-indigo-700" data-testid="button-save-checklist-create">Create Private Checklist</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
-
-      {/* Create Template Dialog */}
-      <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Create New Template</DialogTitle>
-            <DialogDescription>Design a custom report template for your needs</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="template-name">Template Name *</Label>
-              <Input 
-                id="template-name"
-                placeholder="e.g., Client A Standard"
-                value={formData.name}
-                onChange={(e) => setFormData({...formData, name: e.target.value})}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="template-desc">Description</Label>
-              <Textarea 
-                id="template-desc"
-                placeholder="Describe this template..."
-                value={formData.description}
-                onChange={(e) => setFormData({...formData, description: e.target.value})}
-                className="resize-none"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="template-layout">Report Layout</Label>
-              <Select value={formData.layout} onValueChange={(val: any) => setFormData({...formData, layout: val})}>
-                <SelectTrigger id="template-layout">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="standard">Standard (Full Detail)</SelectItem>
-                  <SelectItem value="detailed">Detailed (Extended)</SelectItem>
-                  <SelectItem value="compact">Compact (Condensed)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="template-color">Color Scheme</Label>
-              <Select value={formData.colorScheme} onValueChange={(val: any) => setFormData({...formData, colorScheme: val})}>
-                <SelectTrigger id="template-color">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="indigo">Indigo (Professional)</SelectItem>
-                  <SelectItem value="blue">Blue (Corporate)</SelectItem>
-                  <SelectItem value="slate">Slate (Minimal)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-3 pt-2 border-t">
-              <label className="flex items-center gap-3 cursor-pointer">
-                <input 
-                  type="checkbox"
-                  checked={formData.includeLogoOnEveryPage}
-                  onChange={(e) => setFormData({...formData, includeLogoOnEveryPage: e.target.checked})}
-                  className="w-4 h-4 rounded"
-                />
-                <span className="text-sm font-medium">Include logo on every page</span>
-              </label>
-              <label className="flex items-center gap-3 cursor-pointer">
-                <input 
-                  type="checkbox"
-                  checked={formData.includeSignature}
-                  onChange={(e) => setFormData({...formData, includeSignature: e.target.checked})}
-                  className="w-4 h-4 rounded"
-                />
-                <span className="text-sm font-medium">Add signature block</span>
-              </label>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsCreateOpen(false)}>Cancel</Button>
-            <Button onClick={handleCreate} className="bg-indigo-600 hover:bg-indigo-700">Create Template</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Edit Template Dialog */}
-      <Dialog open={!!editingTemplate} onOpenChange={(open) => !open && setEditingTemplate(null)}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Edit Template</DialogTitle>
-            <DialogDescription>Update your template settings</DialogDescription>
-          </DialogHeader>
-          {editingTemplate && (
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="edit-template-name">Template Name *</Label>
-                <Input 
-                  id="edit-template-name"
-                  value={formData.name}
-                  onChange={(e) => setFormData({...formData, name: e.target.value})}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="edit-template-desc">Description</Label>
-                <Textarea 
-                  id="edit-template-desc"
-                  value={formData.description}
-                  onChange={(e) => setFormData({...formData, description: e.target.value})}
-                  className="resize-none"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="edit-template-layout">Report Layout</Label>
-                <Select value={formData.layout} onValueChange={(val: any) => setFormData({...formData, layout: val})}>
-                  <SelectTrigger id="edit-template-layout">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="standard">Standard (Full Detail)</SelectItem>
-                    <SelectItem value="detailed">Detailed (Extended)</SelectItem>
-                    <SelectItem value="compact">Compact (Condensed)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="edit-template-color">Color Scheme</Label>
-                <Select value={formData.colorScheme} onValueChange={(val: any) => setFormData({...formData, colorScheme: val})}>
-                  <SelectTrigger id="edit-template-color">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="indigo">Indigo (Professional)</SelectItem>
-                    <SelectItem value="blue">Blue (Corporate)</SelectItem>
-                    <SelectItem value="slate">Slate (Minimal)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-3 pt-2 border-t">
-                <label className="flex items-center gap-3 cursor-pointer">
-                  <input 
-                    type="checkbox"
-                    checked={formData.includeLogoOnEveryPage}
-                    onChange={(e) => setFormData({...formData, includeLogoOnEveryPage: e.target.checked})}
-                    className="w-4 h-4 rounded"
-                  />
-                  <span className="text-sm font-medium">Include logo on every page</span>
-                </label>
-                <label className="flex items-center gap-3 cursor-pointer">
-                  <input 
-                    type="checkbox"
-                    checked={formData.includeSignature}
-                    onChange={(e) => setFormData({...formData, includeSignature: e.target.checked})}
-                    className="w-4 h-4 rounded"
-                  />
-                  <span className="text-sm font-medium">Add signature block</span>
-                </label>
-              </div>
-            </div>
-          )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setEditingTemplate(null)}>Cancel</Button>
-            <Button onClick={handleUpdate} className="bg-indigo-600 hover:bg-indigo-700">Save Changes</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </Layout>
   );
 }
