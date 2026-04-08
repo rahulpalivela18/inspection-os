@@ -1,6 +1,7 @@
 import { useState } from "react";
 import Layout from "@/components/Layout";
 import { useStore } from "@/lib/store";
+import { buildChecklistFromCounts, DEFAULT_SPACE_COUNTS } from "@/lib/defaultChecklist";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
@@ -44,6 +45,7 @@ export default function ProjectDetails() {
     author: "",
     status: "Draft" as const,
     date: format(new Date(), "yyyy-MM-dd"),
+    spaceCounts: DEFAULT_SPACE_COUNTS,
   });
   const [hasInitializedEditData, setHasInitializedEditData] = useState(false);
 
@@ -66,6 +68,18 @@ export default function ProjectDetails() {
   }
 
   const reports = getProjectReports(project.id);
+  const checklistPreviewCount = buildChecklistFromCounts(newReport.spaceCounts).length;
+
+  const updateSpaceCount = (key: keyof typeof newReport.spaceCounts, value: string) => {
+    const nextValue = Math.max(0, Number(value) || 0);
+    setNewReport({
+      ...newReport,
+      spaceCounts: {
+        ...newReport.spaceCounts,
+        [key]: nextValue,
+      },
+    });
+  };
 
   const handleUpdateProject = () => {
     if (!editProjectData.title) return;
@@ -97,7 +111,8 @@ export default function ProjectDetails() {
       title: "", 
       author: "", 
       status: "Draft", 
-      date: format(new Date(), "yyyy-MM-dd") 
+      date: format(new Date(), "yyyy-MM-dd"),
+      spaceCounts: { ...DEFAULT_SPACE_COUNTS },
     });
     setLocation(`/report/${createdReport.id}`);
   };
@@ -156,7 +171,7 @@ export default function ProjectDetails() {
                     </DialogHeader>
                     <div className="rounded-2xl border border-indigo-100 bg-indigo-50/70 p-4 text-sm text-slate-600">
                       <p className="font-semibold text-slate-900">What happens next</p>
-                      <p className="mt-1">You only enter the report details here. Once the report is created, it opens immediately with the checklist already inside and ready to fill.</p>
+                      <p className="mt-1">Choose how many repeatable spaces this report has. We will create Bedroom 1, Bedroom 2, Bathroom 1 and similar sections automatically, each with the correct checklist points.</p>
                     </div>
                     <div className="grid gap-4 py-4">
                       <div className="grid gap-2">
@@ -206,6 +221,53 @@ export default function ProjectDetails() {
                             <SelectItem value="Final">Final</SelectItem>
                           </SelectContent>
                         </Select>
+                      </div>
+                      <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                        <div className="mb-4 flex items-start justify-between gap-3">
+                          <div>
+                            <p className="text-sm font-semibold text-slate-900">Repeatable spaces</p>
+                            <p className="mt-1 text-xs text-slate-500">We will duplicate the right checklist points for each room instance.</p>
+                          </div>
+                          <div className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600" data-testid="text-generated-points">
+                            {checklistPreviewCount} checklist points
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-3 gap-3">
+                          <div className="grid gap-2">
+                            <Label htmlFor="bedrooms">Bedrooms</Label>
+                            <Input
+                              id="bedrooms"
+                              type="number"
+                              min="0"
+                              value={newReport.spaceCounts.bedrooms}
+                              onChange={(e) => updateSpaceCount("bedrooms", e.target.value)}
+                              data-testid="input-bedroom-count"
+                            />
+                          </div>
+                          <div className="grid gap-2">
+                            <Label htmlFor="bathrooms">Bathrooms</Label>
+                            <Input
+                              id="bathrooms"
+                              type="number"
+                              min="0"
+                              value={newReport.spaceCounts.bathrooms}
+                              onChange={(e) => updateSpaceCount("bathrooms", e.target.value)}
+                              data-testid="input-bathroom-count"
+                            />
+                          </div>
+                          <div className="grid gap-2">
+                            <Label htmlFor="balconies">Balconies</Label>
+                            <Input
+                              id="balconies"
+                              type="number"
+                              min="0"
+                              value={newReport.spaceCounts.balconies}
+                              onChange={(e) => updateSpaceCount("balconies", e.target.value)}
+                              data-testid="input-balcony-count"
+                            />
+                          </div>
+                        </div>
+                        <p className="mt-3 text-xs text-slate-500">Common Area and External Area are still added once automatically.</p>
                       </div>
                     </div>
                     <DialogFooter>
@@ -276,6 +338,19 @@ export default function ProjectDetails() {
                             <Clock className="h-3 w-3" /> <span className="hidden xs:inline">Created </span>{format(new Date(report.createdAt), "MMM d")}
                           </span>
                         </div>
+                        {report.spaceCounts && (
+                          <div className="mt-3 flex flex-wrap gap-2" data-testid={`text-space-summary-${report.id}`}>
+                            <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-semibold text-slate-600">
+                              {report.spaceCounts.bedrooms} Bedroom{report.spaceCounts.bedrooms === 1 ? "" : "s"}
+                            </span>
+                            <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-semibold text-slate-600">
+                              {report.spaceCounts.bathrooms} Bathroom{report.spaceCounts.bathrooms === 1 ? "" : "s"}
+                            </span>
+                            <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-semibold text-slate-600">
+                              {report.spaceCounts.balconies} Balcony{report.spaceCounts.balconies === 1 ? "" : "ies"}
+                            </span>
+                          </div>
+                        )}
                       </div>
 
                       <div className="flex-shrink-0 flex flex-col md:flex-row items-center md:border-l md:pl-4 mt-2 md:mt-0 pt-2 md:pt-0 border-t md:border-t-0 gap-2">

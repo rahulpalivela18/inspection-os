@@ -1,6 +1,6 @@
 import { useState, createContext, useContext, ReactNode } from "react";
 import { format } from "date-fns";
-import { DEFAULT_CHECKLIST } from "@/lib/defaultChecklist";
+import { DEFAULT_CHECKLIST, DEFAULT_SPACE_COUNTS, buildChecklistFromCounts, type ReportSpaceCounts } from "@/lib/defaultChecklist";
 
 // Types
 export type Project = {
@@ -31,6 +31,7 @@ export type Report = {
   date: string;
   createdAt: string;
   templateId?: string;
+  spaceCounts?: ReportSpaceCounts;
   checklist?: ChecklistItem[];
 };
 
@@ -92,6 +93,7 @@ const MOCK_REPORTS: Report[] = [
     author: "Jane Engineer",
     date: format(new Date(), "yyyy-MM-dd"),
     createdAt: new Date().toISOString(),
+    spaceCounts: DEFAULT_SPACE_COUNTS,
     checklist: [
       { ...cloneDefaultChecklist()[0], status: "N", severity: "MAJOR", image: "https://images.unsplash.com/photo-1584467541268-b040f83be3fd?auto=format&fit=crop&q=80&w=300" },
       { ...cloneDefaultChecklist()[1], status: "Y" },
@@ -358,7 +360,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const addReport = (report: Omit<Report, "id" | "createdAt">) => {
     const newReport = {
       ...report,
-      checklist: report.checklist ?? cloneDefaultChecklist(),
+      spaceCounts: report.spaceCounts ?? DEFAULT_SPACE_COUNTS,
+      checklist: report.checklist ?? buildChecklistFromCounts(report.spaceCounts ?? DEFAULT_SPACE_COUNTS),
       id: Math.random().toString(36).substr(2, 9),
       createdAt: new Date().toISOString(),
     };
