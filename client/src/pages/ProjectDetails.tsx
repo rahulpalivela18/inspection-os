@@ -88,7 +88,7 @@ export default function ProjectDetails() {
   const handleCreateReport = () => {
     if (!newReport.title || !newReport.author) return;
     
-    addReport({
+    const createdReport = addReport({
       ...newReport,
       projectId: project.id,
     });
@@ -99,6 +99,7 @@ export default function ProjectDetails() {
       status: "Draft", 
       date: format(new Date(), "yyyy-MM-dd") 
     });
+    setLocation(`/report/${createdReport.id}`);
   };
 
   const getStatusColor = (status: string) => {
@@ -155,7 +156,7 @@ export default function ProjectDetails() {
                     </DialogHeader>
                     <div className="rounded-2xl border border-indigo-100 bg-indigo-50/70 p-4 text-sm text-slate-600">
                       <p className="font-semibold text-slate-900">What happens next</p>
-                      <p className="mt-1">You only enter the report details here. Once the report is created, the checklist is already inside the report and ready to fill.</p>
+                      <p className="mt-1">You only enter the report details here. Once the report is created, it opens immediately with the checklist already inside and ready to fill.</p>
                     </div>
                     <div className="grid gap-4 py-4">
                       <div className="grid gap-2">

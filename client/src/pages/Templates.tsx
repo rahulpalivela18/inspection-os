@@ -1,5 +1,5 @@
 import Layout from "@/components/Layout";
-import { DEFAULT_CHECKLIST, DEFAULT_CHECKLIST_NAME } from "@/lib/store";
+import { DEFAULT_CHECKLIST, DEFAULT_CHECKLIST_NAME } from "@/lib/defaultChecklist";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
