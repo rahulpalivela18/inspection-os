@@ -226,11 +226,6 @@ export default function ProjectDetails() {
                       </DialogHeader>
 
                       <div className="flex-1 space-y-5 overflow-y-auto px-4 py-4 sm:px-6 sm:py-5">
-                        <div className="rounded-2xl border border-indigo-100 bg-indigo-50/70 p-4 text-sm text-slate-600">
-                          <p className="font-semibold text-slate-900">What happens next</p>
-                          <p className="mt-1">Choose how many repeatable spaces this report has. We will create Bedroom 1, Bedroom 2, Bathroom 1 and similar sections automatically, each with the correct checklist points.</p>
-                        </div>
-
                         <div className="grid gap-4">
                           <div className="grid gap-2">
                             <Label htmlFor="title">Report Title</Label>
@@ -294,10 +289,9 @@ export default function ProjectDetails() {
                             <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                               <div>
                                 <p className="text-sm font-semibold text-slate-900">Repeatable spaces</p>
-                                <p className="mt-1 text-xs text-slate-500">We will duplicate the right checklist points for each room instance.</p>
                               </div>
                               <div className="rounded-full bg-slate-100 px-3 py-1 text-center text-xs font-semibold text-slate-600" data-testid="text-generated-points">
-                                {checklistPreviewCount} checklist points
+                                {checklistPreviewCount} points total
                               </div>
                             </div>
                             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -335,7 +329,6 @@ export default function ProjectDetails() {
                                 />
                               </div>
                             </div>
-                            <p className="mt-3 text-xs text-slate-500">Common Area and External Area are still added once automatically.</p>
                           </div>
                         </div>
                       </div>
@@ -357,12 +350,6 @@ export default function ProjectDetails() {
           <div className="max-w-7xl mx-auto">
             <div className="mb-6 flex items-center justify-between">
               <h2 className="text-lg font-semibold md:text-xl">Reports ({reports.length})</h2>
-            </div>
-
-            <div className="mb-6 rounded-2xl border border-indigo-100 bg-white p-4 shadow-sm">
-              <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-indigo-600">Simple flow</p>
-              <h3 className="mt-2 text-base font-semibold text-slate-900">Every new report already includes the default checklist</h3>
-              <p className="mt-1 text-sm text-slate-500">There is no separate checklist selection step for the inspector. Create the report and start filling it immediately.</p>
             </div>
 
             {reports.length === 0 ? (
@@ -513,9 +500,6 @@ export default function ProjectDetails() {
             <div className="flex max-h-[92vh] flex-col">
               <DialogHeader className="border-b border-slate-100 px-4 py-4 text-left sm:px-6 sm:py-5">
                 <DialogTitle>Edit Report Details</DialogTitle>
-                <DialogDescription>
-                  You can update room counts later. Existing checklist answers stay matched wherever the room and point still exist.
-                </DialogDescription>
               </DialogHeader>
 
               <div className="flex-1 space-y-5 overflow-y-auto px-4 py-4 sm:px-6 sm:py-5">
@@ -571,10 +555,9 @@ export default function ProjectDetails() {
                   <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div>
                       <p className="text-sm font-semibold text-slate-900">Repeatable spaces</p>
-                      <p className="mt-1 text-xs text-slate-500">Add or reduce rooms even after report creation. The checklist updates when you save.</p>
                     </div>
                     <div className="rounded-full bg-white px-3 py-1 text-center text-xs font-semibold text-slate-600" data-testid="text-edit-generated-points">
-                      {buildChecklistFromCounts(editingReport?.spaceCounts ?? DEFAULT_SPACE_COUNTS).length} checklist points
+                      {buildChecklistFromCounts(editingReport?.spaceCounts ?? DEFAULT_SPACE_COUNTS).length} points total
                     </div>
                   </div>
 

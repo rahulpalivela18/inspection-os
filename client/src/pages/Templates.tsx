@@ -109,45 +109,17 @@ export default function Templates() {
           </Card>
 
           <div className="space-y-6">
-            <Card className="border-indigo-100 bg-gradient-to-br from-indigo-50 via-white to-slate-50 shadow-sm">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-slate-900">
-                  <CopyCheck className="h-5 w-5 text-indigo-600" /> What happens when you create a report
-                </CardTitle>
-                <CardDescription>Simple flow for the inspector.</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3 text-sm text-slate-600">
-                <div className="rounded-2xl border border-white/70 bg-white/80 p-4">
-                  <p className="font-semibold text-slate-900">1. Enter report details</p>
-                  <p className="mt-1">Add the title, author, date, and how many bedrooms, bathrooms, and balconies exist in that unit.</p>
-                </div>
-                <div className="rounded-2xl border border-white/70 bg-white/80 p-4">
-                  <p className="font-semibold text-slate-900">2. Checklist is generated automatically</p>
-                  <p className="mt-1">If you enter 3 bedrooms and 2 bathrooms, the report opens with Bedroom 1, Bedroom 2, Bedroom 3, Bathroom 1, and Bathroom 2 already populated.</p>
-                </div>
-                <div className="rounded-2xl border border-white/70 bg-white/80 p-4">
-                  <p className="font-semibold text-slate-900">3. Fill and export</p>
-                  <p className="mt-1">Mark YES or NO, add severity and photos when needed, then export the report PDF.</p>
-                </div>
-              </CardContent>
-            </Card>
-
             <Card className="shadow-sm">
               <CardHeader>
-                <CardTitle className="text-slate-900">Default sample setup</CardTitle>
-                <CardDescription>This is the starting setup used for a fresh report form.</CardDescription>
+                <CardTitle className="text-slate-900">Default Space Configuration</CardTitle>
+                <CardDescription>Starting counts for new inspection reports.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-3 text-sm text-slate-600">
                 <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
-                  <p>Bedrooms: <span className="font-semibold text-slate-900">{DEFAULT_SPACE_COUNTS.bedrooms}</span></p>
-                  <p>Bathrooms: <span className="font-semibold text-slate-900">{DEFAULT_SPACE_COUNTS.bathrooms}</span></p>
-                  <p>Balconies: <span className="font-semibold text-slate-900">{DEFAULT_SPACE_COUNTS.balconies}</span></p>
+                  <div className="flex justify-between py-1"><span>Bedrooms:</span> <span className="font-semibold text-slate-900">{DEFAULT_SPACE_COUNTS.bedrooms}</span></div>
+                  <div className="flex justify-between py-1"><span>Bathrooms:</span> <span className="font-semibold text-slate-900">{DEFAULT_SPACE_COUNTS.bathrooms}</span></div>
+                  <div className="flex justify-between py-1"><span>Balconies:</span> <span className="font-semibold text-slate-900">{DEFAULT_SPACE_COUNTS.balconies}</span></div>
                 </div>
-                <Link href="/dashboard">
-                  <Button className="w-full bg-slate-900 hover:bg-slate-800" data-testid="button-back-to-report-flow">
-                    Back to report flow <ArrowRight className="ml-2 h-4 w-4" />
-                  </Button>
-                </Link>
               </CardContent>
             </Card>
           </div>
