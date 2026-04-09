@@ -13,6 +13,14 @@ export type Project = {
   createdAt: string;
 };
 
+export type CompanyProfile = {
+  name: string;
+  logoUrl?: string;
+  address?: string;
+  email?: string;
+  phone?: string;
+};
+
 export type ChecklistItem = {
   id: string;
   category: string;
@@ -323,6 +331,8 @@ let ISSUE_TEMPLATES: IssueTemplate[] = [
 
 // Context
 type StoreContextType = {
+  companyProfile: CompanyProfile;
+  updateCompanyProfile: (profile: Partial<CompanyProfile>) => void;
   projects: Project[];
   reports: Report[];
   issues: Issue[];
@@ -351,6 +361,9 @@ type StoreContextType = {
 const StoreContext = createContext<StoreContextType | null>(null);
 
 export function StoreProvider({ children }: { children: ReactNode }) {
+  const [companyProfile, setCompanyProfile] = useState<CompanyProfile>({
+    name: "AP31_HOME INSPECTIONS",
+  });
   const [projects, setProjects] = useState<Project[]>(MOCK_PROJECTS);
   const [reports, setReports] = useState<Report[]>(MOCK_REPORTS);
   const [issues, setIssues] = useState<Issue[]>(MOCK_ISSUES);
@@ -458,6 +471,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   return (
     <StoreContext.Provider
       value={{
+        companyProfile,
+        updateCompanyProfile: (profile) => setCompanyProfile({ ...companyProfile, ...profile }),
         projects,
         reports,
         issues,
