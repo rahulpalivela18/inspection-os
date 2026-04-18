@@ -61,15 +61,9 @@ export default function Dashboard() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground">Projects</h1>
-            <p className="text-sm text-muted-foreground mt-1">Manage your inspections and client reports.</p>
           </div>
           
           <div className="flex items-center gap-3">
-            <Link href="/">
-              <Button variant="outline" className="hidden sm:flex">
-                View Landing
-              </Button>
-            </Link>
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
               <DialogTrigger asChild>
                 <Button size="lg" className="w-full sm:w-auto shadow-lg shadow-primary/20 transition-all hover:scale-[1.02]">
@@ -142,34 +136,6 @@ export default function Dashboard() {
               </DialogContent>
             </Dialog>
           </div>
-        </div>
-
-        {/* Stats Summary */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <Card className="bg-white/50 backdrop-blur-sm border-dashed">
-            <CardHeader className="p-4 pb-2">
-              <CardDescription className="text-[10px] uppercase font-bold tracking-wider">Active Projects</CardDescription>
-              <CardTitle className="text-2xl">{projects.length}</CardTitle>
-            </CardHeader>
-          </Card>
-          <Card className="bg-white/50 backdrop-blur-sm border-dashed">
-            <CardHeader className="p-4 pb-2">
-              <CardDescription className="text-[10px] uppercase font-bold tracking-wider">Total Reports</CardDescription>
-              <CardTitle className="text-2xl">{reports.length}</CardTitle>
-            </CardHeader>
-          </Card>
-          <Card className="bg-white/50 backdrop-blur-sm border-dashed">
-            <CardHeader className="p-4 pb-2">
-              <CardDescription className="text-[10px] uppercase font-bold tracking-wider">Pending Review</CardDescription>
-              <CardTitle className="text-2xl">{reports.filter(r => r.status === "Review").length}</CardTitle>
-            </CardHeader>
-          </Card>
-          <Card className="bg-white/50 backdrop-blur-sm border-dashed">
-            <CardHeader className="p-4 pb-2">
-              <CardDescription className="text-[10px] uppercase font-bold tracking-wider">Completed</CardDescription>
-              <CardTitle className="text-2xl">{reports.filter(r => r.status === "Final").length}</CardTitle>
-            </CardHeader>
-          </Card>
         </div>
 
         {/* Search & Filter */}

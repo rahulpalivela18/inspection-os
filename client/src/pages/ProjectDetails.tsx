@@ -359,7 +359,7 @@ export default function ProjectDetails() {
                 </div>
                 <h3 className="text-lg font-medium">No reports yet</h3>
                 <p className="text-muted-foreground max-w-xs mt-2 mb-6">
-                  Create your first report and the default checklist will be added automatically.
+                  Create your first report to get started.
                 </p>
                 <Button variant="outline" onClick={() => setIsDialogOpen(true)} data-testid="button-create-first-report">Create Report</Button>
               </div>
