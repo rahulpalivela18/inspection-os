@@ -9,6 +9,7 @@ import ProjectDetails from "@/pages/ProjectDetails";
 import ReportEditor from "@/pages/ReportEditor";
 import Templates from "@/pages/Templates";
 import LandingPage from "@/pages/LandingPage";
+import Settings from "@/pages/Settings";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -17,6 +18,7 @@ function Router() {
       <Route path="/" component={LandingPage} />
       <Route path="/dashboard" component={Dashboard} />
       <Route path="/templates" component={Templates} />
+      <Route path="/settings" component={Settings} />
       <Route path="/project/:id" component={ProjectDetails} />
       <Route path="/report/:id" component={ReportEditor} />
       <Route component={NotFound} />

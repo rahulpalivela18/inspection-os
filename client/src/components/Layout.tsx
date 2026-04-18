@@ -19,7 +19,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const navigation = [
     { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
     { name: "Projects", href: "/dashboard", icon: FolderOpen },
-    { name: "Settings", href: "#", icon: Settings, disabled: true },
+    { name: "Settings", href: "/settings", icon: Settings },
   ];
 
   const SidebarContent = () => (
