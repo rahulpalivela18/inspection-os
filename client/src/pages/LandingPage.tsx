@@ -72,7 +72,7 @@ export default function LandingPage() {
         >
           <div className="aspect-[16/9] w-full overflow-hidden rounded-2xl bg-slate-100 relative">
             <img 
-              src="/images/dashboard-preview.png" 
+              src="/images/dashboard-mockup.png" 
               alt="Dashboard Preview" 
               className="w-full h-full object-cover"
             />
