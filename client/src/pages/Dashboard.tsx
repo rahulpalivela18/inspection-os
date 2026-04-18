@@ -7,14 +7,15 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Search, MapPin, Calendar, ArrowRight, FolderKanban, Image as ImageIcon, BarChart3 } from "lucide-react";
+import { Plus, Search, MapPin, Calendar, ArrowRight, FolderKanban, Image as ImageIcon, BarChart3, Trash2 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { formatDistanceToNow } from "date-fns";
 
 export default function Dashboard() {
-  const { projects, addProject, reports } = useStore();
+  const { projects, addProject, deleteProject, reports } = useStore();
   const [, setLocation] = useLocation();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [projectToDelete, setProjectToDelete] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [logoPreview, setLogoPreview] = useState("");
   
@@ -46,6 +47,11 @@ export default function Dashboard() {
     addProject(newProject);
     setIsDialogOpen(false);
     setNewProject({ title: "", clientName: "", address: "", description: "", logoUrl: "" });
+  };
+
+  const handleDeleteProject = (id: string) => {
+    deleteProject(id);
+    setProjectToDelete(null);
   };
 
   const filteredProjects = projects.filter(p => 
@@ -138,6 +144,34 @@ export default function Dashboard() {
           </div>
         </div>
 
+        {/* Stats Summary */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <Card className="bg-white/50 backdrop-blur-sm border-dashed">
+            <CardHeader className="p-4 pb-2">
+              <CardDescription className="text-[10px] uppercase font-bold tracking-wider">Active Projects</CardDescription>
+              <CardTitle className="text-2xl">{projects.length}</CardTitle>
+            </CardHeader>
+          </Card>
+          <Card className="bg-white/50 backdrop-blur-sm border-dashed">
+            <CardHeader className="p-4 pb-2">
+              <CardDescription className="text-[10px] uppercase font-bold tracking-wider">Total Reports</CardDescription>
+              <CardTitle className="text-2xl">{reports.length}</CardTitle>
+            </CardHeader>
+          </Card>
+          <Card className="bg-white/50 backdrop-blur-sm border-dashed">
+            <CardHeader className="p-4 pb-2">
+              <CardDescription className="text-[10px] uppercase font-bold tracking-wider">Pending Review</CardDescription>
+              <CardTitle className="text-2xl">{reports.filter(r => r.status === "Review").length}</CardTitle>
+            </CardHeader>
+          </Card>
+          <Card className="bg-white/50 backdrop-blur-sm border-dashed">
+            <CardHeader className="p-4 pb-2">
+              <CardDescription className="text-[10px] uppercase font-bold tracking-wider">Completed</CardDescription>
+              <CardTitle className="text-2xl">{reports.filter(r => r.status === "Final").length}</CardTitle>
+            </CardHeader>
+          </Card>
+        </div>
+
         {/* Search & Filter */}
         <div className="relative w-full sm:max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -171,15 +205,28 @@ export default function Dashboard() {
               >
                 <div className="absolute top-0 left-0 w-1 h-full bg-primary opacity-0 group-hover:opacity-100 transition-opacity" />
                 <CardHeader className="pb-3">
-                  <div className="flex justify-between items-start">
-                    <CardTitle className="line-clamp-1 text-xl group-hover:text-primary transition-colors">
+                  <div className="flex justify-between items-start gap-4">
+                    <CardTitle className="line-clamp-1 text-xl group-hover:text-primary transition-colors pr-2">
                       {project.title}
                     </CardTitle>
-                    {project.logoUrl && (
-                      <div className="w-10 h-10 rounded-lg border bg-white overflow-hidden shrink-0 flex items-center justify-center p-1 shadow-sm">
-                        <img src={project.logoUrl} alt="Logo" className="max-w-full max-h-full object-contain" />
-                      </div>
-                    )}
+                    <div className="flex items-center gap-2 shrink-0">
+                      {project.logoUrl && (
+                        <div className="w-10 h-10 rounded-lg border bg-white overflow-hidden flex items-center justify-center p-1 shadow-sm">
+                          <img src={project.logoUrl} alt="Logo" className="max-w-full max-h-full object-contain" />
+                        </div>
+                      )}
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-8 w-8 text-slate-400 hover:text-red-600 hover:bg-red-50 -mt-1 -mr-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setProjectToDelete(project.id);
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
                   <CardDescription className="flex items-center gap-1 mt-1">
                     <MapPin className="h-3 w-3" /> {project.address}
@@ -207,6 +254,31 @@ export default function Dashboard() {
           </div>
         )}
       </div>
+      <Dialog open={!!projectToDelete} onOpenChange={(open) => !open && setProjectToDelete(null)}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle className="text-red-600 flex items-center gap-2">
+              <Trash2 className="h-5 w-5" /> Delete Project
+            </DialogTitle>
+            <DialogDescription className="text-base pt-2">
+              Are you sure you want to delete this project? This will also delete all reports associated with it.
+              <br/><br/>
+              <span className="font-semibold text-slate-900">This action cannot be undone.</span>
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="mt-4 gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setProjectToDelete(null)}>
+              Cancel
+            </Button>
+            <Button 
+              variant="destructive" 
+              onClick={() => projectToDelete && handleDeleteProject(projectToDelete)}
+            >
+              Yes, delete project
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Layout>
   );
 }

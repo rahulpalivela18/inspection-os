@@ -340,8 +340,10 @@ type StoreContextType = {
   reportTemplates: ReportTemplate[];
   addProject: (project: Omit<Project, "id" | "createdAt">) => void;
   updateProject: (project: Project) => void;
+  deleteProject: (id: string) => void;
   addReport: (report: Omit<Report, "id" | "createdAt">) => Report;
   updateReport: (report: Report) => void;
+  deleteReport: (id: string) => void;
   addIssue: (issue: Omit<Issue, "id">) => void;
   updateIssue: (issue: Issue) => void;
   deleteIssue: (id: string) => void;
@@ -392,6 +394,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setProjects(projects.map(p => p.id === updatedProject.id ? updatedProject : p));
   };
 
+  const deleteProject = (id: string) => {
+    setProjects(projects.filter(p => p.id !== id));
+    // Also delete associated reports
+    setReports(reports.filter(r => r.projectId !== id));
+  };
+
   const addReport = (report: Omit<Report, "id" | "createdAt">) => {
     const spaceCounts = report.spaceCounts ?? DEFAULT_SPACE_COUNTS;
     const checklist = report.checklist ?? buildChecklistFromCounts(spaceCounts);
@@ -415,6 +423,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const updateReport = (updatedReport: Report) => {
     setReports(reports.map(r => r.id === updatedReport.id ? updatedReport : r));
+  };
+
+  const deleteReport = (id: string) => {
+    setReports(reports.filter(r => r.id !== id));
   };
 
   const addIssue = (issue: Omit<Issue, "id">) => {
@@ -480,8 +492,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         reportTemplates,
         addProject,
         updateProject,
+        deleteProject,
         addReport,
         updateReport,
+        deleteReport,
         addIssue,
         updateIssue,
         deleteIssue,
