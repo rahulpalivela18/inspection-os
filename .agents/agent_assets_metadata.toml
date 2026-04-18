@@ -1,0 +1,8 @@
+uploads = []
+outputs = []
+
+[[generated]]
+id = "q_IUabS3DGFpWGnSsfc-g"
+uri = "file://client/public/images/dashboard-preview.png"
+type = "image"
+title = "Software dashboard app interface"
