@@ -2,40 +2,21 @@ import Layout from "@/components/Layout";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { LockKeyhole, Plus, Trash2, Repeat2, Lock, Pencil, Check, X } from "lucide-react";
+import { LockKeyhole, Plus, Trash2, Pencil, Check, X } from "lucide-react";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-const SPACE_TYPE_OPTIONS = [
-  { value: "none", label: "Does not repeat (Fixed)" },
-  { value: "bedroom", label: "Bedroom — repeats per bedroom" },
-  { value: "bathroom", label: "Bathroom — repeats per bathroom" },
-  { value: "balcony", label: "Balcony — repeats per balcony" },
-];
-
-function spaceTypeLabel(spaceType: string | null | undefined, isRepeatable: boolean) {
-  if (!isRepeatable || !spaceType) return null;
-  const map: Record<string, string> = { bedroom: "Per Bedroom", bathroom: "Per Bathroom", balcony: "Per Balcony" };
-  return map[spaceType] ?? `Per ${spaceType}`;
-}
-
 export default function Templates() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [newItem, setNewItem] = useState({
-    category: "",
-    point: "",
-    spaceTypeOption: "none",
-    bulkPoints: "",
-  });
+  const [newItem, setNewItem] = useState({ category: "", point: "", bulkPoints: "" });
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
 
@@ -67,27 +48,19 @@ export default function Templates() {
   });
 
   const handleAddSubmit = async () => {
-    const isRepeatable = newItem.spaceTypeOption !== "none";
-    const spaceType = isRepeatable ? newItem.spaceTypeOption : null;
     const lines = newItem.bulkPoints.trim()
       ? newItem.bulkPoints.split("\n").map((l) => l.trim()).filter(Boolean)
       : newItem.point.trim()
         ? [newItem.point.trim()]
         : [];
-
     if (!lines.length) return;
 
     for (const line of lines) {
-      await createMutation.mutateAsync({
-        category: newItem.category,
-        point: line,
-        isRepeatable,
-        spaceType,
-      });
+      await createMutation.mutateAsync({ category: newItem.category, point: line, isRepeatable: false, spaceType: null });
     }
     toast({ title: lines.length === 1 ? "Point added" : `${lines.length} points added` });
     setIsDialogOpen(false);
-    setNewItem({ category: "", point: "", spaceTypeOption: "none", bulkPoints: "" });
+    setNewItem({ category: "", point: "", bulkPoints: "" });
   };
 
   const startEdit = (item: any) => { setEditingId(item.id); setEditValue(item.point); };
@@ -102,7 +75,6 @@ export default function Templates() {
     return acc;
   }, {});
   const categories = Object.keys(grouped);
-  const categoryOptions = categories;
   const bulkLineCount = newItem.bulkPoints.split("\n").filter((l) => l.trim()).length;
   const canSubmit = !!newItem.category && (!!newItem.point.trim() || bulkLineCount > 0) && !createMutation.isPending;
 
@@ -116,12 +88,12 @@ export default function Templates() {
           <div className="max-w-3xl">
             <h1 className="text-3xl font-black tracking-tight text-slate-900 md:text-4xl">Master Checklist</h1>
             <p className="mt-2 text-base text-slate-500 md:text-lg">
-              Define your inspection points here. Points added for Bedroom will appear for <em>every</em> bedroom in a report. Same for bathrooms and balconies.
+              Define your inspection points here. Click any point to edit it. Use bulk-add to paste many points at once.
             </p>
           </div>
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2">
           <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
             <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-slate-400">Total points</p>
             <p className="mt-2 text-3xl font-black text-slate-900">{templates.length}</p>
@@ -129,12 +101,6 @@ export default function Templates() {
           <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
             <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-slate-400">Categories</p>
             <p className="mt-2 text-3xl font-black text-slate-900">{categories.length}</p>
-          </div>
-          <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
-            <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-slate-400">Repeating categories</p>
-            <p className="mt-2 text-3xl font-black text-slate-900">
-              {categories.filter((c) => grouped[c].some((i: any) => i.isRepeatable)).length}
-            </p>
           </div>
         </div>
 
@@ -155,24 +121,11 @@ export default function Templates() {
           <div className="space-y-4">
             {categories.map((category) => {
               const items = grouped[category];
-              const firstItem = items[0];
-              const repeatLabel = spaceTypeLabel(firstItem?.spaceType, firstItem?.isRepeatable);
               return (
                 <Card key={category} className="overflow-hidden border-slate-200 shadow-sm">
                   <CardHeader className="bg-slate-50 border-b border-slate-100 py-3 px-4">
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <CardTitle className="text-base">{category}</CardTitle>
-                        {repeatLabel ? (
-                          <Badge variant="outline" className="text-indigo-700 border-indigo-200 bg-indigo-50">
-                            <Repeat2 className="h-3 w-3 mr-1" />{repeatLabel}
-                          </Badge>
-                        ) : (
-                          <Badge variant="outline" className="text-slate-600 border-slate-200 bg-slate-100">
-                            <Lock className="h-3 w-3 mr-1" />Fixed
-                          </Badge>
-                        )}
-                      </div>
+                      <CardTitle className="text-base">{category}</CardTitle>
                       <span className="text-xs text-muted-foreground">{items.length} points</span>
                     </div>
                   </CardHeader>
@@ -231,35 +184,32 @@ export default function Templates() {
           <DialogContent className="sm:max-w-[540px]">
             <DialogHeader>
               <DialogTitle>Add Checklist Point(s)</DialogTitle>
-              <DialogDescription>
-                Add one point or paste many at once — one per line.
-              </DialogDescription>
+              <DialogDescription>Add one point or paste many at once — one per line.</DialogDescription>
             </DialogHeader>
             <div className="grid gap-5 py-2">
 
-              {/* Category */}
               <div className="grid gap-2">
                 <Label>Category</Label>
-                {categoryOptions.length > 0 ? (
+                {categories.length > 0 ? (
                   <div className="flex gap-2 items-center">
                     <Select
-                      value={categoryOptions.includes(newItem.category) ? newItem.category : ""}
+                      value={categories.includes(newItem.category) ? newItem.category : ""}
                       onValueChange={(val) => setNewItem({ ...newItem, category: val })}
                     >
                       <SelectTrigger data-testid="select-category-existing" className="flex-1">
                         <SelectValue placeholder="Choose existing…" />
                       </SelectTrigger>
                       <SelectContent>
-                        {categoryOptions.map((c) => (
+                        {categories.map((c) => (
                           <SelectItem key={c} value={c}>{c}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                     <span className="text-xs text-slate-400 shrink-0">or</span>
                     <Input
-                      placeholder="New category name"
+                      placeholder="New category"
                       className="flex-1"
-                      value={categoryOptions.includes(newItem.category) ? "" : newItem.category}
+                      value={categories.includes(newItem.category) ? "" : newItem.category}
                       onChange={(e) => setNewItem({ ...newItem, category: e.target.value })}
                       data-testid="input-checklist-category"
                     />
@@ -274,27 +224,6 @@ export default function Templates() {
                 )}
               </div>
 
-              {/* Repeats for */}
-              <div className="grid gap-2">
-                <Label>Repeats for</Label>
-                <Select value={newItem.spaceTypeOption} onValueChange={(val) => setNewItem({ ...newItem, spaceTypeOption: val })} data-testid="select-space-type">
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {SPACE_TYPE_OPTIONS.map((o) => (
-                      <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <p className="text-xs text-slate-500">
-                  {newItem.spaceTypeOption === "none"
-                    ? "This point will appear once in the report."
-                    : `This point will appear once per ${newItem.spaceTypeOption} in the report.`}
-                </p>
-              </div>
-
-              {/* Single point */}
               <div className="grid gap-2">
                 <Label>Single Point</Label>
                 <Input
@@ -312,7 +241,6 @@ export default function Templates() {
                 <div className="flex-1 border-t border-slate-200" />
               </div>
 
-              {/* Bulk add */}
               <div className="grid gap-2">
                 <Label>Bulk Add <span className="text-slate-400 font-normal">(one point per line)</span></Label>
                 <Textarea
@@ -331,11 +259,7 @@ export default function Templates() {
             <DialogFooter>
               <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
               <Button onClick={handleAddSubmit} disabled={!canSubmit} data-testid="button-confirm-add-checklist">
-                {createMutation.isPending
-                  ? "Adding..."
-                  : bulkLineCount > 0
-                    ? `Add ${bulkLineCount} Points`
-                    : "Add to Checklist"}
+                {createMutation.isPending ? "Adding..." : bulkLineCount > 0 ? `Add ${bulkLineCount} Points` : "Add to Checklist"}
               </Button>
             </DialogFooter>
           </DialogContent>
