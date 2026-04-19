@@ -1,0 +1,62 @@
+// Typed API helpers
+async function request<T>(url: string, options?: RequestInit): Promise<T> {
+  const res = await fetch(url, {
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    ...options,
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({ message: "Request failed" }));
+    throw new Error(body.message || "Request failed");
+  }
+  return res.json();
+}
+
+export const api = {
+  // Auth
+  me: () => request<{ user: any; workspace: any }>("/api/auth/me"),
+  login: (email: string, password: string) =>
+    request<{ user: any; workspace: any }>("/api/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ email, password }),
+    }),
+  register: (data: { name: string; email: string; password: string; companyName: string }) =>
+    request<{ user: any; workspace: any }>("/api/auth/register", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  logout: () => request("/api/auth/logout", { method: "POST" }),
+
+  // Workspace
+  updateWorkspace: (data: any) =>
+    request("/api/workspace", { method: "PATCH", body: JSON.stringify(data) }),
+
+  // Checklist templates
+  getChecklistTemplates: () => request<any[]>("/api/checklist-templates"),
+  createChecklistTemplate: (data: any) =>
+    request<any>("/api/checklist-templates", { method: "POST", body: JSON.stringify(data) }),
+  updateChecklistTemplate: (id: string, data: any) =>
+    request<any>(`/api/checklist-templates/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+  deleteChecklistTemplate: (id: string) =>
+    request(`/api/checklist-templates/${id}`, { method: "DELETE" }),
+
+  // Projects
+  getProjects: () => request<any[]>("/api/projects"),
+  getProject: (id: string) => request<any>(`/api/projects/${id}`),
+  createProject: (data: any) =>
+    request<any>("/api/projects", { method: "POST", body: JSON.stringify(data) }),
+  updateProject: (id: string, data: any) =>
+    request<any>(`/api/projects/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+  deleteProject: (id: string) =>
+    request(`/api/projects/${id}`, { method: "DELETE" }),
+
+  // Reports
+  getReports: (projectId: string) => request<any[]>(`/api/projects/${projectId}/reports`),
+  getReport: (id: string) => request<any>(`/api/reports/${id}`),
+  createReport: (projectId: string, data: any) =>
+    request<any>(`/api/projects/${projectId}/reports`, { method: "POST", body: JSON.stringify(data) }),
+  updateReport: (id: string, data: any) =>
+    request<any>(`/api/reports/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+  deleteReport: (id: string) =>
+    request(`/api/reports/${id}`, { method: "DELETE" }),
+};

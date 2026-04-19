@@ -14,11 +14,18 @@ export default function LandingPage() {
             </div>
             <span className="tracking-tight text-slate-900">ReportGen</span>
           </motion.div>
-          <Link href="/dashboard">
-            <Button className="rounded-xl font-semibold shadow-md" data-testid="button-enter-workspace">
-              Log In
-            </Button>
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link href="/login">
+              <Button variant="outline" className="rounded-xl font-semibold" data-testid="button-login">
+                Log In
+              </Button>
+            </Link>
+            <Link href="/register">
+              <Button className="rounded-xl font-semibold shadow-md" data-testid="button-register">
+                Start Free Trial
+              </Button>
+            </Link>
+          </div>
         </div>
       </nav>
 

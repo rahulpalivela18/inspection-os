@@ -1,24 +1,41 @@
 import { useState } from "react";
 import Layout from "@/components/Layout";
-import { useStore } from "@/lib/store";
+import { useAuth } from "@/lib/auth";
+import { api } from "@/lib/api";
+import { useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Building2, Save, Image as ImageIcon } from "lucide-react";
+import { Building2, Save, Image as ImageIcon, LogOut } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useLocation } from "wouter";
 
 export default function Settings() {
-  const { companyProfile, updateCompanyProfile } = useStore();
+  const { workspace, refreshWorkspace, logout } = useAuth();
   const { toast } = useToast();
-  
-  const [profile, setProfile] = useState(companyProfile);
-  const [logoPreview, setLogoPreview] = useState(companyProfile.logoUrl || "");
+  const [, setLocation] = useLocation();
+
+  const [profile, setProfile] = useState({
+    name: workspace?.name || "",
+    email: workspace?.email || "",
+    address: workspace?.address || "",
+    logoUrl: workspace?.logoUrl || "",
+  });
+  const [logoPreview, setLogoPreview] = useState(workspace?.logoUrl || "");
+
+  const saveMutation = useMutation({
+    mutationFn: () => api.updateWorkspace(profile),
+    onSuccess: (data: any) => {
+      refreshWorkspace(data);
+      toast({ title: "Settings Saved", description: "Your company profile has been updated." });
+    },
+    onError: (err: any) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+  });
 
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
     const reader = new FileReader();
     reader.onload = (event) => {
       const base64 = event.target?.result as string;
@@ -28,20 +45,22 @@ export default function Settings() {
     reader.readAsDataURL(file);
   };
 
-  const handleSave = () => {
-    updateCompanyProfile(profile);
-    toast({
-      title: "Settings Saved",
-      description: "Your company profile has been updated successfully.",
-    });
+  const handleLogout = async () => {
+    await logout();
+    setLocation("/login");
   };
 
   return (
     <Layout>
       <div className="p-4 md:p-8 max-w-4xl mx-auto space-y-6 md:space-y-8">
-        <div>
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground">Settings</h1>
-          <p className="text-sm text-muted-foreground mt-1">Manage your workspace and company profile.</p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground">Settings</h1>
+            <p className="text-sm text-muted-foreground mt-1">Manage your workspace and company profile.</p>
+          </div>
+          <Button variant="outline" onClick={handleLogout} className="gap-2" data-testid="button-logout">
+            <LogOut className="h-4 w-4" /> Sign Out
+          </Button>
         </div>
 
         <Card>
@@ -57,35 +76,35 @@ export default function Settings() {
             <div className="grid gap-4 md:grid-cols-2">
               <div className="grid gap-2">
                 <Label htmlFor="companyName" className="font-semibold">Company Name</Label>
-                <Input 
-                  id="companyName" 
+                <Input
+                  id="companyName"
                   value={profile.name}
-                  onChange={(e) => setProfile({...profile, name: e.target.value})}
-                  placeholder="e.g. AP31_HOME INSPECTIONS"
+                  onChange={(e) => setProfile({ ...profile, name: e.target.value })}
+                  placeholder="e.g. AP31 Home Inspections"
+                  data-testid="input-company-name"
                 />
               </div>
-
               <div className="grid gap-2">
                 <Label htmlFor="email" className="font-semibold">Support Email</Label>
-                <Input 
-                  id="email" 
+                <Input
+                  id="email"
                   type="email"
-                  value={profile.email || ""}
-                  onChange={(e) => setProfile({...profile, email: e.target.value})}
+                  value={profile.email}
+                  onChange={(e) => setProfile({ ...profile, email: e.target.value })}
                   placeholder="info@yourcompany.com"
+                  data-testid="input-company-email"
                 />
               </div>
-
               <div className="grid gap-2 md:col-span-2">
                 <Label htmlFor="address" className="font-semibold">Business Address</Label>
-                <Input 
-                  id="address" 
-                  value={profile.address || ""}
-                  onChange={(e) => setProfile({...profile, address: e.target.value})}
+                <Input
+                  id="address"
+                  value={profile.address}
+                  onChange={(e) => setProfile({ ...profile, address: e.target.value })}
                   placeholder="123 Main St, City, State, ZIP"
+                  data-testid="input-company-address"
                 />
               </div>
-
               <div className="grid gap-2 md:col-span-2">
                 <Label className="font-semibold">Company Logo</Label>
                 <div className="flex flex-col sm:flex-row items-start gap-4">
@@ -97,12 +116,13 @@ export default function Settings() {
                     )}
                   </div>
                   <div className="flex-1 space-y-2 w-full">
-                    <Input 
-                      id="logo" 
-                      type="file" 
+                    <Input
+                      id="logo"
+                      type="file"
                       accept="image/*"
                       onChange={handleLogoUpload}
                       className="cursor-pointer max-w-sm"
+                      data-testid="input-company-logo"
                     />
                     <p className="text-xs text-muted-foreground">
                       Upload a square PNG or JPG. This will appear on your report headers and PDF covers.
@@ -111,10 +131,9 @@ export default function Settings() {
                 </div>
               </div>
             </div>
-
             <div className="flex justify-end pt-4 border-t">
-              <Button onClick={handleSave} className="gap-2">
-                <Save className="h-4 w-4" /> Save Changes
+              <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending} className="gap-2" data-testid="button-save-settings">
+                <Save className="h-4 w-4" /> {saveMutation.isPending ? "Saving..." : "Save Changes"}
               </Button>
             </div>
           </CardContent>
