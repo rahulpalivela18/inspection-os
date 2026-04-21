@@ -90,7 +90,7 @@ export default function Register() {
                 <Label htmlFor="companyName">Company Name</Label>
                 <Input
                   id="companyName"
-                  placeholder="e.g. AP31 Home Inspections"
+                  placeholder="Company Name"
                   value={form.companyName}
                   onChange={set("companyName")}
                   onBlur={touch("companyName")}
