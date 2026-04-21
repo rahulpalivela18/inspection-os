@@ -122,6 +122,43 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     res.json({ user: safe, workspace });
   });
 
+  // ── Team Routes ───────────────────────────────────────────────────────────────
+
+  app.get("/api/team", requireAuth, async (req, res) => {
+    const user = req.user as any;
+    const members = await storage.getUsersByWorkspace(user.workspaceId);
+    res.json(members.map(({ password: _, ...m }) => m));
+  });
+
+  app.post("/api/team", requireAdmin, async (req, res) => {
+    const admin = req.user as any;
+    const { name, email, password, role } = req.body;
+    if (!name || !email || !password) return res.status(400).json({ message: "Name, email, and password are required." });
+    if (password.length < 6) return res.status(400).json({ message: "Password must be at least 6 characters." });
+    const validRoles = ["admin", "inspector", "viewer"];
+    if (role && !validRoles.includes(role)) return res.status(400).json({ message: "Invalid role." });
+    const existing = await storage.getUserByEmail(email);
+    if (existing) return res.status(409).json({ message: "A user with this email already exists." });
+    const hashed = await bcrypt.hash(password, 10);
+    const member = await storage.createUser({
+      name,
+      email,
+      password: hashed,
+      workspaceId: admin.workspaceId,
+      role: role || "inspector",
+    });
+    const { password: _, ...safe } = member;
+    res.status(201).json(safe);
+  });
+
+  app.delete("/api/team/:id", requireAdmin, async (req, res) => {
+    const admin = req.user as any;
+    if (req.params.id === admin.id) return res.status(400).json({ message: "You cannot remove yourself." });
+    const ok = await storage.deleteUser(req.params.id, admin.workspaceId);
+    if (!ok) return res.status(404).json({ message: "Member not found." });
+    res.json({ success: true });
+  });
+
   // ── Workspace Routes ──────────────────────────────────────────────────────────
 
   app.patch("/api/workspace", requireAdmin, async (req, res) => {

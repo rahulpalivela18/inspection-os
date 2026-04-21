@@ -50,6 +50,12 @@ export const api = {
   deleteProject: (id: string) =>
     request(`/api/projects/${id}`, { method: "DELETE" }),
 
+  // Team
+  getTeam: () => request<any[]>("/api/team"),
+  addTeamMember: (data: { name: string; email: string; password: string; role: string }) =>
+    request<any>("/api/team", { method: "POST", body: JSON.stringify(data) }),
+  removeTeamMember: (id: string) => request(`/api/team/${id}`, { method: "DELETE" }),
+
   // Reports
   getReports: (projectId: string) => request<any[]>(`/api/projects/${projectId}/reports`),
   getReport: (id: string) => request<any>(`/api/reports/${id}`),

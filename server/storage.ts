@@ -20,6 +20,7 @@ export interface IStorage {
   getUserByEmail(email: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
   getUsersByWorkspace(workspaceId: string): Promise<User[]>;
+  deleteUser(id: string, workspaceId: string): Promise<boolean>;
 
   // Checklist Templates
   getChecklistTemplates(workspaceId: string): Promise<ChecklistTemplate[]>;
@@ -72,6 +73,12 @@ export class DatabaseStorage implements IStorage {
   }
   async getUsersByWorkspace(workspaceId: string) {
     return db.select().from(users).where(eq(users.workspaceId, workspaceId));
+  }
+  async deleteUser(id: string, workspaceId: string) {
+    const result = await db.delete(users)
+      .where(and(eq(users.id, id), eq(users.workspaceId, workspaceId)))
+      .returning();
+    return result.length > 0;
   }
 
   // Checklist Templates

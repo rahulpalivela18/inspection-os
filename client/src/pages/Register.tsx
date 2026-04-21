@@ -192,6 +192,9 @@ export default function Register() {
                   Sign in
                 </button>
               </p>
+              <p className="text-xs text-center text-slate-400 border-t pt-3">
+                Joining an existing team? Ask your workspace admin to add you from their Settings page — do not create a new account here.
+              </p>
             </CardFooter>
           </form>
         </Card>
