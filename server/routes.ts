@@ -154,7 +154,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   app.delete("/api/team/:id", requireAdmin, async (req, res) => {
     const admin = req.user as any;
     if (req.params.id === admin.id) return res.status(400).json({ message: "You cannot remove yourself." });
-    const ok = await storage.deleteUser(req.params.id, admin.workspaceId);
+    const ok = await storage.deleteUser(req.params.id as string, admin.workspaceId);
     if (!ok) return res.status(404).json({ message: "Member not found." });
     res.json({ success: true });
   });
@@ -188,14 +188,14 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
   app.patch("/api/checklist-templates/:id", requireAdmin, async (req, res) => {
     const user = req.user as any;
-    const item = await storage.updateChecklistTemplate(req.params.id, user.workspaceId, req.body);
+    const item = await storage.updateChecklistTemplate(req.params.id as string, user.workspaceId, req.body);
     if (!item) return res.status(404).json({ message: "Not found" });
     res.json(item);
   });
 
   app.delete("/api/checklist-templates/:id", requireAdmin, async (req, res) => {
     const user = req.user as any;
-    const ok = await storage.deleteChecklistTemplate(req.params.id, user.workspaceId);
+    const ok = await storage.deleteChecklistTemplate(req.params.id as string, user.workspaceId);
     if (!ok) return res.status(404).json({ message: "Not found" });
     res.json({ success: true });
   });
@@ -218,7 +218,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
   app.get("/api/projects/:id", requireAuth, async (req, res) => {
     const user = req.user as any;
-    const item = await storage.getProject(req.params.id, user.workspaceId);
+    const item = await storage.getProject(req.params.id as string, user.workspaceId);
     if (!item) return res.status(404).json({ message: "Not found" });
     res.json(item);
   });
@@ -226,14 +226,14 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   app.patch("/api/projects/:id", requireAuth, async (req, res) => {
     const user = req.user as any;
     const { id, createdAt, workspaceId, ...updates } = req.body;
-    const item = await storage.updateProject(req.params.id, user.workspaceId, updates);
+    const item = await storage.updateProject(req.params.id as string, user.workspaceId, updates);
     if (!item) return res.status(404).json({ message: "Not found" });
     res.json(item);
   });
 
   app.delete("/api/projects/:id", requireAuth, async (req, res) => {
     const user = req.user as any;
-    const ok = await storage.deleteProject(req.params.id, user.workspaceId);
+    const ok = await storage.deleteProject(req.params.id as string, user.workspaceId);
     if (!ok) return res.status(404).json({ message: "Not found" });
     res.json({ success: true });
   });
@@ -242,13 +242,13 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
   app.get("/api/projects/:projectId/reports", requireAuth, async (req, res) => {
     const user = req.user as any;
-    const items = await storage.getReportsByProject(req.params.projectId, user.workspaceId);
+    const items = await storage.getReportsByProject(req.params.projectId as string, user.workspaceId);
     res.json(items);
   });
 
   app.post("/api/projects/:projectId/reports", requireAuth, async (req, res) => {
     const user = req.user as any;
-    const parsed = insertReportSchema.safeParse({ ...req.body, projectId: req.params.projectId, workspaceId: user.workspaceId });
+    const parsed = insertReportSchema.safeParse({ ...req.body, projectId: req.params.projectId as string, workspaceId: user.workspaceId });
     if (!parsed.success) return res.status(400).json({ message: parsed.error.errors[0].message });
     const item = await storage.createReport(parsed.data);
     res.status(201).json(item);
@@ -256,7 +256,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
   app.get("/api/reports/:id", requireAuth, async (req, res) => {
     const user = req.user as any;
-    const item = await storage.getReport(req.params.id, user.workspaceId);
+    const item = await storage.getReport(req.params.id as string, user.workspaceId);
     if (!item) return res.status(404).json({ message: "Not found" });
     res.json(item);
   });
@@ -265,14 +265,14 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     const user = req.user as any;
     // Strip read-only / auto-generated fields before passing to Drizzle
     const { id, createdAt, workspaceId, projectId, ...updates } = req.body;
-    const item = await storage.updateReport(req.params.id, user.workspaceId, updates);
+    const item = await storage.updateReport(req.params.id as string, user.workspaceId, updates);
     if (!item) return res.status(404).json({ message: "Not found" });
     res.json(item);
   });
 
   app.delete("/api/reports/:id", requireAuth, async (req, res) => {
     const user = req.user as any;
-    const ok = await storage.deleteReport(req.params.id, user.workspaceId);
+    const ok = await storage.deleteReport(req.params.id as string, user.workspaceId);
     if (!ok) return res.status(404).json({ message: "Not found" });
     res.json({ success: true });
   });

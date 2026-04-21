@@ -20,11 +20,9 @@ export default function LandingPage() {
                 Log In
               </Button>
             </Link>
-            <Link href="/register">
-              <Button className="rounded-xl font-semibold shadow-md" data-testid="button-register">
-                Start Free Trial
-              </Button>
-            </Link>
+            <Button className="rounded-xl font-semibold shadow-md opacity-60 cursor-not-allowed" disabled data-testid="button-register">
+              Coming Soon
+            </Button>
           </div>
         </div>
       </nav>
@@ -64,11 +62,9 @@ export default function LandingPage() {
           transition={{ delay: 0.45, duration: 0.6 }}
           className="flex flex-col items-center gap-4 sm:flex-row"
         >
-          <Link href="/dashboard">
-            <Button size="lg" className="h-14 rounded-2xl px-8 text-base font-bold shadow-xl shadow-primary/20" data-testid="button-start-report-flow">
-              Start Free Trial <ArrowRight className="ml-2 h-5 w-5" />
-            </Button>
-          </Link>
+          <Button size="lg" className="h-14 rounded-2xl px-8 text-base font-bold shadow-xl shadow-primary/20 opacity-60 cursor-not-allowed" disabled data-testid="button-start-report-flow">
+            Coming Soon <ArrowRight className="ml-2 h-5 w-5" />
+          </Button>
         </motion.div>
 
         <motion.div 
