@@ -1,5 +1,6 @@
 import { createContext, useContext, ReactNode, useState, useEffect } from "react";
 import { api } from "./api";
+import { queryClient } from "./queryClient";
 
 type User = {
   id: string;
@@ -46,20 +47,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (email: string, password: string) => {
     const data = await api.login(email, password);
+    queryClient.clear();
     setUser(data.user);
     setWorkspace(data.workspace);
   };
 
   const register = async (formData: { name: string; email: string; password: string; companyName: string }) => {
     const data = await api.register(formData);
+    queryClient.clear();
     setUser(data.user);
     setWorkspace(data.workspace);
   };
 
   const logout = async () => {
-    await api.logout();
-    setUser(null);
-    setWorkspace(null);
+    try {
+      await api.logout();
+    } finally {
+      queryClient.clear();
+      setUser(null);
+      setWorkspace(null);
+    }
   };
 
   const refreshWorkspace = (data: Partial<Workspace>) => {
