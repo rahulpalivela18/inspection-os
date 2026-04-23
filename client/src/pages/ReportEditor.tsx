@@ -99,7 +99,7 @@ export default function ReportEditor() {
     saveReport({ ...report, checklist: next });
   };
 
-  const categories: string[] = Array.from(new Set((report.checklist ?? []).map((c: ChecklistItem) => c.category)));
+  const categories = Array.from(new Set((report.checklist ?? []).map((c: ChecklistItem) => c.category)));
 
   return (
     <Layout>
@@ -118,7 +118,7 @@ export default function ReportEditor() {
                 <span className="truncate">{report.title}</span>
               </h1>
               <p className="text-[10px] md:text-xs text-muted-foreground">
-                {(report.checklist ?? []).filter((c: ChecklistItem) => c.status === (c.failOn ?? "N")).length} Failures • {report.status}
+                {(report.checklist ?? []).filter((c: ChecklistItem) => c.status === "N").length} Failures • {report.status}
                 {saveMutation.isPending && " • Saving..."}
               </p>
             </div>
@@ -219,17 +219,17 @@ function ChecklistView({ report, categories, updateChecklistItem }: {
       <div className="flex gap-4 mb-6 p-4 bg-white rounded-xl border shadow-sm">
         <div className="flex flex-col">
           <span className="text-xs text-slate-500 uppercase font-semibold">Total Major</span>
-          <span className="text-xl font-bold text-red-600">{checklist.filter((c) => c.status === (c.failOn ?? "N") && c.severity === "MAJOR").length}</span>
+          <span className="text-xl font-bold text-red-600">{checklist.filter((c) => c.status === "N" && c.severity === "MAJOR").length}</span>
         </div>
         <div className="w-px bg-slate-200"></div>
         <div className="flex flex-col">
           <span className="text-xs text-slate-500 uppercase font-semibold">Total Minor</span>
-          <span className="text-xl font-bold text-orange-500">{checklist.filter((c) => c.status === (c.failOn ?? "N") && c.severity === "MINOR").length}</span>
+          <span className="text-xl font-bold text-orange-500">{checklist.filter((c) => c.status === "N" && c.severity === "MINOR").length}</span>
         </div>
         <div className="w-px bg-slate-200"></div>
         <div className="flex flex-col">
           <span className="text-xs text-slate-500 uppercase font-semibold">Total Cosmetic</span>
-          <span className="text-xl font-bold text-blue-500">{checklist.filter((c) => c.status === (c.failOn ?? "N") && c.severity === "COSMETIC").length}</span>
+          <span className="text-xl font-bold text-blue-500">{checklist.filter((c) => c.status === "N" && c.severity === "COSMETIC").length}</span>
         </div>
       </div>
 
@@ -273,22 +273,14 @@ function ChecklistItemRow({ item, index, update }: {
   index: number;
   update: (id: string, updates: Partial<ChecklistItem>) => void;
 }) {
-  const failOn = item.failOn ?? "N";
-
   const handleYes = () => {
-    if (item.status === "Y") {
-      update(item.id, { status: null, ...(failOn === "Y" ? { severity: null, image: undefined } : {}) });
-    } else {
-      update(item.id, { status: "Y", ...(failOn !== "Y" ? { severity: null, image: undefined } : {}) });
-    }
+    if (item.status === "Y") update(item.id, { status: null });
+    else update(item.id, { status: "Y", severity: null, image: undefined });
   };
 
   const handleNo = () => {
-    if (item.status === "N") {
-      update(item.id, { status: null, ...(failOn === "N" ? { severity: null, image: undefined } : {}) });
-    } else {
-      update(item.id, { status: "N", ...(failOn !== "N" ? { severity: null, image: undefined } : {}) });
-    }
+    if (item.status === "N") update(item.id, { status: null, severity: null, image: undefined });
+    else update(item.id, { status: "N" });
   };
 
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -325,7 +317,7 @@ function ChecklistItemRow({ item, index, update }: {
             >NO</button>
           </div>
 
-          {item.status === (item.failOn ?? "N") && (
+          {item.status === "N" && (
             <select
               className="text-xs border rounded-md px-2 py-1.5 bg-white text-slate-700 w-full sm:w-[110px]"
               value={item.severity || "invalid"}
@@ -340,7 +332,7 @@ function ChecklistItemRow({ item, index, update }: {
           )}
         </div>
 
-        {item.status === (item.failOn ?? "N") && (
+        {item.status === "N" && (
           <div className="flex justify-start md:justify-end">
             {item.image ? (
               <div className="relative h-10 w-14 sm:h-12 sm:w-16 rounded border overflow-hidden group">

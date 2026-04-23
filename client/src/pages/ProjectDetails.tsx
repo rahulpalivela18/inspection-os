@@ -2,7 +2,7 @@ import { useState } from "react";
 import Layout from "@/components/Layout";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import { buildChecklistFromCounts, buildChecklistFromWorkspaceTemplates, buildDimensionsFromChecklist, DEFAULT_DIMENSION_UNIT, DEFAULT_SPACE_COUNTS, type ReportSpaceCounts } from "@/lib/defaultChecklist";
+import { buildChecklistFromCounts, buildDimensionsFromChecklist, DEFAULT_DIMENSION_UNIT, DEFAULT_SPACE_COUNTS, type ReportSpaceCounts } from "@/lib/defaultChecklist";
 import type { ChecklistItem } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,25 +26,19 @@ const normalizeSpaceCounts = (spaceCounts?: Partial<ReportSpaceCounts>): ReportS
 
 const buildChecklistWithPreservedResponses = (
   currentChecklist: ChecklistItem[] = [],
-  spaceCounts: ReportSpaceCounts,
-  workspaceTemplates: any[] = []
+  spaceCounts: ReportSpaceCounts
 ): ChecklistItem[] => {
   const preservedItems = new Map(
     currentChecklist.map((item) => [`${item.category}:::${item.point}`, item])
   );
-  const freshItems = workspaceTemplates.length > 0
-    ? buildChecklistFromWorkspaceTemplates(workspaceTemplates, spaceCounts)
-    : buildChecklistFromCounts(spaceCounts);
-  return freshItems.map((item) => {
+  return buildChecklistFromCounts(spaceCounts).map((item) => {
     const existingItem = preservedItems.get(`${item.category}:::${item.point}`);
     if (!existingItem) return item;
-    const failOn = existingItem.failOn ?? item.failOn ?? "N";
     return {
       ...item,
-      failOn,
       status: existingItem.status,
-      severity: existingItem.status === failOn ? existingItem.severity ?? null : null,
-      image: existingItem.status === failOn ? existingItem.image : undefined,
+      severity: existingItem.status === "N" ? existingItem.severity ?? null : null,
+      image: existingItem.status === "N" ? existingItem.image : undefined,
     };
   });
 };
@@ -89,11 +83,6 @@ export default function ProjectDetails() {
     queryKey: ["reports", params?.id],
     queryFn: () => api.getReports(params!.id),
     enabled: !!params?.id,
-  });
-
-  const { data: workspaceTemplates = [] } = useQuery({
-    queryKey: ["checklist-templates"],
-    queryFn: api.getChecklistTemplates,
   });
 
   const updateProjectMutation = useMutation({
@@ -165,7 +154,7 @@ export default function ProjectDetails() {
   const handleUpdateReport = () => {
     if (!editingReport?.title) return;
     const nextSpaceCounts = normalizeSpaceCounts(editingReport.spaceCounts ?? DEFAULT_SPACE_COUNTS);
-    const nextChecklist = buildChecklistWithPreservedResponses(editingReport.checklist, nextSpaceCounts, workspaceTemplates);
+    const nextChecklist = buildChecklistWithPreservedResponses(editingReport.checklist, nextSpaceCounts);
     const nextDimensionUnit = editingReport.dimensionUnit ?? DEFAULT_DIMENSION_UNIT;
     const nextDimensions = buildDimensionsFromChecklist(nextChecklist, editingReport.dimensions ?? [], nextDimensionUnit);
 
@@ -184,9 +173,7 @@ export default function ProjectDetails() {
 
   const handleCreateReport = () => {
     if (!newReport.title || !newReport.author) return;
-    const checklist = workspaceTemplates.length > 0
-      ? buildChecklistFromWorkspaceTemplates(workspaceTemplates, newReport.spaceCounts)
-      : buildChecklistFromCounts(newReport.spaceCounts);
+    const checklist = buildChecklistFromCounts(newReport.spaceCounts);
     createReportMutation.mutate({
       ...newReport,
       checklist,
@@ -203,9 +190,7 @@ export default function ProjectDetails() {
   );
   if (!project) return <NotFound />;
 
-  const checklistPreviewCount = workspaceTemplates.length > 0
-    ? buildChecklistFromWorkspaceTemplates(workspaceTemplates, newReport.spaceCounts).length
-    : buildChecklistFromCounts(newReport.spaceCounts).length;
+  const checklistPreviewCount = buildChecklistFromCounts(newReport.spaceCounts).length;
 
   return (
     <Layout>

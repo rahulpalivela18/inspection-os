@@ -32,7 +32,7 @@ export default function ReportPreview({ report, project, companyProfile }: Repor
   const dimensionUnit = report.dimensionUnit ?? DEFAULT_DIMENSION_UNIT;
   const dimensions = buildDimensionsFromChecklist(report.checklist ?? [], report.dimensions ?? [], dimensionUnit);
   const measuredDimensions = dimensions.filter((d) => Number(d.length) > 0 && Number(d.width) > 0);
-  const failedChecklistItems = (report.checklist ?? []).filter((item) => item.status === (item.failOn ?? "N"));
+  const failedChecklistItems = (report.checklist ?? []).filter((item) => item.status === "N");
   const majorFailuresCount = failedChecklistItems.filter((item) => item.severity === "MAJOR").length;
   const photoEvidenceCount = failedChecklistItems.filter((item) => item.image).length;
 

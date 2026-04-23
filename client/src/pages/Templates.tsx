@@ -16,10 +16,9 @@ export default function Templates() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [newItem, setNewItem] = useState({ category: "", point: "", bulkPoints: "", failOn: "N" as "Y" | "N" });
+  const [newItem, setNewItem] = useState({ category: "", point: "", bulkPoints: "" });
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
-  const [editFailOn, setEditFailOn] = useState<"Y" | "N">("N");
 
   const { data: templates = [], isLoading } = useQuery({
     queryKey: ["checklist-templates"],
@@ -57,18 +56,17 @@ export default function Templates() {
     if (!lines.length) return;
 
     for (const line of lines) {
-      await createMutation.mutateAsync({ category: newItem.category, point: line, isRepeatable: false, spaceType: null, failOn: newItem.failOn });
+      await createMutation.mutateAsync({ category: newItem.category, point: line, isRepeatable: false, spaceType: null });
     }
     toast({ title: lines.length === 1 ? "Point added" : `${lines.length} points added` });
     setIsDialogOpen(false);
-    setNewItem({ category: "", point: "", bulkPoints: "", failOn: "N" });
+    setNewItem({ category: "", point: "", bulkPoints: "" });
   };
 
-  const startEdit = (item: any) => { setEditingId(item.id); setEditValue(item.point); setEditFailOn(item.failOn ?? "N"); };
+  const startEdit = (item: any) => { setEditingId(item.id); setEditValue(item.point); };
   const commitEdit = (item: any) => {
-    if (!editValue.trim()) { setEditingId(null); return; }
-    if (editValue.trim() === item.point && editFailOn === (item.failOn ?? "N")) { setEditingId(null); return; }
-    updateMutation.mutate({ id: item.id, data: { point: editValue.trim(), failOn: editFailOn } });
+    if (!editValue.trim() || editValue.trim() === item.point) { setEditingId(null); return; }
+    updateMutation.mutate({ id: item.id, data: { point: editValue.trim() } });
   };
 
   const grouped = templates.reduce((acc: Record<string, any[]>, item: any) => {
@@ -149,15 +147,6 @@ export default function Templates() {
                                 className="h-8 text-sm flex-1"
                                 data-testid={`input-edit-point-${item.id}`}
                               />
-                              <Select value={editFailOn} onValueChange={(value: "Y" | "N") => setEditFailOn(value)}>
-                                <SelectTrigger className="h-8 w-28" data-testid={`select-edit-failon-${item.id}`}>
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="N">Fail On NO</SelectItem>
-                                  <SelectItem value="Y">Fail On YES</SelectItem>
-                                </SelectContent>
-                              </Select>
                               <Button size="icon" variant="ghost" className="h-7 w-7 text-green-600 hover:bg-green-50 shrink-0" onClick={() => commitEdit(item)} disabled={updateMutation.isPending} data-testid={`button-save-edit-${item.id}`}>
                                 <Check className="h-4 w-4" />
                               </Button>
@@ -264,18 +253,6 @@ export default function Templates() {
                 {bulkLineCount > 0 && (
                   <p className="text-xs text-indigo-600 font-medium">{bulkLineCount} points will be added</p>
                 )}
-              </div>
-              <div className="grid gap-2">
-                <Label>Fail On</Label>
-                <Select value={newItem.failOn} onValueChange={(value: "Y" | "N") => setNewItem({ ...newItem, failOn: value })}>
-                  <SelectTrigger data-testid="select-failon-new">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="N">NO</SelectItem>
-                    <SelectItem value="Y">YES</SelectItem>
-                  </SelectContent>
-                </Select>
               </div>
             </div>
 

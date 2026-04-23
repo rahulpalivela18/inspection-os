@@ -85,13 +85,12 @@ export const buildChecklistFromCounts = (
 
   let runningId = 1;
 
-  const makeItems = (category: string, points: string[], failOn: "Y" | "N" = "N") =>
+  const makeItems = (category: string, points: string[]) =>
     points.map((point) => ({
       id: `c${runningId++}`,
       category,
       point,
       status: null,
-      failOn,
     }));
 
   return CHECKLIST_CATEGORY_TEMPLATES.flatMap((template) => {
@@ -110,84 +109,6 @@ export const buildChecklistFromCounts = (
 
     return makeItems(template.label, template.points);
   });
-};
-
-type WorkspaceTemplate = {
-  id: string;
-  category: string;
-  point: string;
-  isRepeatable: boolean;
-  spaceType?: string | null;
-  failOn?: string | null;
-  order: number;
-};
-
-const SPACE_TYPE_ORDER: Array<{ spaceType: string; label: string; countKey: keyof ReportSpaceCounts }> = [
-  { spaceType: "bedroom", label: "Bedroom", countKey: "bedrooms" },
-  { spaceType: "bathroom", label: "Bathroom", countKey: "bathrooms" },
-  { spaceType: "balcony", label: "Balcony", countKey: "balconies" },
-];
-
-export const buildChecklistFromWorkspaceTemplates = (
-  templates: WorkspaceTemplate[],
-  counts: ReportSpaceCounts = DEFAULT_SPACE_COUNTS
-): ChecklistItem[] => {
-  const normalizedCounts: ReportSpaceCounts = {
-    bedrooms: toSafeCount(counts.bedrooms),
-    bathrooms: toSafeCount(counts.bathrooms),
-    balconies: toSafeCount(counts.balconies),
-  };
-
-  const sorted = [...templates].sort((a, b) => a.order - b.order);
-  let runningId = 1;
-  const result: ChecklistItem[] = [];
-
-  const repeatableBySpaceType: Record<string, WorkspaceTemplate[]> = {};
-  const nonRepeatable: WorkspaceTemplate[] = [];
-
-  for (const tmpl of sorted) {
-    if (tmpl.isRepeatable && tmpl.spaceType) {
-      if (!repeatableBySpaceType[tmpl.spaceType]) repeatableBySpaceType[tmpl.spaceType] = [];
-      repeatableBySpaceType[tmpl.spaceType].push(tmpl);
-    } else {
-      nonRepeatable.push(tmpl);
-    }
-  }
-
-  for (const { spaceType, label, countKey } of SPACE_TYPE_ORDER) {
-    const items = repeatableBySpaceType[spaceType] ?? [];
-    const count = normalizedCounts[countKey];
-    for (let i = 1; i <= count; i++) {
-      for (const tmpl of items) {
-        result.push({
-          id: `c${runningId++}`,
-          category: `${label} ${i}`,
-          point: tmpl.point,
-          status: null,
-          failOn: (tmpl.failOn === "Y" || tmpl.failOn === "N") ? tmpl.failOn : "N",
-        });
-      }
-    }
-  }
-
-  const seenCategories = new Set<string>();
-  const nonRepeatableOrdered: WorkspaceTemplate[] = [];
-  for (const tmpl of nonRepeatable) {
-    if (!seenCategories.has(tmpl.category)) seenCategories.add(tmpl.category);
-    nonRepeatableOrdered.push(tmpl);
-  }
-
-  for (const tmpl of nonRepeatableOrdered) {
-    result.push({
-      id: `c${runningId++}`,
-      category: tmpl.category,
-      point: tmpl.point,
-      status: null,
-      failOn: (tmpl.failOn === "Y" || tmpl.failOn === "N") ? tmpl.failOn : "N",
-    });
-  }
-
-  return result;
 };
 
 export const DEFAULT_DIMENSION_UNIT: DimensionUnit = "ft";

@@ -41,7 +41,6 @@ export const checklistTemplates = pgTable("checklist_templates", {
   isRepeatable: boolean("is_repeatable").notNull().default(false),
   spaceType: text("space_type"),
   order: integer("order").notNull().default(0),
-  failOn: text("fail_on", { enum: ["Y", "N"] }).notNull().default("N"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
