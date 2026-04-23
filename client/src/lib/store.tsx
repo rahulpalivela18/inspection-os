@@ -4,6 +4,7 @@ export type ChecklistItem = {
   category: string;
   point: string;
   status: "Y" | "N" | null;
+  failOn?: "Y" | "N";
   severity?: "MAJOR" | "MINOR" | "COSMETIC" | null;
   image?: string;
 };
