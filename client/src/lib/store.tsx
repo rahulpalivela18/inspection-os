@@ -6,6 +6,12 @@ export type ChecklistItem = {
   status: "Y" | "N" | null;
   severity?: "MAJOR" | "MINOR" | "COSMETIC" | null;
   image?: string;
+  /**
+   * Determines which answer triggers this point as an issue in the PDF.
+   * 'no' (default): Show in PDF if answered 'No'.
+   * 'yes': Show in PDF if answered 'Yes'.
+   */
+  triggerOn?: "yes" | "no";
 };
 
 export type DimensionUnit = "ft" | "m";

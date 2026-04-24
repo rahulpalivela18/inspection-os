@@ -81,9 +81,8 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         workspaceId: workspace.id,
         category: p.category,
         point: p.point,
-        isRepeatable: p.isRepeatable,
-        spaceType: p.spaceType ?? null,
         order: i,
+        triggerOn: p.triggerOn ?? "no",
       });
     }
 

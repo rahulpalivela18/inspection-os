@@ -1,3 +1,5 @@
+import "dotenv/config";
+
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
@@ -11,6 +13,13 @@ declare module "http" {
     rawBody: unknown;
   }
 }
+
+interface CustomError extends Error {
+  status?: number;
+  statusCode?: number;
+}
+
+// -------------------- Middleware --------------------
 
 app.use(
   express.json({
@@ -33,10 +42,12 @@ export function log(message: string, source = "express") {
   console.log(`${formattedTime} [${source}] ${message}`);
 }
 
+// -------------------- Request Logger --------------------
+
 app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;
-  let capturedJsonResponse: Record<string, any> | undefined = undefined;
+  let capturedJsonResponse: unknown;
 
   const originalResJson = res.json;
   res.json = function (bodyJson, ...args) {
@@ -46,8 +57,10 @@ app.use((req, res, next) => {
 
   res.on("finish", () => {
     const duration = Date.now() - start;
+
     if (path.startsWith("/api")) {
       let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
+
       if (capturedJsonResponse) {
         logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
       }
@@ -59,25 +72,30 @@ app.use((req, res, next) => {
   next();
 });
 
+// -------------------- App Init --------------------
+
 (async () => {
   await registerRoutes(httpServer, app);
 
-  app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
-    const status = err.status || err.statusCode || 500;
-    const message = err.message || "Internal Server Error";
+  // -------------------- Error Handler --------------------
 
-    console.error("Internal Server Error:", err);
+  app.use(
+    (err: CustomError, _req: Request, res: Response, next: NextFunction) => {
+      const status = err.status || err.statusCode || 500;
+      const message = err.message || "Internal Server Error";
 
-    if (res.headersSent) {
-      return next(err);
-    }
+      console.error("Internal Server Error:", err);
 
-    return res.status(status).json({ message });
-  });
+      if (res.headersSent) {
+        return next(err);
+      }
 
-  // importantly only setup vite in development and after
-  // setting up all the other routes so the catch-all route
-  // doesn't interfere with the other routes
+      return res.status(status).json({ message });
+    },
+  );
+
+  // -------------------- Static / Vite --------------------
+
   if (process.env.NODE_ENV === "production") {
     serveStatic(app);
   } else {
@@ -85,19 +103,11 @@ app.use((req, res, next) => {
     await setupVite(httpServer, app);
   }
 
-  // ALWAYS serve the app on the port specified in the environment variable PORT
-  // Other ports are firewalled. Default to 5000 if not specified.
-  // this serves both the API and the client.
-  // It is the only port that is not firewalled.
-  const port = parseInt(process.env.PORT || "5000", 10);
-  httpServer.listen(
-    {
-      port,
-      host: "0.0.0.0",
-      reusePort: true,
-    },
-    () => {
-      log(`serving on port ${port}`);
-    },
-  );
+  // -------------------- Start Server --------------------
+
+  const port = parseInt(process.env.PORT || "5002", 10);
+
+  httpServer.listen({ port }, () => {
+    log(`serving on port ${port}`);
+  });
 })();
