@@ -6,3 +6,4 @@ dist
 server/public
 vite.config.ts.*
 *.tar.gzserver/gcp-credentials.json
+.env.local
