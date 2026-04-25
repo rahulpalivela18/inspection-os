@@ -12,10 +12,7 @@ if (creds) {
     const credentials = JSON.parse(creds);
     storage = new Storage({ projectId, credentials });
     bucket = storage.bucket(bucketName);
-    initialized = true;
-  } catch (error: any) {
-    console.error('GCP init error:', error?.message);
-  }
+  } catch (error: any) {}
 }
 
 export async function uploadImageToGCP(base64Data: string, filename: string): Promise<string | null> {
