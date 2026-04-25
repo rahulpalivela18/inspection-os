@@ -1,28 +1,18 @@
 import { Storage } from '@google-cloud/storage';
-import path from 'path';
-import fs from 'fs';
 
-const keyFilename = path.join(process.cwd(), 'server', 'gcp-credentials.json');
-const projectId = 'reportgen-494420';
-const bucketName = 'reportgen-images';
+const projectId = process.env.GCP_PROJECT_ID || 'reportgen-494420';
+const bucketName = process.env.GCP_BUCKET_NAME || 'reportgen-images-rahul';
 
 let storage: any;
 let bucket: any;
 
-// Initialize GCP storage
-try {
-  if (fs.existsSync(keyFilename)) {
-    storage = new Storage({
-      projectId,
-      keyFilename,
-    });
+const creds = process.env.GCP_CREDENTIALS;
+if (creds) {
+  try {
+    const credentials = JSON.parse(creds);
+    storage = new Storage({ projectId, credentials });
     bucket = storage.bucket(bucketName);
-    console.log('GCP Storage initialized for bucket:', bucketName);
-  } else {
-    console.log('GCP credentials not found, image uploads will use base64');
-  }
-} catch (error) {
-  console.error('Failed to initialize GCP Storage:', error);
+  } catch (error) {}
 }
 
 export async function uploadImageToGCP(base64Data: string, filename: string): Promise<string | null> {
