@@ -9,6 +9,7 @@ import bcrypt from "bcryptjs";
 import { storage } from "./storage";
 import { loginSchema, registerSchema, insertProjectSchema, insertReportSchema, insertChecklistTemplateSchema, insertWorkspaceSchema } from "@shared/schema";
 import { DEFAULT_CHECKLIST_POINTS } from "./defaultChecklist";
+import { uploadImageToGCP, isGCPUrl } from "./gcp-storage";
 
 const PgSession = connectPgSimple(session);
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
@@ -263,7 +264,25 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   app.patch("/api/reports/:id", requireAuth, async (req, res) => {
     const user = req.user as any;
     // Strip read-only / auto-generated fields before passing to Drizzle
-    const { id, createdAt, workspaceId, projectId, ...updates } = req.body;
+    let { id, createdAt, workspaceId, projectId, ...updates } = req.body;
+    
+    // Upload images to GCP if present
+    if (updates.checklist) {
+      for (const item of updates.checklist) {
+        if (item.image && !isGCPUrl(item.image) && item.image.startsWith('data:')) {
+          try {
+            const gcpUrl = await uploadImageToGCP(item.image, `checklist-${item.id}.jpg`);
+            if (gcpUrl) {
+              item.image = gcpUrl;
+            }
+          } catch (err) {
+            console.error('Image upload error:', err);
+            // Keep base64 if GCP fails
+          }
+        }
+      }
+    }
+    
     const item = await storage.updateReport(req.params.id as string, user.workspaceId, updates);
     if (!item) return res.status(404).json({ message: "Not found" });
     res.json(item);
