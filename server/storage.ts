@@ -83,7 +83,7 @@ export class DatabaseStorage implements IStorage {
 
   // Checklist Templates
   async getChecklistTemplates(workspaceId: string) {
-    return db.select().from(checklistTemplates).where(eq(checklistTemplates.workspaceId, workspaceId));
+    return db.select().from(checklistTemplates).where(eq(checklistTemplates.workspaceId, workspaceId)).orderBy(checklistTemplates.order);
   }
   async createChecklistTemplate(data: InsertChecklistTemplate) {
     const [row] = await db.insert(checklistTemplates).values(data).returning();

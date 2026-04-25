@@ -114,7 +114,8 @@ export default function Templates() {
         : [];
     if (!lines.length) return;
 
-    let order = templates.length;
+    const maxOrder = templates.reduce((max, t) => Math.max(max, t.order || 0), 0);
+    let order = maxOrder + 1;
     for (const line of lines) {
       await createMutation.mutateAsync({
         category: newItem.category,
@@ -122,8 +123,9 @@ export default function Templates() {
         isRepeatable: false,
         spaceType: null,
         triggerOn: newItem.triggerOn,
-        order: order++,
+        order: order,
       });
+      order++;
     }
     toast({
       title:
