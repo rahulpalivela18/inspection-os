@@ -12,7 +12,10 @@ if (creds) {
     const credentials = JSON.parse(creds);
     storage = new Storage({ projectId, credentials });
     bucket = storage.bucket(bucketName);
-  } catch (error) {}
+    initialized = true;
+  } catch (error: any) {
+    console.error('GCP init error:', error?.message);
+  }
 }
 
 export async function uploadImageToGCP(base64Data: string, filename: string): Promise<string | null> {
@@ -36,8 +39,8 @@ export async function uploadImageToGCP(base64Data: string, filename: string): Pr
     });
 
     return `https://storage.googleapis.com/${bucketName}/${uniqueFilename}`;
-  } catch (error) {
-    console.error('GCP upload error:', error);
+  } catch (error: any) {
+    console.error('GCP upload error:', error?.message || error);
     return null;
   }
 }
