@@ -424,8 +424,87 @@ export default function ReportPreview({
               </p>
             </div>
           )}
-        </div>
 
+          {/* Issues Section - Same structure as reference */}
+          {report.issues && report.issues.length > 0 && (
+            <div className="p-[15mm] bg-white min-h-[297mm]">
+              <div className="border-b-2 border-slate-900 pb-4 mb-8 flex justify-between items-center">
+                <h2 className="text-2xl font-black uppercase tracking-tight">Issue Reports</h2>
+                <span className="text-slate-400 text-xs font-bold uppercase tracking-widest">Section 02 / Issues</span>
+              </div>
+        
+              <div className="space-y-12">
+                {report.issues.map((issue: any, index) => (
+                  <div key={issue.id} className="break-inside-avoid border border-slate-100 rounded-2xl overflow-hidden shadow-sm bg-white mb-8">
+                    <div className="bg-slate-50 p-4 border-b border-slate-100 flex justify-between items-center">
+                      <div className="flex items-center gap-4">
+                        <span className="bg-slate-900 text-white w-8 h-8 rounded-full flex items-center justify-center text-sm font-black">
+                          {index + 1}
+                        </span>
+                        <h3 className="font-bold text-xl tracking-tight text-slate-900">{issue.title}</h3>
+                      </div>
+                      <div className="flex gap-2">
+                        <span className={cn(
+                          "px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border shadow-sm",
+                          issue.severity === "Critical" ? "bg-red-500 text-white border-red-600" :
+                          issue.severity === "High" ? "bg-orange-500 text-white border-orange-600" :
+                          issue.severity === "Medium" ? "bg-amber-100 text-amber-800 border-amber-200" :
+                          "bg-slate-100 text-slate-800 border-slate-200"
+                        )}>
+                          {issue.severity}
+                        </span>
+                      </div>
+                    </div>
+                 
+                    <div className="p-6">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <div className="space-y-6">
+                          <div>
+                              <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Observations & Notes</h4>
+                              <p className="text-slate-700 leading-relaxed font-medium whitespace-pre-wrap">{issue.note}</p>
+                          </div>
+                          
+                          <div className="grid grid-cols-2 gap-4 pt-4 border-t border-slate-100">
+                            <div>
+                                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Location</h4>
+                                <p className="text-sm font-bold text-indigo-600">{issue.location}</p>
+                            </div>
+                            <div>
+                                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Responsible Engineer</h4>
+                                <p className="text-sm font-bold">{issue.responsibleEngineer}</p>
+                            </div>
+                          </div>
+                        </div>
+                  
+                        <div className="space-y-3">
+                          <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Visual Evidence</h4>
+                          <div className={cn(
+                            "grid gap-3",
+                            issue.images?.length === 1 ? "grid-cols-1" : "grid-cols-2"
+                          )}>
+                            {issue.images?.map((img: string, idx: number) => (
+                              <div key={idx} className={cn(
+                                "bg-slate-50 border border-slate-200 rounded-xl overflow-hidden shadow-sm flex items-center justify-center p-2",
+                                idx === 0 && issue.images.length === 3 ? "col-span-2 aspect-[16/9]" : "aspect-square"
+                              )}>
+                                <img 
+                                  src={img} 
+                                  className="max-w-full max-h-full object-contain" 
+                                  alt={`Issue ${index + 1} - Photo ${idx + 1}`} 
+                                />
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+        
         {/* Footer */}
         <div className="border-t border-slate-100 bg-white p-6 text-center md:p-[15mm]">
           <div className="flex flex-col items-center justify-between gap-2 text-[9px] font-bold uppercase tracking-widest text-slate-400 md:flex-row md:text-[10px]">
