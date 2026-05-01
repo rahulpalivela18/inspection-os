@@ -47,6 +47,7 @@ import {
   Clock,
   User,
   Settings,
+  Trash2,
 } from "lucide-react";
 import { Link, useRoute, useLocation } from "wouter";
 import { format } from "date-fns";
@@ -201,6 +202,7 @@ export default function ProjectDetails() {
   const [isEditProjectOpen, setIsEditProjectOpen] = useState(false);
   const [isEditReportOpen, setIsEditReportOpen] = useState(false);
   const [editingReport, setEditingReport] = useState<any>(null);
+  const [reportToDelete, setReportToDelete] = useState<any>(null);
   const [logoPreview, setLogoPreview] = useState("");
   const [editProjectData, setEditProjectData] = useState<any>(null);
 
@@ -274,8 +276,23 @@ export default function ProjectDetails() {
       api.updateReport(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["reports", params?.id] });
-      queryClient.invalidateQueries({ queryKey: ["report"] }); // Invalidate specific report too
+      queryClient.invalidateQueries({ queryKey: ["report"] });
       setIsEditReportOpen(false);
+    },
+    onError: (err: any) =>
+      toast({
+        title: "Error",
+        description: err.message,
+        variant: "destructive",
+      }),
+  });
+
+  const deleteReportMutation = useMutation({
+    mutationFn: (id: string) => api.deleteReport(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["reports", params?.id] });
+      setReportToDelete(null);
+      toast({ title: "Report deleted successfully" });
     },
     onError: (err: any) =>
       toast({
@@ -735,8 +752,23 @@ export default function ProjectDetails() {
                           variant="ghost"
                           size="sm"
                           className="group-hover:translate-x-1 transition-transform w-full md:w-auto justify-between md:justify-start"
+                          onClick={(e: any) => {
+                            e.stopPropagation();
+                            setLocation(`/report/${report.id}`);
+                          }}
                         >
                           Open <ArrowRight className="ml-2 h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="w-full md:w-auto text-destructive hover:text-destructive"
+                          onClick={(e: any) => {
+                            e.stopPropagation();
+                            setReportToDelete(report);
+                          }}
+                        >
+                          <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
                     </div>
@@ -969,6 +1001,33 @@ export default function ProjectDetails() {
             </DialogContent>
           </Dialog>
         )}
+
+        {/* Delete Report Dialog */}
+        <Dialog open={!!reportToDelete} onOpenChange={() => setReportToDelete(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Delete Report</DialogTitle>
+              <DialogDescription>
+                Are you sure you want to delete "{reportToDelete?.title}"? This action cannot be undone.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setReportToDelete(null)}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={() => deleteReportMutation.mutate(reportToDelete?.id)}
+                disabled={deleteReportMutation.isPending}
+              >
+                {deleteReportMutation.isPending ? "Deleting..." : "Delete"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </Layout>
   );

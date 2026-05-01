@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { LockKeyhole, Plus, Trash2, Pencil, Check, X } from "lucide-react";
+import { LockKeyhole, Plus, Trash2, X, Pencil, ChevronDown, ChevronRight } from "lucide-react";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -57,6 +57,8 @@ export default function Templates() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
   const [editingTrigger, setEditingTrigger] = useState<string | null>(null);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState<any>(null);
 
   const { data: templates = [], isLoading } = useQuery({
     queryKey: ["checklist-templates"],
@@ -142,16 +144,19 @@ export default function Templates() {
   };
 
   const startEdit = (item: any) => {
-    setEditingId(item.id);
-    setEditValue(item.point);
+    setEditingItem({ ...item });
+    setEditDialogOpen(true);
   };
-  const commitEdit = (item: any) => {
-    if (!editValue.trim() || editValue.trim() === item.point) {
-      setEditingId(null);
-      return;
-    }
-    updateMutation.mutate({ id: item.id, data: { point: editValue.trim() } });
+
+  const commitEdit = () => {
+    if (!editingItem?.point?.trim()) return;
+    updateMutation.mutate({
+      id: editingItem.id,
+      data: { point: editingItem.point.trim(), triggerOn: editingItem.triggerOn },
+    });
+    setEditDialogOpen(false);
   };
+
   const setTriggerOn = (item: any, val: string) => {
     updateMutation.mutate({ id: item.id, data: { triggerOn: val } });
   };
@@ -161,7 +166,24 @@ export default function Templates() {
     acc[item.category].push(item);
     return acc;
   }, {});
-  const categories = Object.keys(grouped);
+  const categories = Object.keys(grouped).sort((a, b) => {
+    const aIdx = PREDEFINED_CATEGORIES.indexOf(a);
+    const bIdx = PREDEFINED_CATEGORIES.indexOf(b);
+    const aIsPredef = aIdx !== -1;
+    const bIsPredef = bIdx !== -1;
+
+    if (aIsPredef && bIsPredef) return aIdx - bIdx;
+    if (aIsPredef && !bIsPredef) return -1;
+    if (!aIsPredef && bIsPredef) return 1;
+    return a.localeCompare(b);
+  });
+  const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>(
+    categories.reduce((acc, cat) => ({ ...acc, [cat]: true }), {} as Record<string, boolean>)
+  );
+
+  const toggleCategory = (cat: string) =>
+    setExpandedCategories((prev) => ({ ...prev, [cat]: !prev[cat] }));
+
   const bulkLineCount = newItem.bulkPoints
     .split("\n")
     .filter((l) => l.trim()).length;
@@ -238,16 +260,27 @@ export default function Templates() {
                   key={category}
                   className="overflow-hidden border-slate-200 shadow-sm"
                 >
-                  <CardHeader className="bg-slate-50 border-b border-slate-100 py-3 px-4">
+                  <CardHeader
+                    className="bg-slate-50 border-b border-slate-100 py-3 px-4 cursor-pointer hover:bg-slate-100 transition-colors"
+                    onClick={() => toggleCategory(category)}
+                  >
                     <div className="flex items-center justify-between">
-                      <CardTitle className="text-base">{category}</CardTitle>
+                      <div className="flex items-center gap-2">
+                        {expandedCategories[category] ? (
+                          <ChevronDown className="h-4 w-4 text-slate-500" />
+                        ) : (
+                          <ChevronRight className="h-4 w-4 text-slate-500" />
+                        )}
+                        <CardTitle className="text-base">{category}</CardTitle>
+                      </div>
                       <span className="text-xs text-muted-foreground">
                         {items.length} points
                       </span>
                     </div>
                   </CardHeader>
-                  <CardContent className="p-0">
-                    <div className="divide-y divide-slate-100">
+                  {expandedCategories[category] && (
+                    <CardContent className="p-0">
+                      <div className="divide-y divide-slate-100">
                       {items.map((item: any, idx: number) => (
                         <div
                           key={item.id}
@@ -258,102 +291,71 @@ export default function Templates() {
                             {idx + 1}
                           </div>
 
-                          {editingTrigger === item.id ? (
-                            <div className="flex items-center gap-2">
-                              <Select
-                                defaultValue={item.triggerOn || "no"}
-                                onValueChange={(val) => {
-                                  setTriggerOn(item, val);
-                                  setEditingTrigger(null);
-                                }}
-                              >
-                                <SelectTrigger
-                                  className="w-36 h-7 text-xs"
-                                  autoFocus
+                          <p className="text-sm flex-1" data-testid={`text-point-${item.id}`}>
+                            {item.point}
+                          </p>
+
+                          <span className={`text-[10px] px-1.5 py-0.5 rounded border shrink-0 ${item.triggerOn === "yes" ? "border-green-200 bg-green-50 text-green-700" : "border-slate-200 bg-slate-100 text-slate-500"}`}>
+                            {item.triggerOn === "yes" ? "YES" : "NO"}
+                          </span>
+
+                          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-7 w-7 text-slate-400 hover:text-blue-600 hover:bg-blue-50"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                startEdit(item);
+                              }}
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                            </Button>
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-7 w-7 text-slate-400 hover:text-red-600 hover:bg-red-50"
+                                  data-testid={`button-delete-checklist-${item.id}`}
                                 >
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="no">Show if No</SelectItem>
-                                  <SelectItem value="yes">
-                                    Show if Yes
-                                  </SelectItem>
-                                </SelectContent>
-                              </Select>
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                className="h-7 w-7 text-slate-400 shrink-0"
-                                onClick={() => setEditingTrigger(null)}
-                              >
-                                <X className="h-3.5 w-3.5" />
-                              </Button>
-                            </div>
-                          ) : (
-                            <>
-                              <p
-                                className="text-sm flex-1"
-                                data-testid={`text-point-${item.id}`}
-                              >
-                                {item.point}
-                              </p>
-                              <span
-                                className={`text-[10px] px-1.5 py-0.5 rounded border shrink-0 cursor-pointer ${item.triggerOn === "yes" ? "border-green-200 bg-green-50 text-green-700" : "border-slate-200 bg-slate-100 text-slate-500"}`}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setEditingTrigger(item.id);
-                                }}
-                                title="Click to change"
-                              >
-                                {item.triggerOn === "yes" ? "YES" : "NO"}
-                              </span>
-                              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                                <AlertDialog>
-                                  <AlertDialogTrigger asChild>
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      className="h-7 w-7 text-slate-400 hover:text-red-600 hover:bg-red-50"
-                                      data-testid={`button-delete-checklist-${item.id}`}
-                                    >
-                                      <Trash2 className="h-3.5 w-3.5" />
-                                    </Button>
-                                  </AlertDialogTrigger>
-                                  <AlertDialogContent>
-                                    <AlertDialogHeader>
-                                      <AlertDialogTitle>
-                                        Delete Checkpoint?
-                                      </AlertDialogTitle>
-                                      <AlertDialogDescription>
-                                        Are you sure you want to delete "
-                                        <strong>{item.point}</strong>"? This
-                                        will be removed from all new reports.
-                                        Existing reports keep this point unless
-                                        you sync.
-                                      </AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <AlertDialogFooter>
-                                      <AlertDialogCancel>
-                                        Cancel
-                                      </AlertDialogCancel>
-                                      <AlertDialogAction
-                                        onClick={() =>
-                                          deleteMutation.mutate(item.id)
-                                        }
-                                        className="bg-red-600 hover:bg-red-700"
-                                      >
-                                        Delete
-                                      </AlertDialogAction>
-                                    </AlertDialogFooter>
-                                  </AlertDialogContent>
-                                </AlertDialog>
-                              </div>
-                            </>
-                          )}
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>
+                                    Delete Checkpoint?
+                                  </AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Are you sure you want to delete "
+                                    <strong>{item.point}</strong>"? This
+                                    will be removed from all new reports.
+                                    Existing reports keep this point unless
+                                    you sync.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>
+                                    Cancel
+                                  </AlertDialogCancel>
+                                  <AlertDialogAction
+                                    onClick={() =>
+                                      deleteMutation.mutate(item.id)
+                                    }
+                                    className="bg-red-600 hover:bg-red-700"
+                                  >
+                                    Delete
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </div>
                         </div>
                       ))}
-                    </div>
-                  </CardContent>
+                      </div>
+                    </CardContent>
+                  )}
                 </Card>
               );
             })}
@@ -512,6 +514,72 @@ export default function Templates() {
                   : bulkLineCount > 0
                     ? `Add ${bulkLineCount} Points`
                     : "Add to Checklist"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Edit Item Dialog */}
+        <Dialog open={editDialogOpen} onOpenChange={(open) => {
+          setEditDialogOpen(open);
+          if (!open) setEditingItem(null);
+        }}>
+          <DialogContent className="sm:max-w-135">
+            <DialogHeader>
+              <DialogTitle>Edit Checklist Point</DialogTitle>
+              <DialogDescription>
+                Update the point description and when it triggers PDF display.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-5 py-2">
+              <div className="grid gap-2">
+                <Label>Description</Label>
+                <Input
+                  value={editingItem?.point || ""}
+                  onChange={(e) =>
+                    setEditingItem({ ...editingItem, point: e.target.value })
+                  }
+                  data-testid="input-edit-point"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label>Trigger On</Label>
+                <Select
+                  value={editingItem?.triggerOn || "no"}
+                  onValueChange={(val) =>
+                    setEditingItem({ ...editingItem, triggerOn: val })
+                  }
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="no">
+                      Show in PDF if answered <b>No</b> (default)
+                    </SelectItem>
+                    <SelectItem value="yes">
+                      Show in PDF if answered <b>Yes</b>
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setEditDialogOpen(false);
+                  setEditingItem(null);
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={commitEdit}
+                disabled={updateMutation.isPending}
+                data-testid="button-confirm-edit"
+              >
+                {updateMutation.isPending ? "Saving..." : "Save Changes"}
               </Button>
             </DialogFooter>
           </DialogContent>
