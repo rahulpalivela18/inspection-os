@@ -299,7 +299,7 @@ export default function Templates() {
                             {item.triggerOn === "yes" ? "YES" : "NO"}
                           </span>
 
-                          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                          <div className="flex items-center gap-1 shrink-0">
                             <Button
                               size="icon"
                               variant="ghost"
