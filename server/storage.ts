@@ -1,4 +1,4 @@
-import { eq, and } from "drizzle-orm";
+import { eq, and, desc } from "drizzle-orm";
 import { db } from "./db";
 import {
   users, workspaces, projects, reports, checklistTemplates,
@@ -83,7 +83,7 @@ export class DatabaseStorage implements IStorage {
 
   // Checklist Templates
   async getChecklistTemplates(workspaceId: string) {
-    return db.select().from(checklistTemplates).where(eq(checklistTemplates.workspaceId, workspaceId));
+    return db.select().from(checklistTemplates).where(eq(checklistTemplates.workspaceId, workspaceId)).orderBy(desc(checklistTemplates.createdAt));
   }
   async createChecklistTemplate(data: InsertChecklistTemplate) {
     const [row] = await db.insert(checklistTemplates).values(data).returning();
