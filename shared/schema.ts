@@ -122,6 +122,7 @@ export const reports = pgTable("reports", {
   spaceCounts: jsonb("space_counts"),
   checklist: jsonb("checklist"),
   dimensions: jsonb("dimensions"),
+  issues: jsonb("issues"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

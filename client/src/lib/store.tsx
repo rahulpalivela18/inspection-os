@@ -36,6 +36,19 @@ export type Project = {
   createdAt: string;
 };
 
+export type Issue = {
+  id: string;
+  reportId: string;
+  title: string;
+  note: string;
+  location: string;
+  responsibleEngineer: string;
+  severity: "Low" | "Medium" | "High" | "Critical";
+  status: "Open" | "In Progress" | "Resolved";
+  images: string[];
+  createdAt?: string;
+};
+
 export type Report = {
   id: string;
   projectId: string;
@@ -50,4 +63,5 @@ export type Report = {
   spaceCounts?: { bedrooms: number; bathrooms: number; balconies: number };
   dimensions?: ReportDimension[];
   checklist?: ChecklistItem[];
+  issues?: Issue[];
 };

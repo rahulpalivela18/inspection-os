@@ -2,7 +2,7 @@ import { useState, useRef, useCallback } from "react";
 import Layout from "@/components/Layout";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import type { ReportDimension, ChecklistItem } from "@/lib/store";
+import type { ReportDimension, ChecklistItem, Issue } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -19,6 +19,15 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+  SheetFooter,
+  SheetClose,
+} from "@/components/ui/sheet";
 
 const buildChecklistWithPreservedResponses = (
   templates: Array<{
@@ -135,6 +144,7 @@ import NotFound from "./not-found";
 import { useReactToPrint } from "react-to-print";
 import { cn } from "@/lib/utils";
 import ReportPreview from "@/pages/ReportPreview";
+import IssuesView from "@/components/IssuesView";
 import {
   buildDimensionsFromChecklist,
   DEFAULT_DIMENSION_UNIT,
@@ -143,12 +153,35 @@ import { useAuth } from "@/lib/auth";
 
 export default function ReportEditor() {
   const [match, params] = useRoute("/report/:id");
+  const { data: teamMembers = [] } = useQuery({
+    queryKey: ["team"],
+    queryFn: () => api.getTeam(),
+  });
   const queryClient = useQueryClient();
   const { workspace } = useAuth();
   const [viewMode, setViewMode] = useState<
-    "checklist" | "dimensions" | "preview"
+    "checklist" | "dimensions" | "issues" | "preview"
   >("checklist");
   const [isSyncConfirmOpen, setIsSyncConfirmOpen] = useState(false);
+  const [isSheetOpen, setIsSheetOpen] = useState(false);
+  const [editingIssue, setEditingIssue] = useState<Issue | null>(null);
+  const [formData, setFormData] = useState<{
+    title: string;
+    note: string;
+    location: string;
+    responsibleEngineer: string;
+    severity: "Low" | "Medium" | "High" | "Critical";
+    status: "Open" | "In Progress" | "Resolved";
+    images: string[];
+  }>({
+    title: "",
+    note: "",
+    location: "",
+    responsibleEngineer: "",
+    severity: "Low",
+    status: "Open",
+    images: [],
+  });
   const componentRef = useRef<HTMLDivElement>(null);
 
   const {
@@ -235,6 +268,79 @@ export default function ReportEditor() {
     contentRef: componentRef,
     documentTitle: "Inspection Report",
   });
+
+  const openNewIssueSheet = () => {
+    setEditingIssue(null);
+    setFormData({
+      title: "",
+      note: "",
+      location: "",
+      responsibleEngineer: report.author,
+      severity: "Low",
+      status: "Open",
+      images: [],
+    });
+    setIsSheetOpen(true);
+  };
+
+  const openEditIssueSheet = (issue: Issue) => {
+    setEditingIssue(issue);
+    setFormData({
+      title: issue.title,
+      note: issue.note,
+      location: issue.location,
+      responsibleEngineer: issue.responsibleEngineer,
+      severity: issue.severity,
+      status: issue.status,
+      images: issue.images,
+    });
+    setIsSheetOpen(true);
+  };
+
+  const handleAddImage = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || formData.images.length >= 3) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      setFormData({ ...formData, images: [...formData.images, ev.target?.result as string] });
+    };
+    reader.readAsDataURL(file);
+    e.target.value = "";
+  };
+
+  const handleRemoveImage = (index: number) => {
+    setFormData({ ...formData, images: formData.images.filter((_, i) => i !== index) });
+  };
+
+  const handleSaveIssue = () => {
+    if (!formData.title || !formData.note || formData.images.length === 0) return;
+
+    const currentIssues = report.issues ?? [];
+    if (editingIssue) {
+      const updatedIssues = currentIssues.map((issue: Issue) =>
+        issue.id === editingIssue.id ? { ...issue, ...formData } : issue
+      );
+      saveReport({ ...report, issues: updatedIssues });
+    } else {
+      const newIssue: Issue = {
+        ...formData,
+        id: `issue-${Date.now()}`,
+        reportId: report.id,
+        createdAt: new Date().toISOString(),
+      };
+      saveReport({ ...report, issues: [...currentIssues, newIssue] });
+    }
+    setIsSheetOpen(false);
+  };
+
+  const getSeverityColor = (severity: string) => {
+    switch (severity) {
+      case "Critical": return "text-red-600 bg-red-50 border-red-200";
+      case "High": return "text-orange-600 bg-orange-50 border-orange-200";
+      case "Medium": return "text-amber-600 bg-amber-50 border-amber-200";
+      default: return "text-slate-600 bg-slate-50 border-slate-200";
+    }
+  };
 
   if (!match || !params) return <NotFound />;
   if (isLoading)
@@ -342,7 +448,7 @@ export default function ReportEditor() {
 
           <div className="flex flex-col sm:flex-row items-center gap-2 w-full lg:w-auto justify-between lg:justify-end">
             <div className="bg-muted p-1 rounded-lg flex items-center shrink-0 w-full sm:w-auto">
-              {(["checklist", "dimensions", "preview"] as const).map((mode) => (
+              {(["checklist", "dimensions", "issues", "preview"] as const).map((mode) => (
                 <button
                   key={mode}
                   onClick={() => setViewMode(mode)}
@@ -355,6 +461,11 @@ export default function ReportEditor() {
                   )}
                 >
                   {mode.charAt(0).toUpperCase() + mode.slice(1)}
+                  {mode === "issues" && (report.issues?.length ?? 0) > 0 && (
+                    <span className="ml-1.5 bg-primary/10 text-primary text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+                      {report.issues.length}
+                    </span>
+                  )}
                 </button>
               ))}
             </div>
@@ -403,6 +514,14 @@ export default function ReportEditor() {
             >
               <Printer className="mr-2 h-3.5 w-3.5 md:h-4 md:w-4" /> Export PDF
             </Button>
+            <Button
+              size="sm"
+              onClick={openNewIssueSheet}
+              disabled={viewMode === "preview"}
+              className="h-9 md:h-10 text-xs md:text-sm px-3 md:px-4"
+            >
+              <Plus className="mr-2 h-3.5 w-3.5 md:h-4 md:w-4" /> Add Issue
+            </Button>
           </div>
         </div>
 
@@ -445,6 +564,12 @@ export default function ReportEditor() {
                     updateDimensionField={updateDimensionField}
                     updateDefaultUnit={updateDefaultUnit}
                   />
+                ) : viewMode === "issues" ? (
+                  <IssuesView
+                    report={report}
+                    openEditIssueSheet={openEditIssueSheet}
+                    saveReport={saveReport}
+                  />
                 ) : (
                   <ChecklistView
                     report={report}
@@ -456,6 +581,177 @@ export default function ReportEditor() {
             </div>
           )}
         </div>
+
+        {/* Dialogs and Sheets */}
+        <AlertDialog
+          open={isSyncConfirmOpen}
+          onOpenChange={setIsSyncConfirmOpen}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Sync Checklist?</AlertDialogTitle>
+              <AlertDialogDescription>
+                {report.status === "Final" ? (
+                  <span className="text-amber-600 font-semibold">
+                    ⚠️ This report is Final - syncing may cause data loss!
+                  </span>
+                ) : (
+                  "This will update your checklist from templates."
+                )}
+                New points will be added, deleted points will be removed,
+                but your existing responses (Yes/No, photos, severity) will
+                be preserved.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={handleSync}>
+                Sync Now
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
+          <SheetContent className="sm:max-w-lg overflow-y-auto">
+            <SheetHeader>
+              <SheetTitle>{editingIssue ? "Edit Issue" : "Add New Issue"}</SheetTitle>
+              <SheetDescription>
+                {editingIssue ? "Update issue details below." : "Fill in the details to report a new issue."}
+              </SheetDescription>
+            </SheetHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid gap-2">
+                <Label htmlFor="issue-title">Title</Label>
+                <Input
+                  id="issue-title"
+                  value={formData.title}
+                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                  placeholder="Brief issue title"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="issue-note">Note</Label>
+                <Textarea
+                  id="issue-note"
+                  value={formData.note}
+                  onChange={(e) => setFormData({ ...formData, note: e.target.value })}
+                  placeholder="Describe the issue in detail"
+                  className="min-h-25"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="issue-location">Location</Label>
+                <Input
+                  id="issue-location"
+                  value={formData.location}
+                  onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                  placeholder="Where is this issue located?"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="issue-engineer">Responsible Engineer</Label>
+                <Select
+                  value={formData.responsibleEngineer}
+                  onValueChange={(val: string) => setFormData({ ...formData, responsibleEngineer: val })}
+                >
+                  <SelectTrigger id="issue-engineer">
+                    <SelectValue placeholder="Select engineer" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {teamMembers.map((member: any) => (
+                      <SelectItem key={member.id} value={member.name}>
+                        {member.name}
+                      </SelectItem>
+                    ))}
+                    {teamMembers.length === 0 && (
+                      <div className="px-2 py-1.5 text-xs text-slate-400">No team members found</div>
+                    )}
+                  </SelectContent>
+                </Select>
+                <Input
+                  value={formData.responsibleEngineer}
+                  onChange={(e) => setFormData({ ...formData, responsibleEngineer: e.target.value })}
+                  placeholder="Or type custom name"
+                  className="mt-2"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="issue-severity">Severity</Label>
+                  <Select
+                    value={formData.severity}
+                    onValueChange={(val: any) => setFormData({ ...formData, severity: val })}
+                  >
+                    <SelectTrigger id="issue-severity">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Low">Low</SelectItem>
+                      <SelectItem value="Medium">Medium</SelectItem>
+                      <SelectItem value="High">High</SelectItem>
+                      <SelectItem value="Critical">Critical</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="issue-status">Status</Label>
+                  <Select
+                    value={formData.status}
+                    onValueChange={(val: any) => setFormData({ ...formData, status: val })}
+                  >
+                    <SelectTrigger id="issue-status">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Open">Open</SelectItem>
+                      <SelectItem value="In Progress">In Progress</SelectItem>
+                      <SelectItem value="Resolved">Resolved</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="grid gap-2">
+                <Label>Images (max 3)</Label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  id="issue-file-upload"
+                  className="hidden"
+                  onChange={handleAddImage}
+                />
+                <Label
+                  htmlFor="issue-file-upload"
+                  className="inline-flex items-center gap-2 bg-orange-50 hover:bg-orange-100 border border-orange-200 text-orange-700 px-3 py-1.5 rounded-lg text-xs font-medium cursor-pointer transition-colors w-full sm:w-auto justify-center"
+                >
+                  <ImageIcon className="h-3.5 w-3.5" /> Upload Image
+                </Label>
+                <div className="flex gap-2 flex-wrap mt-2">
+                  {formData.images.map((img, idx) => (
+                    <div key={idx} className="relative h-16 w-16 rounded border overflow-hidden group">
+                      <img src={img} alt="Issue" className="object-cover w-full h-full" />
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveImage(idx)}
+                        className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity"
+                      >
+                        <X className="h-4 w-4 text-white" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <SheetFooter>
+              <SheetClose asChild>
+                <Button variant="outline">Cancel</Button>
+              </SheetClose>
+              <Button onClick={handleSaveIssue} disabled={!formData.title || !formData.note || formData.images.length === 0}>
+                {editingIssue ? "Update Issue" : "Save Issue"}
+              </Button>
+            </SheetFooter>
+          </SheetContent>
+        </Sheet>
       </div>
     </Layout>
   );
