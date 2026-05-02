@@ -735,28 +735,19 @@ export default function ReportEditor() {
                   {formData.images.map((img, idx) => (
                     <div key={idx} className="relative h-16 w-16 rounded border overflow-hidden group">
                       <img src={img} alt="Issue" className="object-cover w-full h-full" />
-                      <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center gap-1 transition-opacity">
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              openImageInNewTab(img);
-                            }}
-                          >
-                            <Download className="h-4 w-4 text-white" />
-                          </button>
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            handleRemoveImage(idx);
-                          }}
-                        >
-                          <X className="h-4 w-4 text-white" />
-                        </button>
-                      </div>
+                       <div className="absolute inset-0 bg-black/50 opacity-100 md:opacity-0 md:group-hover:opacity-100 flex items-center justify-center gap-1 transition-opacity">
+                        
+                         <button
+                           type="button"
+                           onClick={(e) => {
+                             e.preventDefault();
+                             e.stopPropagation();
+                             handleRemoveImage(idx);
+                           }}
+                         >
+                           <X className="h-4 w-4 text-white" />
+                         </button>
+                       </div>
                     </div>
                   ))}
                 </div>
@@ -1041,7 +1032,7 @@ function ChecklistItemRow({
                   className="object-cover w-full h-full"
                 />
                 <div
-                  className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center gap-1 transition-opacity"
+                  className="absolute inset-0 bg-black/50 opacity-100 md:opacity-0 md:group-hover:opacity-100 flex items-center justify-center gap-1 transition-opacity"
                 >
                   <button
                     type="button"
