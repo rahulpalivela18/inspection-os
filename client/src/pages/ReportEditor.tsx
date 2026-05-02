@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback } from "react";
+import { Download } from "lucide-react";
 import Layout from "@/components/Layout";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
@@ -28,6 +29,10 @@ import {
   SheetFooter,
   SheetClose,
 } from "@/components/ui/sheet";
+
+const openImageInNewTab = (src: string) => {
+  window.open(src, '_blank');
+};
 
 const buildChecklistWithPreservedResponses = (
   templates: Array<{
@@ -730,13 +735,28 @@ export default function ReportEditor() {
                   {formData.images.map((img, idx) => (
                     <div key={idx} className="relative h-16 w-16 rounded border overflow-hidden group">
                       <img src={img} alt="Issue" className="object-cover w-full h-full" />
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveImage(idx)}
-                        className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity"
-                      >
-                        <X className="h-4 w-4 text-white" />
-                      </button>
+                      <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center gap-1 transition-opacity">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              openImageInNewTab(img);
+                            }}
+                          >
+                            <Download className="h-4 w-4 text-white" />
+                          </button>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleRemoveImage(idx);
+                          }}
+                        >
+                          <X className="h-4 w-4 text-white" />
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -1021,10 +1041,22 @@ function ChecklistItemRow({
                   className="object-cover w-full h-full"
                 />
                 <div
-                  className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity cursor-pointer"
-                  onClick={() => update(item.id, { image: undefined })}
+                  className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center gap-1 transition-opacity"
                 >
-                  <X className="h-4 w-4 text-white" />
+                  <button
+                    type="button"
+                    className="p-1 cursor-pointer"
+                    onClick={() => openImageInNewTab(item.image!)}
+                  >
+                    <Download className="h-4 w-4 text-white" />
+                  </button>
+                  <button
+                    type="button"
+                    className="p-1 cursor-pointer"
+                    onClick={() => update(item.id, { image: undefined })}
+                  >
+                    <X className="h-4 w-4 text-white" />
+                  </button>
                 </div>
               </div>
             ) : (
