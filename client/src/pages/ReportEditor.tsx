@@ -721,6 +721,7 @@ export default function ReportEditor() {
                 <input
                   type="file"
                   accept="image/*"
+                  capture="environment"
                   id="issue-file-upload"
                   className="hidden"
                   onChange={handleAddImage}
@@ -1066,6 +1067,7 @@ function ChecklistItemRow({
                   id={`check-img-${item.id}`}
                   className="hidden"
                   accept="image/*"
+                  capture="environment"
                   onChange={handlePhotoUpload}
                 />
                 <label
