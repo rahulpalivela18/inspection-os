@@ -31,7 +31,7 @@ import {
 } from "@/components/ui/sheet";
 
 const openImageInNewTab = (src: string) => {
-  window.open(src, '_blank');
+  window.open(src, "_blank");
 };
 
 const buildChecklistWithPreservedResponses = (
@@ -56,11 +56,14 @@ const buildChecklistWithPreservedResponses = (
 
   const repeatableCategories = ["bedroom", "bathroom", "balcony"];
 
-  const categorySet = templates.reduce((acc, t) => {
+  const categorySet = templates.reduce((acc: string[], t) => {
     const c = t.category.toLowerCase().trim();
-    acc.add(repeatableCategories.includes(c) ? c : t.category);
+    const cat = repeatableCategories.includes(c) ? c : t.category;
+    if (!acc.includes(cat)) {
+      acc.push(cat);
+    }
     return acc;
-  }, new Set<string>());
+  }, [] as string[]);
 
   for (const cat of categorySet) {
     const catTemplates = templates.filter((t) => {
@@ -307,23 +310,30 @@ export default function ReportEditor() {
     if (!file || formData.images.length >= 3) return;
     const reader = new FileReader();
     reader.onload = (ev) => {
-      setFormData({ ...formData, images: [...formData.images, ev.target?.result as string] });
+      setFormData({
+        ...formData,
+        images: [...formData.images, ev.target?.result as string],
+      });
     };
     reader.readAsDataURL(file);
     e.target.value = "";
   };
 
   const handleRemoveImage = (index: number) => {
-    setFormData({ ...formData, images: formData.images.filter((_, i) => i !== index) });
+    setFormData({
+      ...formData,
+      images: formData.images.filter((_, i) => i !== index),
+    });
   };
 
   const handleSaveIssue = () => {
-    if (!formData.title || !formData.note || formData.images.length === 0) return;
+    if (!formData.title || !formData.note || formData.images.length === 0)
+      return;
 
     const currentIssues = report.issues ?? [];
     if (editingIssue) {
       const updatedIssues = currentIssues.map((issue: Issue) =>
-        issue.id === editingIssue.id ? { ...issue, ...formData } : issue
+        issue.id === editingIssue.id ? { ...issue, ...formData } : issue,
       );
       saveReport({ ...report, issues: updatedIssues });
     } else {
@@ -340,10 +350,14 @@ export default function ReportEditor() {
 
   const getSeverityColor = (severity: string) => {
     switch (severity) {
-      case "Critical": return "text-red-600 bg-red-50 border-red-200";
-      case "High": return "text-orange-600 bg-orange-50 border-orange-200";
-      case "Medium": return "text-amber-600 bg-amber-50 border-amber-200";
-      default: return "text-slate-600 bg-slate-50 border-slate-200";
+      case "Critical":
+        return "text-red-600 bg-red-50 border-red-200";
+      case "High":
+        return "text-orange-600 bg-orange-50 border-orange-200";
+      case "Medium":
+        return "text-amber-600 bg-amber-50 border-amber-200";
+      default:
+        return "text-slate-600 bg-slate-50 border-slate-200";
     }
   };
 
@@ -453,26 +467,28 @@ export default function ReportEditor() {
 
           <div className="flex flex-col sm:flex-row items-center gap-2 w-full lg:w-auto justify-between lg:justify-end">
             <div className="bg-muted p-1 rounded-lg flex items-center shrink-0 w-full sm:w-auto">
-              {(["checklist", "dimensions", "issues", "preview"] as const).map((mode) => (
-                <button
-                  key={mode}
-                  onClick={() => setViewMode(mode)}
-                  data-testid={`button-tab-${mode}`}
-                  className={cn(
-                    "flex-1 sm:flex-none px-3 md:px-4 py-1.5 md:py-2 text-xs md:text-sm font-medium rounded-md transition-all capitalize",
-                    viewMode === mode
-                      ? "bg-white text-foreground shadow-sm"
-                      : "text-muted-foreground hover:text-foreground",
-                  )}
-                >
-                  {mode.charAt(0).toUpperCase() + mode.slice(1)}
-                  {mode === "issues" && (report.issues?.length ?? 0) > 0 && (
-                    <span className="ml-1.5 bg-primary/10 text-primary text-[10px] font-bold px-1.5 py-0.5 rounded-full">
-                      {report.issues.length}
-                    </span>
-                  )}
-                </button>
-              ))}
+              {(["checklist", "dimensions", "issues", "preview"] as const).map(
+                (mode) => (
+                  <button
+                    key={mode}
+                    onClick={() => setViewMode(mode)}
+                    data-testid={`button-tab-${mode}`}
+                    className={cn(
+                      "flex-1 sm:flex-none px-3 md:px-4 py-1.5 md:py-2 text-xs md:text-sm font-medium rounded-md transition-all capitalize",
+                      viewMode === mode
+                        ? "bg-white text-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    {mode.charAt(0).toUpperCase() + mode.slice(1)}
+                    {mode === "issues" && (report.issues?.length ?? 0) > 0 && (
+                      <span className="ml-1.5 bg-primary/10 text-primary text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+                        {report.issues.length}
+                      </span>
+                    )}
+                  </button>
+                ),
+              )}
             </div>
             <Button
               variant="outline"
@@ -603,9 +619,9 @@ export default function ReportEditor() {
                 ) : (
                   "This will update your checklist from templates."
                 )}
-                New points will be added, deleted points will be removed,
-                but your existing responses (Yes/No, photos, severity) will
-                be preserved.
+                New points will be added, deleted points will be removed, but
+                your existing responses (Yes/No, photos, severity) will be
+                preserved.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -620,9 +636,13 @@ export default function ReportEditor() {
         <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
           <SheetContent className="sm:max-w-lg overflow-y-auto">
             <SheetHeader>
-              <SheetTitle>{editingIssue ? "Edit Issue" : "Add New Issue"}</SheetTitle>
+              <SheetTitle>
+                {editingIssue ? "Edit Issue" : "Add New Issue"}
+              </SheetTitle>
               <SheetDescription>
-                {editingIssue ? "Update issue details below." : "Fill in the details to report a new issue."}
+                {editingIssue
+                  ? "Update issue details below."
+                  : "Fill in the details to report a new issue."}
               </SheetDescription>
             </SheetHeader>
             <div className="grid gap-4 py-4">
@@ -631,7 +651,9 @@ export default function ReportEditor() {
                 <Input
                   id="issue-title"
                   value={formData.title}
-                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, title: e.target.value })
+                  }
                   placeholder="Brief issue title"
                 />
               </div>
@@ -640,7 +662,9 @@ export default function ReportEditor() {
                 <Textarea
                   id="issue-note"
                   value={formData.note}
-                  onChange={(e) => setFormData({ ...formData, note: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, note: e.target.value })
+                  }
                   placeholder="Describe the issue in detail"
                   className="min-h-25"
                 />
@@ -650,7 +674,9 @@ export default function ReportEditor() {
                 <Input
                   id="issue-location"
                   value={formData.location}
-                  onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, location: e.target.value })
+                  }
                   placeholder="Where is this issue located?"
                 />
               </div>
@@ -658,7 +684,9 @@ export default function ReportEditor() {
                 <Label htmlFor="issue-engineer">Responsible Engineer</Label>
                 <Select
                   value={formData.responsibleEngineer}
-                  onValueChange={(val: string) => setFormData({ ...formData, responsibleEngineer: val })}
+                  onValueChange={(val: string) =>
+                    setFormData({ ...formData, responsibleEngineer: val })
+                  }
                 >
                   <SelectTrigger id="issue-engineer">
                     <SelectValue placeholder="Select engineer" />
@@ -670,13 +698,20 @@ export default function ReportEditor() {
                       </SelectItem>
                     ))}
                     {teamMembers.length === 0 && (
-                      <div className="px-2 py-1.5 text-xs text-slate-400">No team members found</div>
+                      <div className="px-2 py-1.5 text-xs text-slate-400">
+                        No team members found
+                      </div>
                     )}
                   </SelectContent>
                 </Select>
                 <Input
                   value={formData.responsibleEngineer}
-                  onChange={(e) => setFormData({ ...formData, responsibleEngineer: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      responsibleEngineer: e.target.value,
+                    })
+                  }
                   placeholder="Or type custom name"
                   className="mt-2"
                 />
@@ -686,7 +721,9 @@ export default function ReportEditor() {
                   <Label htmlFor="issue-severity">Severity</Label>
                   <Select
                     value={formData.severity}
-                    onValueChange={(val: any) => setFormData({ ...formData, severity: val })}
+                    onValueChange={(val: any) =>
+                      setFormData({ ...formData, severity: val })
+                    }
                   >
                     <SelectTrigger id="issue-severity">
                       <SelectValue />
@@ -703,7 +740,9 @@ export default function ReportEditor() {
                   <Label htmlFor="issue-status">Status</Label>
                   <Select
                     value={formData.status}
-                    onValueChange={(val: any) => setFormData({ ...formData, status: val })}
+                    onValueChange={(val: any) =>
+                      setFormData({ ...formData, status: val })
+                    }
                   >
                     <SelectTrigger id="issue-status">
                       <SelectValue />
@@ -733,21 +772,27 @@ export default function ReportEditor() {
                 </Label>
                 <div className="flex gap-2 flex-wrap mt-2">
                   {formData.images.map((img, idx) => (
-                    <div key={idx} className="relative h-16 w-16 rounded border overflow-hidden group">
-                      <img src={img} alt="Issue" className="object-cover w-full h-full" />
-                       <div className="absolute inset-0 bg-black/50 opacity-100 md:opacity-0 md:group-hover:opacity-100 flex items-center justify-center gap-1 transition-opacity">
-                        
-                         <button
-                           type="button"
-                           onClick={(e) => {
-                             e.preventDefault();
-                             e.stopPropagation();
-                             handleRemoveImage(idx);
-                           }}
-                         >
-                           <X className="h-4 w-4 text-white" />
-                         </button>
-                       </div>
+                    <div
+                      key={idx}
+                      className="relative h-16 w-16 rounded border overflow-hidden group"
+                    >
+                      <img
+                        src={img}
+                        alt="Issue"
+                        className="object-cover w-full h-full"
+                      />
+                      <div className="absolute inset-0 bg-black/50 opacity-100 md:opacity-0 md:group-hover:opacity-100 flex items-center justify-center gap-1 transition-opacity">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleRemoveImage(idx);
+                          }}
+                        >
+                          <X className="h-4 w-4 text-white" />
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -757,7 +802,14 @@ export default function ReportEditor() {
               <SheetClose asChild>
                 <Button variant="outline">Cancel</Button>
               </SheetClose>
-              <Button onClick={handleSaveIssue} disabled={!formData.title || !formData.note || formData.images.length === 0}>
+              <Button
+                onClick={handleSaveIssue}
+                disabled={
+                  !formData.title ||
+                  !formData.note ||
+                  formData.images.length === 0
+                }
+              >
                 {editingIssue ? "Update Issue" : "Save Issue"}
               </Button>
             </SheetFooter>
@@ -1031,9 +1083,7 @@ function ChecklistItemRow({
                   alt="Defect"
                   className="object-cover w-full h-full"
                 />
-                <div
-                  className="absolute inset-0 bg-black/50 opacity-100 md:opacity-0 md:group-hover:opacity-100 flex items-center justify-center gap-1 transition-opacity"
-                >
+                <div className="absolute inset-0 bg-black/50 opacity-100 md:opacity-0 md:group-hover:opacity-100 flex items-center justify-center gap-1 transition-opacity">
                   <button
                     type="button"
                     className="p-1 cursor-pointer"

@@ -218,6 +218,20 @@ export async function registerRoutes(
     const parsed = insertWorkspaceSchema.partial().safeParse(body);
     if (!parsed.success)
       return res.status(400).json({ message: parsed.error.errors[0].message });
+
+    // Upload logo to GCP if it's a base64 data URL
+    if (
+      parsed.data.logoUrl &&
+      !isGCPUrl(parsed.data.logoUrl) &&
+      parsed.data.logoUrl.startsWith("data:")
+    ) {
+      try {
+        const gcpUrl = await uploadImageToGCP(parsed.data.logoUrl, "logo.jpg");
+        if (gcpUrl) parsed.data.logoUrl = gcpUrl;
+      } catch (err) {
+        console.error("Logo upload error:", err);
+      }
+    }
     const workspace = await storage.updateWorkspace(
       user.workspaceId,
       parsed.data,

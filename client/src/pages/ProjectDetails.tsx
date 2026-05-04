@@ -202,18 +202,19 @@ export default function ProjectDetails() {
   const [isEditProjectOpen, setIsEditProjectOpen] = useState(false);
   const [isEditReportOpen, setIsEditReportOpen] = useState(false);
   const [editingReport, setEditingReport] = useState<any>(null);
+  const [editInspectionTypeInput, setEditInspectionTypeInput] = useState("");
   const [reportToDelete, setReportToDelete] = useState<any>(null);
-  const [logoPreview, setLogoPreview] = useState("");
   const [editProjectData, setEditProjectData] = useState<any>(null);
 
   const [newReport, setNewReport] = useState({
     title: "",
     author: "",
-    inspectionType: "Home Inspection",
+    inspectionType: ["Home Inspection"],
     status: "Draft" as const,
     date: format(new Date(), "yyyy-MM-dd"),
     spaceCounts: { ...DEFAULT_SPACE_COUNTS },
   });
+  const [inspectionTypeInput, setInspectionTypeInput] = useState("");
 
   const { data: project, isLoading: loadingProject } = useQuery({
     queryKey: ["project", params?.id],
@@ -256,11 +257,12 @@ export default function ProjectDetails() {
       setNewReport({
         title: "",
         author: "",
-        inspectionType: "Home Inspection",
+        inspectionType: ["Home Inspection"],
         status: "Draft",
         date: format(new Date(), "yyyy-MM-dd"),
         spaceCounts: { ...DEFAULT_SPACE_COUNTS },
       });
+      setInspectionTypeInput("");
       setLocation(`/report/${report.id}`);
     },
     onError: (err: any) =>
@@ -298,21 +300,9 @@ export default function ProjectDetails() {
       toast({
         title: "Error",
         description: err.message,
-        variant: "destructive",
-      }),
-  });
-
-  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const base64 = event.target?.result as string;
-      setEditProjectData({ ...editProjectData, logoUrl: base64 });
-      setLogoPreview(base64);
-    };
-    reader.readAsDataURL(file);
-  };
+       variant: "destructive",
+       }),
+   });
 
   const updateSpaceCount = (key: keyof ReportSpaceCounts, value: string) => {
     const nextValue = Math.max(0, Number(value) || 0);
@@ -331,7 +321,9 @@ export default function ProjectDetails() {
     e.stopPropagation();
     setEditingReport({
       ...report,
-      inspectionType: report.inspectionType || "Home Inspection",
+      inspectionType: Array.isArray(report.inspectionType)
+        ? report.inspectionType
+        : [report.inspectionType || "Home Inspection"],
       spaceCounts: normalizeSpaceCounts(
         report.spaceCounts ?? DEFAULT_SPACE_COUNTS,
       ),
@@ -362,7 +354,7 @@ export default function ProjectDetails() {
       data: {
         ...editingReport,
         inspectionType:
-          editingReport.inspectionType?.trim() || "Home Inspection",
+          Array.isArray(editingReport.inspectionType) ? editingReport.inspectionType : [editingReport.inspectionType || "Home Inspection"],
         spaceCounts: nextSpaceCounts,
         dimensionUnit: nextDimensionUnit,
         dimensions: nextDimensions,
@@ -441,9 +433,7 @@ export default function ProjectDetails() {
                       clientName: project.clientName,
                       address: project.address,
                       description: project.description,
-                      logoUrl: project.logoUrl || "",
                     });
-                    setLogoPreview(project.logoUrl || "");
                     setIsEditProjectOpen(true);
                   }}
                 >
@@ -451,15 +441,6 @@ export default function ProjectDetails() {
                 </Button>
               </div>
               <div className="flex flex-col gap-3 shrink-0">
-                {project.logoUrl && (
-                  <div className="w-16 h-16 rounded-lg border bg-white p-2 self-end hidden sm:flex items-center justify-center overflow-hidden">
-                    <img
-                      src={project.logoUrl}
-                      alt="Client Logo"
-                      className="max-w-full max-h-full object-contain"
-                    />
-                  </div>
-                )}
                 <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                   <DialogTrigger asChild>
                     <Button
@@ -515,18 +496,79 @@ export default function ProjectDetails() {
                               <Label htmlFor="inspection-type">
                                 Type of inspection
                               </Label>
-                              <Input
-                                id="inspection-type"
-                                placeholder="e.g. Home Inspection"
-                                value={newReport.inspectionType}
-                                onChange={(e) =>
-                                  setNewReport({
-                                    ...newReport,
-                                    inspectionType: e.target.value,
-                                  })
-                                }
-                                data-testid="input-report-inspection-type"
-                              />
+                              <div className="flex flex-wrap gap-2 mb-2">
+                                {newReport.inspectionType.map(
+                                  (type: string, idx: number) => (
+                                    <span
+                                      key={idx}
+                                      className="inline-flex items-center gap-1 px-3 py-1 bg-slate-100 rounded-full text-sm"
+                                    >
+                                      {type}
+                                      <button
+                                        type="button"
+                                        className="text-slate-400 hover:text-red-500"
+                                        onClick={() =>
+                                          setNewReport({
+                                            ...newReport,
+                                            inspectionType:
+                                              newReport.inspectionType.filter(
+                                                (_: any, i: number) =>
+                                                  i !== idx,
+                                              ),
+                                          })
+                                        }
+                                      >
+                                        ×
+                                      </button>
+                                    </span>
+                                  ),
+                                )}
+                              </div>
+                              <div className="flex gap-2">
+                                <Input
+                                  id="inspection-type"
+                                  placeholder="e.g. Home Inspection"
+                                  value={inspectionTypeInput}
+                                  onChange={(e) =>
+                                    setInspectionTypeInput(e.target.value)
+                                  }
+                                  onKeyDown={(e) => {
+                                    if (
+                                      e.key === "Enter" &&
+                                      inspectionTypeInput.trim()
+                                    ) {
+                                      e.preventDefault();
+                                      setNewReport({
+                                        ...newReport,
+                                        inspectionType: [
+                                          ...newReport.inspectionType,
+                                          inspectionTypeInput.trim(),
+                                        ],
+                                      });
+                                      setInspectionTypeInput("");
+                                    }
+                                  }}
+                                  data-testid="input-report-inspection-type"
+                                />
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  onClick={() => {
+                                    if (inspectionTypeInput.trim()) {
+                                      setNewReport({
+                                        ...newReport,
+                                        inspectionType: [
+                                          ...newReport.inspectionType,
+                                          inspectionTypeInput.trim(),
+                                        ],
+                                      });
+                                      setInspectionTypeInput("");
+                                    }
+                                  }}
+                                >
+                                  Add
+                                </Button>
+                              </div>
                             </div>
                           </div>
                           <div className="grid gap-2">
@@ -826,23 +868,6 @@ export default function ProjectDetails() {
                 />
               </div>
               <div className="grid gap-2">
-                <Label>Logo</Label>
-                <Input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleLogoUpload}
-                />
-                {(logoPreview || editProjectData?.logoUrl) && (
-                  <div className="w-full h-20 border rounded bg-slate-100 p-2 flex items-center justify-center overflow-hidden">
-                    <img
-                      src={logoPreview || editProjectData?.logoUrl}
-                      alt="Logo Preview"
-                      className="max-w-full max-h-full object-contain"
-                    />
-                  </div>
-                )}
-              </div>
-              <div className="grid gap-2">
                 <Label>Description</Label>
                 <Textarea
                   value={editProjectData?.description || ""}
@@ -909,15 +934,76 @@ export default function ProjectDetails() {
                 </div>
                 <div className="grid gap-2">
                   <Label>Inspection Type</Label>
-                  <Input
-                    value={editingReport.inspectionType || ""}
-                    onChange={(e) =>
-                      setEditingReport({
-                        ...editingReport,
-                        inspectionType: e.target.value,
-                      })
-                    }
-                  />
+                  <div className="flex flex-wrap gap-2 mb-2">
+                    {(editingReport.inspectionType || []).map(
+                      (type: string, idx: number) => (
+                        <span
+                          key={idx}
+                          className="inline-flex items-center gap-1 px-3 py-1 bg-slate-100 rounded-full text-sm"
+                        >
+                          {type}
+                          <button
+                            type="button"
+                            className="text-slate-400 hover:text-red-500"
+                            onClick={() =>
+                              setEditingReport({
+                                ...editingReport,
+                                inspectionType:
+                                  editingReport.inspectionType.filter(
+                                    (_: any, i: number) => i !== idx,
+                                  ),
+                              })
+                            }
+                          >
+                            ×
+                          </button>
+                        </span>
+                      ),
+                    )}
+                  </div>
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="e.g. Dampness Inspection"
+                      value={editInspectionTypeInput}
+                      onChange={(e) =>
+                        setEditInspectionTypeInput(e.target.value)
+                      }
+                      onKeyDown={(e) => {
+                        if (
+                          e.key === "Enter" &&
+                          editInspectionTypeInput.trim()
+                        ) {
+                          e.preventDefault();
+                          setEditingReport({
+                            ...editingReport,
+                            inspectionType: [
+                              ...(editingReport.inspectionType || []),
+                              editInspectionTypeInput.trim(),
+                            ],
+                          });
+                          setEditInspectionTypeInput("");
+                        }
+                      }}
+                    />
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={() => {
+                        if (editInspectionTypeInput.trim()) {
+                          setEditingReport({
+                            ...editingReport,
+                            inspectionType: [
+                              ...(editingReport.inspectionType || []),
+                              editInspectionTypeInput.trim(),
+                            ],
+                          });
+                          setEditInspectionTypeInput("");
+                        }
+                      }}
+                    >
+                      Add
+                    </Button>
+                  </div>
                 </div>
                 <div className="grid gap-2">
                   <Label>Status</Label>
@@ -1003,19 +1089,20 @@ export default function ProjectDetails() {
         )}
 
         {/* Delete Report Dialog */}
-        <Dialog open={!!reportToDelete} onOpenChange={() => setReportToDelete(null)}>
+        <Dialog
+          open={!!reportToDelete}
+          onOpenChange={() => setReportToDelete(null)}
+        >
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Delete Report</DialogTitle>
               <DialogDescription>
-                Are you sure you want to delete "{reportToDelete?.title}"? This action cannot be undone.
+                Are you sure you want to delete "{reportToDelete?.title}"? This
+                action cannot be undone.
               </DialogDescription>
             </DialogHeader>
             <DialogFooter>
-              <Button
-                variant="outline"
-                onClick={() => setReportToDelete(null)}
-              >
+              <Button variant="outline" onClick={() => setReportToDelete(null)}>
                 Cancel
               </Button>
               <Button
