@@ -900,14 +900,15 @@ export default function ProjectDetails() {
         {/* Edit Report Dialog */}
         {editingReport && (
           <Dialog open={isEditReportOpen} onOpenChange={setIsEditReportOpen}>
-            <DialogContent className="sm:max-w-[500px]">
-              <DialogHeader>
-                <DialogTitle>Edit Report</DialogTitle>
-                <DialogDescription>
-                  Update the report details and space counts.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="grid gap-4 py-4">
+            <DialogContent className="max-h-[92vh] overflow-hidden p-0 sm:max-w-[500px]">
+              <div className="flex max-h-[92vh] flex-col">
+                <DialogHeader className="px-4 py-4 sm:px-6 sm:py-5">
+                  <DialogTitle>Edit Report</DialogTitle>
+                  <DialogDescription>
+                    Update the report details and space counts.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="flex-1 space-y-4 overflow-y-auto px-4 py-4 sm:px-6 sm:py-5">
                 <div className="grid gap-2">
                   <Label>Report Title</Label>
                   <Input
@@ -1068,7 +1069,7 @@ export default function ProjectDetails() {
                   </div>
                 </div>
               </div>
-              <DialogFooter>
+              <DialogFooter className="border-t px-4 py-4 sm:px-6">
                 <Button
                   variant="outline"
                   onClick={() => setIsEditReportOpen(false)}
@@ -1084,6 +1085,7 @@ export default function ProjectDetails() {
                     : "Save Changes"}
                 </Button>
               </DialogFooter>
+            </div>
             </DialogContent>
           </Dialog>
         )}
