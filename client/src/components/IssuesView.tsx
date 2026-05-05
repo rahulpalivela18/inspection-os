@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { AlertTriangle, Ruler, FileText, Trash2 } from "lucide-react";
+import { AlertTriangle, Ruler, FileText, Trash2, Download } from "lucide-react";
 import type { Issue } from "@/lib/store";
 import {
   AlertDialog,
@@ -14,6 +14,10 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useState } from "react";
+
+const openImageInNewTab = (src: string) => {
+  window.open(src, '_blank');
+};
 
 interface IssuesViewProps {
   report: any;
@@ -107,8 +111,19 @@ export default function IssuesView({
                   {issue.images.length > 0 && (
                     <div className="flex gap-2 flex-wrap">
                       {issue.images.map((img: string, idx: number) => (
-                        <div key={idx} className="h-16 w-16 rounded border overflow-hidden">
+                        <div key={idx} className="relative h-16 w-16 rounded border overflow-hidden group">
                           <img src={img} alt="Issue" className="object-cover w-full h-full" />
+                          <button
+                            type="button"
+                            className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              openImageInNewTab(img);
+                            }}
+                          >
+                            <Download className="h-4 w-4 text-white" />
+                          </button>
                         </div>
                       ))}
                     </div>

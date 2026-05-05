@@ -27,13 +27,13 @@ export type ReportDimension = {
 
 export type Project = {
   id: string;
-  workspaceId: string;
-  title: string;
-  clientName: string;
-  address?: string;
-  description?: string;
-  logoUrl?: string;
-  createdAt: string;
+   workspaceId: string;
+   title: string;
+   clientName: string;
+   address?: string;
+   description?: string;
+   logoUrl?: string;
+   createdAt: string;
 };
 
 export type Issue = {
@@ -58,7 +58,7 @@ export type Report = {
   author: string;
   date: string;
   createdAt: string;
-  inspectionType?: string;
+  inspectionType?: string[];
   dimensionUnit?: DimensionUnit;
   spaceCounts?: { bedrooms: number; bathrooms: number; balconies: number };
   dimensions?: ReportDimension[];

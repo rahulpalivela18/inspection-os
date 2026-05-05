@@ -89,7 +89,6 @@ export const projects = pgTable("projects", {
   clientName: text("client_name").notNull(),
   address: text("address"),
   description: text("description"),
-  logoUrl: text("logo_url"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -117,7 +116,7 @@ export const reports = pgTable("reports", {
   status: text("status", { enum: ["Draft", "Review", "Final"] })
     .notNull()
     .default("Draft"),
-  inspectionType: text("inspection_type").default("Home Inspection"),
+  inspectionType: jsonb("inspection_type").default(["Home Inspection"]),
   dimensionUnit: text("dimension_unit", { enum: ["ft", "m"] }).default("ft"),
   spaceCounts: jsonb("space_counts"),
   checklist: jsonb("checklist"),

@@ -20,14 +20,12 @@ export default function Dashboard() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [projectToDelete, setProjectToDelete] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [logoPreview, setLogoPreview] = useState("");
 
   const [newProject, setNewProject] = useState({
     title: "",
     clientName: "",
     address: "",
     description: "",
-    logoUrl: "",
   });
 
   const { data: projects = [], isLoading } = useQuery({
@@ -40,8 +38,7 @@ export default function Dashboard() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["projects"] });
       setIsDialogOpen(false);
-      setNewProject({ title: "", clientName: "", address: "", description: "", logoUrl: "" });
-      setLogoPreview("");
+      setNewProject({ title: "", clientName: "", address: "", description: "" });
     },
     onError: (err: any) => toast({ title: "Error", description: err.message, variant: "destructive" }),
   });
@@ -54,18 +51,6 @@ export default function Dashboard() {
     },
     onError: (err: any) => toast({ title: "Error", description: err.message, variant: "destructive" }),
   });
-
-  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const base64 = event.target?.result as string;
-      setNewProject({ ...newProject, logoUrl: base64 });
-      setLogoPreview(base64);
-    };
-    reader.readAsDataURL(file);
-  };
 
   const handleCreateProject = () => {
     if (!newProject.title) return;
@@ -127,21 +112,6 @@ export default function Dashboard() {
                       onChange={(e) => setNewProject({ ...newProject, address: e.target.value })}
                       data-testid="input-project-address"
                     />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="logoUpload">Client Logo</Label>
-                    <Input
-                      id="logoUpload"
-                      type="file"
-                      accept="image/*"
-                      onChange={handleLogoUpload}
-                      data-testid="input-project-logo"
-                    />
-                    {logoPreview && (
-                      <div className="w-full h-20 border rounded bg-slate-100 p-2 flex items-center justify-center overflow-hidden">
-                        <img src={logoPreview} alt="Logo Preview" className="max-w-full max-h-full object-contain" />
-                      </div>
-                    )}
                   </div>
                   <div className="grid gap-2">
                     <Label htmlFor="description">Description</Label>
@@ -235,11 +205,6 @@ export default function Dashboard() {
                       {project.title}
                     </CardTitle>
                     <div className="flex items-center gap-2 shrink-0">
-                      {project.logoUrl && (
-                        <div className="w-10 h-10 rounded-lg border bg-white overflow-hidden flex items-center justify-center p-1 shadow-sm">
-                          <img src={project.logoUrl} alt="Logo" className="max-w-full max-h-full object-contain" />
-                        </div>
-                      )}
                       <Button
                         variant="ghost"
                         size="icon"
