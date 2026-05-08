@@ -12,6 +12,7 @@ import LandingPage from "@/pages/LandingPage";
 import Settings from "@/pages/Settings";
 import Login from "@/pages/Login";
 import Register from "@/pages/Register";
+import Contact from "@/pages/Contact";
 import NotFound from "@/pages/not-found";
 import { Loader2 } from "lucide-react";
 
@@ -53,6 +54,7 @@ function Router() {
   return (
     <Switch>
       <Route path="/" component={LandingPage} />
+      <Route path="/contact" component={Contact} />
       <Route path="/login">
         <PublicRoute component={Login} />
       </Route>

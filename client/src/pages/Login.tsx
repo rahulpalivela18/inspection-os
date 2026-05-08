@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useLocation } from "wouter";
+import { useLocation, Link } from "wouter";
 import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,7 +12,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { ClipboardCheck, Loader2, Eye, EyeOff } from "lucide-react";
+import { ClipboardCheck, Loader2, Eye, EyeOff, ArrowLeft } from "lucide-react";
 
 function isValidEmail(email: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
@@ -58,10 +58,12 @@ export default function Login() {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-indigo-50 flex items-center justify-center p-4">
       <div className="w-full max-w-md space-y-6">
         <div className="text-center">
-          <div className="inline-flex items-center gap-2 text-2xl font-bold text-indigo-600 mb-2">
-            <ClipboardCheck className="h-7 w-7" />
-            ReportGen
-          </div>
+          <Link href="/">
+            <div className="inline-flex cursor-pointer items-center gap-2 text-2xl font-bold text-indigo-600 mb-2">
+              <ClipboardCheck className="h-7 w-7" />
+              ReportGen
+            </div>
+          </Link>
           <p className="text-sm text-slate-500">Sign in to your workspace</p>
         </div>
 
@@ -161,17 +163,14 @@ export default function Login() {
                   "Sign In"
                 )}
               </Button>
-              <p className="text-sm text-center text-slate-500">
-                Don't have an account?{" "}
+              <Link href="/">
                 <button
                   type="button"
-                  onClick={() => setLocation("/register")}
-                  className="text-indigo-600 font-medium hover:underline"
-                  data-testid="link-register"
+                  className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700"
                 >
-                  Create one free
+                  <ArrowLeft className="h-3.5 w-3.5" /> Back to Home
                 </button>
-              </p>
+              </Link>
             </CardFooter>
           </form>
         </Card>
