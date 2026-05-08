@@ -28,13 +28,13 @@ export type ReportDimension = {
 
 export type Project = {
   id: string;
-   workspaceId: string;
-   title: string;
-   clientName: string;
-   address?: string;
-   description?: string;
-   logoUrl?: string;
-   createdAt: string;
+  workspaceId: string;
+  title: string;
+  clientName: string;
+  address?: string;
+  description?: string;
+  logoUrl?: string;
+  createdAt: string;
 };
 
 export type Issue = {

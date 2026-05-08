@@ -20,7 +20,12 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ email, password }),
     }),
-  register: (data: { name: string; email: string; password: string; companyName: string }) =>
+  register: (data: {
+    name: string;
+    email: string;
+    password: string;
+    companyName: string;
+  }) =>
     request<{ user: any; workspace: any }>("/api/auth/register", {
       method: "POST",
       body: JSON.stringify(data),
@@ -34,9 +39,15 @@ export const api = {
   // Checklist templates
   getChecklistTemplates: () => request<any[]>("/api/checklist-templates"),
   createChecklistTemplate: (data: any) =>
-    request<any>("/api/checklist-templates", { method: "POST", body: JSON.stringify(data) }),
+    request<any>("/api/checklist-templates", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
   updateChecklistTemplate: (id: string, data: any) =>
-    request<any>(`/api/checklist-templates/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+    request<any>(`/api/checklist-templates/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
   deleteChecklistTemplate: (id: string) =>
     request(`/api/checklist-templates/${id}`, { method: "DELETE" }),
 
@@ -44,25 +55,44 @@ export const api = {
   getProjects: () => request<any[]>("/api/projects"),
   getProject: (id: string) => request<any>(`/api/projects/${id}`),
   createProject: (data: any) =>
-    request<any>("/api/projects", { method: "POST", body: JSON.stringify(data) }),
+    request<any>("/api/projects", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
   updateProject: (id: string, data: any) =>
-    request<any>(`/api/projects/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+    request<any>(`/api/projects/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
   deleteProject: (id: string) =>
     request(`/api/projects/${id}`, { method: "DELETE" }),
 
   // Team
   getTeam: () => request<any[]>("/api/team"),
-  addTeamMember: (data: { name: string; email: string; password: string; role: string }) =>
+  addTeamMember: (data: {
+    name: string;
+    email: string;
+    password: string;
+    role: string;
+  }) =>
     request<any>("/api/team", { method: "POST", body: JSON.stringify(data) }),
-  removeTeamMember: (id: string) => request(`/api/team/${id}`, { method: "DELETE" }),
+  removeTeamMember: (id: string) =>
+    request(`/api/team/${id}`, { method: "DELETE" }),
 
   // Reports
-  getReports: (projectId: string) => request<any[]>(`/api/projects/${projectId}/reports`),
+  getReports: (projectId: string) =>
+    request<any[]>(`/api/projects/${projectId}/reports`),
   getReport: (id: string) => request<any>(`/api/reports/${id}`),
   createReport: (projectId: string, data: any) =>
-    request<any>(`/api/projects/${projectId}/reports`, { method: "POST", body: JSON.stringify(data) }),
+    request<any>(`/api/projects/${projectId}/reports`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
   updateReport: (id: string, data: any) =>
-    request<any>(`/api/reports/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+    request<any>(`/api/reports/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
   deleteReport: (id: string) =>
     request(`/api/reports/${id}`, { method: "DELETE" }),
 };

@@ -15,7 +15,11 @@ import Register from "@/pages/Register";
 import NotFound from "@/pages/not-found";
 import { Loader2 } from "lucide-react";
 
-function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
+function ProtectedRoute({
+  component: Component,
+}: {
+  component: React.ComponentType;
+}) {
   const { user, isLoading } = useAuth();
   if (isLoading) {
     return (
@@ -28,7 +32,11 @@ function ProtectedRoute({ component: Component }: { component: React.ComponentTy
   return <Component />;
 }
 
-function PublicRoute({ component: Component }: { component: React.ComponentType }) {
+function PublicRoute({
+  component: Component,
+}: {
+  component: React.ComponentType;
+}) {
   const { user, isLoading } = useAuth();
   if (isLoading) {
     return (
@@ -53,7 +61,9 @@ function Router() {
           <div className="text-center space-y-3">
             <div className="text-4xl">🚧</div>
             <h1 className="text-2xl font-bold text-slate-800">Coming Soon</h1>
-            <p className="text-slate-500 text-sm">Registration is temporarily disabled. Check back soon!</p>
+            <p className="text-slate-500 text-sm">
+              Registration is temporarily disabled. Check back soon!
+            </p>
           </div>
         </div>
       </Route>

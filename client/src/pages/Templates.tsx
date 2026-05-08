@@ -6,7 +6,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { LockKeyhole, Plus, Trash2, X, Pencil, ChevronDown, ChevronRight } from "lucide-react";
+import {
+  LockKeyhole,
+  Plus,
+  Trash2,
+  X,
+  Pencil,
+  ChevronDown,
+  ChevronRight,
+} from "lucide-react";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -45,10 +53,24 @@ export default function Templates() {
   const [selectedType, setSelectedType] = useState<string>("Home Inspection");
   const PREDEFINED_TYPES = ["Home Inspection", "Dampness Inspection"];
   const PREDEFINED_CATEGORIES_BY_TYPE: Record<string, string[]> = {
-    "Home Inspection": ["Bedroom", "Bathroom", "Balcony", "Common Area", "External Area"],
-    "Dampness Inspection": ["External Walls", "Bathroom", "Utility Area", "Terrace/Roof", "Water Tank", "Appliances"],
+    "Home Inspection": [
+      "Bedroom",
+      "Bathroom",
+      "Balcony",
+      "Common Area",
+      "External Area",
+    ],
+    "Dampness Inspection": [
+      "External Walls",
+      "Bathroom",
+      "Utility Area",
+      "Terrace/Roof",
+      "Water Tank",
+      "Appliances",
+    ],
   };
-  const PREDEFINED_CATEGORIES = PREDEFINED_CATEGORIES_BY_TYPE[selectedType] || [];
+  const PREDEFINED_CATEGORIES =
+    PREDEFINED_CATEGORIES_BY_TYPE[selectedType] || [];
   const [newItem, setNewItem] = useState({
     category: "",
     point: "",
@@ -68,11 +90,11 @@ export default function Templates() {
   });
 
   const filteredTemplates = templates.filter(
-    (t: any) => t.checklistType === selectedType
+    (t: any) => t.checklistType === selectedType,
   );
 
   const customTypes = Array.from(
-    new Set(templates.map((t: any) => t.checklistType).filter(Boolean))
+    new Set(templates.map((t: any) => t.checklistType).filter(Boolean)),
   ).filter((t) => !PREDEFINED_TYPES.includes(t));
   const allTypes = [...PREDEFINED_TYPES, ...customTypes].sort((a, b) => {
     const aIdx = PREDEFINED_TYPES.indexOf(a);
@@ -134,7 +156,10 @@ export default function Templates() {
         : [];
     if (!lines.length) return;
 
-    const maxOrder = templates.reduce((max, t) => Math.max(max, t.order || 0), 0);
+    const maxOrder = templates.reduce(
+      (max, t) => Math.max(max, t.order || 0),
+      0,
+    );
     let order = maxOrder + 1;
     for (const line of lines) {
       await createMutation.mutateAsync({
@@ -171,7 +196,10 @@ export default function Templates() {
     if (!editingItem?.point?.trim()) return;
     updateMutation.mutate({
       id: editingItem.id,
-      data: { point: editingItem.point.trim(), triggerOn: editingItem.triggerOn },
+      data: {
+        point: editingItem.point.trim(),
+        triggerOn: editingItem.triggerOn,
+      },
     });
     setEditDialogOpen(false);
   };
@@ -180,11 +208,14 @@ export default function Templates() {
     updateMutation.mutate({ id: item.id, data: { triggerOn: val } });
   };
 
-  const grouped = filteredTemplates.reduce((acc: Record<string, any[]>, item: any) => {
-    if (!acc[item.category]) acc[item.category] = [];
-    acc[item.category].push(item);
-    return acc;
-  }, {});
+  const grouped = filteredTemplates.reduce(
+    (acc: Record<string, any[]>, item: any) => {
+      if (!acc[item.category]) acc[item.category] = [];
+      acc[item.category].push(item);
+      return acc;
+    },
+    {},
+  );
   const categories = Object.keys(grouped).sort((a, b) => {
     const aIdx = PREDEFINED_CATEGORIES.indexOf(a);
     const bIdx = PREDEFINED_CATEGORIES.indexOf(b);
@@ -196,8 +227,13 @@ export default function Templates() {
     if (!aIsPredef && bIsPredef) return 1;
     return a.localeCompare(b);
   });
-  const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>(
-    categories.reduce((acc, cat) => ({ ...acc, [cat]: true }), {} as Record<string, boolean>)
+  const [expandedCategories, setExpandedCategories] = useState<
+    Record<string, boolean>
+  >(
+    categories.reduce(
+      (acc, cat) => ({ ...acc, [cat]: true }),
+      {} as Record<string, boolean>,
+    ),
   );
 
   const toggleCategory = (cat: string) =>
@@ -223,8 +259,8 @@ export default function Templates() {
               {selectedType} Checklist
             </h1>
             <p className="mt-2 text-base text-slate-500 md:text-lg">
-              Define inspection points for {selectedType}. Click any point to edit it.
-              Use bulk-add to paste many points at once.
+              Define inspection points for {selectedType}. Click any point to
+              edit it. Use bulk-add to paste many points at once.
             </p>
           </div>
         </div>
@@ -327,78 +363,82 @@ export default function Templates() {
                   {expandedCategories[category] && (
                     <CardContent className="p-0">
                       <div className="divide-y divide-slate-100">
-                      {items.map((item: any, idx: number) => (
-                        <div
-                          key={item.id}
-                          className="flex items-center gap-3 px-4 py-2.5 hover:bg-slate-50/70 group"
-                          data-testid={`checklist-item-${item.id}`}
-                        >
-                          <div className="w-5 h-5 rounded-full border border-slate-200 flex items-center justify-center shrink-0 text-[10px] text-slate-400 font-medium">
-                            {idx + 1}
-                          </div>
+                        {items.map((item: any, idx: number) => (
+                          <div
+                            key={item.id}
+                            className="flex items-center gap-3 px-4 py-2.5 hover:bg-slate-50/70 group"
+                            data-testid={`checklist-item-${item.id}`}
+                          >
+                            <div className="w-5 h-5 rounded-full border border-slate-200 flex items-center justify-center shrink-0 text-[10px] text-slate-400 font-medium">
+                              {idx + 1}
+                            </div>
 
-                          <p className="text-sm flex-1" data-testid={`text-point-${item.id}`}>
-                            {item.point}
-                          </p>
-
-                          <span className={`text-[10px] px-1.5 py-0.5 rounded border shrink-0 ${item.triggerOn === "yes" ? "border-green-200 bg-green-50 text-green-700" : "border-slate-200 bg-slate-100 text-slate-500"}`}>
-                            {item.triggerOn === "yes" ? "YES" : "NO"}
-                          </span>
-
-                          <div className="flex items-center gap-1 shrink-0">
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              className="h-7 w-7 text-slate-400 hover:text-blue-600 hover:bg-blue-50"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                startEdit(item);
-                              }}
+                            <p
+                              className="text-sm flex-1"
+                              data-testid={`text-point-${item.id}`}
                             >
-                              <Pencil className="h-3.5 w-3.5" />
-                            </Button>
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-7 w-7 text-slate-400 hover:text-red-600 hover:bg-red-50"
-                                  data-testid={`button-delete-checklist-${item.id}`}
-                                >
-                                  <Trash2 className="h-3.5 w-3.5" />
-                                </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>
-                                    Delete Checkpoint?
-                                  </AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    Are you sure you want to delete "
-                                    <strong>{item.point}</strong>"? This
-                                    will be removed from all new reports.
-                                    Existing reports keep this point unless
-                                    you sync.
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>
-                                    Cancel
-                                  </AlertDialogCancel>
-                                  <AlertDialogAction
-                                    onClick={() =>
-                                      deleteMutation.mutate(item.id)
-                                    }
-                                    className="bg-red-600 hover:bg-red-700"
+                              {item.point}
+                            </p>
+
+                            <span
+                              className={`text-[10px] px-1.5 py-0.5 rounded border shrink-0 ${item.triggerOn === "yes" ? "border-green-200 bg-green-50 text-green-700" : "border-slate-200 bg-slate-100 text-slate-500"}`}
+                            >
+                              {item.triggerOn === "yes" ? "YES" : "NO"}
+                            </span>
+
+                            <div className="flex items-center gap-1 shrink-0">
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-7 w-7 text-slate-400 hover:text-blue-600 hover:bg-blue-50"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  startEdit(item);
+                                }}
+                              >
+                                <Pencil className="h-3.5 w-3.5" />
+                              </Button>
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-7 w-7 text-slate-400 hover:text-red-600 hover:bg-red-50"
+                                    data-testid={`button-delete-checklist-${item.id}`}
                                   >
-                                    Delete
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>
+                                      Delete Checkpoint?
+                                    </AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      Are you sure you want to delete "
+                                      <strong>{item.point}</strong>"? This will
+                                      be removed from all new reports. Existing
+                                      reports keep this point unless you sync.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>
+                                      Cancel
+                                    </AlertDialogCancel>
+                                    <AlertDialogAction
+                                      onClick={() =>
+                                        deleteMutation.mutate(item.id)
+                                      }
+                                      className="bg-red-600 hover:bg-red-700"
+                                    >
+                                      Delete
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            </div>
                           </div>
-                        </div>
-                      ))}
+                        ))}
                       </div>
                     </CardContent>
                   )}
@@ -566,10 +606,13 @@ export default function Templates() {
         </Dialog>
 
         {/* Edit Item Dialog */}
-        <Dialog open={editDialogOpen} onOpenChange={(open) => {
-          setEditDialogOpen(open);
-          if (!open) setEditingItem(null);
-        }}>
+        <Dialog
+          open={editDialogOpen}
+          onOpenChange={(open) => {
+            setEditDialogOpen(open);
+            if (!open) setEditingItem(null);
+          }}
+        >
           <DialogContent className="sm:max-w-135">
             <DialogHeader>
               <DialogTitle>Edit Checklist Point</DialogTitle>
@@ -637,7 +680,8 @@ export default function Templates() {
             <DialogHeader>
               <DialogTitle>Add Checklist Type</DialogTitle>
               <DialogDescription>
-                Create a new inspection type (e.g., Home Inspection, Dampness Inspection, Commercial Inspection)
+                Create a new inspection type (e.g., Home Inspection, Dampness
+                Inspection, Commercial Inspection)
               </DialogDescription>
             </DialogHeader>
             <div className="py-4">
@@ -658,7 +702,10 @@ export default function Templates() {
               />
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setIsTypeDialogOpen(false)}>
+              <Button
+                variant="outline"
+                onClick={() => setIsTypeDialogOpen(false)}
+              >
                 Cancel
               </Button>
               <Button

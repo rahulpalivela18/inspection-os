@@ -4,7 +4,14 @@ import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { ClipboardCheck, Loader2, Eye, EyeOff } from "lucide-react";
 
 function isValidEmail(email: string) {
@@ -21,8 +28,14 @@ export default function Login() {
   const [serverError, setServerError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const emailError = touched.email && !isValidEmail(email) ? "Please enter a valid email address." : "";
-  const passwordError = touched.password && password.length < 6 ? "Password must be at least 6 characters." : "";
+  const emailError =
+    touched.email && !isValidEmail(email)
+      ? "Please enter a valid email address."
+      : "";
+  const passwordError =
+    touched.password && password.length < 6
+      ? "Password must be at least 6 characters."
+      : "";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -55,12 +68,17 @@ export default function Login() {
         <Card className="shadow-lg border-0">
           <CardHeader className="pb-4">
             <CardTitle className="text-xl">Welcome back</CardTitle>
-            <CardDescription>Enter your credentials to continue</CardDescription>
+            <CardDescription>
+              Enter your credentials to continue
+            </CardDescription>
           </CardHeader>
           <form onSubmit={handleSubmit} noValidate>
             <CardContent className="space-y-4">
               {serverError && (
-                <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2" data-testid="text-login-error">
+                <div
+                  className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2"
+                  data-testid="text-login-error"
+                >
                   {serverError}
                 </div>
               )}
@@ -73,10 +91,18 @@ export default function Login() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   onBlur={() => setTouched((t) => ({ ...t, email: true }))}
-                  className={emailError ? "border-red-400 focus-visible:ring-red-400" : ""}
+                  className={
+                    emailError
+                      ? "border-red-400 focus-visible:ring-red-400"
+                      : ""
+                  }
                   data-testid="input-email"
                 />
-                {emailError && <p className="text-xs text-red-500" data-testid="error-email">{emailError}</p>}
+                {emailError && (
+                  <p className="text-xs text-red-500" data-testid="error-email">
+                    {emailError}
+                  </p>
+                )}
               </div>
               <div className="space-y-1">
                 <Label htmlFor="password">Password</Label>
@@ -88,7 +114,11 @@ export default function Login() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     onBlur={() => setTouched((t) => ({ ...t, password: true }))}
-                    className={passwordError ? "border-red-400 focus-visible:ring-red-400 pr-10" : "pr-10"}
+                    className={
+                      passwordError
+                        ? "border-red-400 focus-visible:ring-red-400 pr-10"
+                        : "pr-10"
+                    }
                     data-testid="input-password"
                   />
                   <button
@@ -98,15 +128,38 @@ export default function Login() {
                     tabIndex={-1}
                     data-testid="button-toggle-password"
                   >
-                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    {showPassword ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
                   </button>
                 </div>
-                {passwordError && <p className="text-xs text-red-500" data-testid="error-password">{passwordError}</p>}
+                {passwordError && (
+                  <p
+                    className="text-xs text-red-500"
+                    data-testid="error-password"
+                  >
+                    {passwordError}
+                  </p>
+                )}
               </div>
             </CardContent>
             <CardFooter className="flex flex-col gap-3 pt-2">
-              <Button type="submit" className="w-full" disabled={loading} data-testid="button-login">
-                {loading ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Signing in...</> : "Sign In"}
+              <Button
+                type="submit"
+                className="w-full"
+                disabled={loading}
+                data-testid="button-login"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Signing
+                    in...
+                  </>
+                ) : (
+                  "Sign In"
+                )}
               </Button>
               <p className="text-sm text-center text-slate-500">
                 Don't have an account?{" "}
