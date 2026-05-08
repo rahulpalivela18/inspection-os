@@ -23,10 +23,7 @@ export default function Contact() {
           </Link>
           <div className="flex items-center gap-2">
             <Link href="/login">
-              <Button
-                variant="outline"
-                className="rounded-xl font-semibold"
-              >
+              <Button variant="outline" className="rounded-xl font-semibold">
                 Log In
               </Button>
             </Link>

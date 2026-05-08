@@ -15,7 +15,10 @@ export default function Footer() {
           <Link href="/" className="hover:text-primary transition-colors">
             Home
           </Link>
-          <Link href="/contact" className="hover:text-primary transition-colors">
+          <Link
+            href="/contact"
+            className="hover:text-primary transition-colors"
+          >
             Contact
           </Link>
           <Link href="/login" className="hover:text-primary transition-colors">

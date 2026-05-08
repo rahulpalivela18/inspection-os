@@ -151,15 +151,8 @@ export default function LandingPage() {
           <p className="text-sm font-medium text-slate-500">
             Want to see a finished report?
           </p>
-          <a
-            href="/pdfs/ReportGen_Sample.pdf"
-            target="_blank"
-            download
-          >
-            <Button
-              variant="outline"
-              className="rounded-xl gap-2"
-            >
+          <a href="/pdfs/ReportGen_Sample.pdf" target="_blank" download>
+            <Button variant="outline" className="rounded-xl gap-2">
               <FileText className="h-4 w-4" />
               Download Sample PDF
             </Button>
@@ -276,7 +269,9 @@ export default function LandingPage() {
               </div>
 
               <div className="mb-8 text-center">
-                <span className="text-5xl font-black text-slate-900">₹{plan.price}</span>
+                <span className="text-5xl font-black text-slate-900">
+                  ₹{plan.price}
+                </span>
                 <span className="text-base font-medium text-slate-500">
                   /month
                 </span>
@@ -284,7 +279,10 @@ export default function LandingPage() {
 
               <ul className="mb-8 flex-1 space-y-3">
                 {plan.features.map((f) => (
-                  <li key={f} className="flex items-center gap-3 text-sm text-slate-700">
+                  <li
+                    key={f}
+                    className="flex items-center gap-3 text-sm text-slate-700"
+                  >
                     <CheckCircle2 className="h-5 w-5 shrink-0 text-primary" />
                     {f}
                   </li>
@@ -313,8 +311,8 @@ export default function LandingPage() {
           className="mx-auto mt-16 max-w-2xl rounded-2xl border border-slate-200 bg-white/50 p-6 text-center backdrop-blur-sm"
         >
           <p className="text-sm leading-relaxed text-slate-600">
-            One subscription per company/workspace. No per-user billing complexity.{" "}
-            <br className="hidden sm:inline" />
+            One subscription per company/workspace. No per-user billing
+            complexity. <br className="hidden sm:inline" />
             Best for small teams. Easy to upgrade later.
           </p>
         </motion.div>
