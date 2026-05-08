@@ -19,6 +19,7 @@ export type DimensionUnit = "ft" | "m";
 export type ReportDimension = {
   id: string;
   space: string;
+  spaceName?: string;
   length: string;
   width: string;
   unit: DimensionUnit;
