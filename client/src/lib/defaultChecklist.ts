@@ -21,7 +21,7 @@ export const DEFAULT_DIMENSION_UNIT: DimensionUnit = "ft";
 export const buildDimensionsFromChecklist = (
   checklist: ChecklistItem[] = [],
   existingDimensions: ReportDimension[] = [],
-  defaultUnit: DimensionUnit = DEFAULT_DIMENSION_UNIT
+  defaultUnit: DimensionUnit = DEFAULT_DIMENSION_UNIT,
 ): ReportDimension[] => {
   const spaces = Array.from(new Set(checklist.map((item) => item.category)));
   const existingBySpace = new Map(existingDimensions.map((d) => [d.space, d]));

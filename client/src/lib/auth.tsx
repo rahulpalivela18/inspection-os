@@ -1,4 +1,10 @@
-import { createContext, useContext, ReactNode, useState, useEffect } from "react";
+import {
+  createContext,
+  useContext,
+  ReactNode,
+  useState,
+  useEffect,
+} from "react";
 import { api } from "./api";
 import { queryClient } from "./queryClient";
 
@@ -23,7 +29,12 @@ type AuthContextType = {
   workspace: Workspace | null;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  register: (data: { name: string; email: string; password: string; companyName: string }) => Promise<void>;
+  register: (data: {
+    name: string;
+    email: string;
+    password: string;
+    companyName: string;
+  }) => Promise<void>;
   logout: () => Promise<void>;
   refreshWorkspace: (data: Partial<Workspace>) => void;
 };
@@ -36,7 +47,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    api.me()
+    api
+      .me()
       .then(({ user, workspace }) => {
         setUser(user);
         setWorkspace(workspace);
@@ -52,7 +64,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setWorkspace(data.workspace);
   };
 
-  const register = async (formData: { name: string; email: string; password: string; companyName: string }) => {
+  const register = async (formData: {
+    name: string;
+    email: string;
+    password: string;
+    companyName: string;
+  }) => {
     const data = await api.register(formData);
     queryClient.clear();
     setUser(data.user);
@@ -70,11 +87,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const refreshWorkspace = (data: Partial<Workspace>) => {
-    setWorkspace((prev) => prev ? { ...prev, ...data } : prev);
+    setWorkspace((prev) => (prev ? { ...prev, ...data } : prev));
   };
 
   return (
-    <AuthContext.Provider value={{ user, workspace, isLoading, login, register, logout, refreshWorkspace }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        workspace,
+        isLoading,
+        login,
+        register,
+        logout,
+        refreshWorkspace,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

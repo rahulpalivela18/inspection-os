@@ -1,5 +1,12 @@
 import { Link, useLocation } from "wouter";
-import { LayoutDashboard, FolderOpen, Settings, Menu, Building2, CheckSquare } from "lucide-react";
+import {
+  LayoutDashboard,
+  FolderOpen,
+  Settings,
+  Menu,
+  Building2,
+  CheckSquare,
+} from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -21,7 +28,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     <div className="flex h-full flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground">
       <div className="space-y-4 p-6">
         <div className="flex items-center gap-2 font-heading text-2xl font-bold text-primary">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">R</div>
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+            R
+          </div>
           ReportGen
         </div>
         <div className="rounded-2xl border border-indigo-100 bg-gradient-to-br from-indigo-50 via-white to-slate-50 p-4 shadow-sm">
@@ -30,9 +39,16 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               <Building2 className="h-4 w-4" />
             </div>
             <div className="min-w-0">
-              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-indigo-600">Your workspace</p>
-              <h3 className="truncate text-sm font-semibold text-slate-900">{workspace?.name || "Loading..."}</h3>
-              <p className="mt-1 text-xs text-slate-500">One default checklist is added automatically to every new report.</p>
+              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-indigo-600">
+                Your workspace
+              </p>
+              <h3 className="truncate text-sm font-semibold text-slate-900">
+                {workspace?.name || "Loading..."}
+              </h3>
+              <p className="mt-1 text-xs text-slate-500">
+                One default checklist is added automatically to every new
+                report.
+              </p>
             </div>
           </div>
         </div>
@@ -49,10 +65,12 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                   "flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition-all duration-200 cursor-pointer",
                   isActive
                     ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm"
-                    : "text-muted-foreground hover:bg-sidebar-accent/50 hover:text-foreground"
+                    : "text-muted-foreground hover:bg-sidebar-accent/50 hover:text-foreground",
                 )}
               >
-                <item.icon className={cn("h-4 w-4", isActive ? "text-primary" : "")} />
+                <item.icon
+                  className={cn("h-4 w-4", isActive ? "text-primary" : "")}
+                />
                 {item.name}
               </div>
             </Link>
@@ -67,12 +85,22 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               <CheckSquare className="h-4 w-4" />
             </div>
             <div>
-              <h4 className="text-sm font-semibold text-slate-900">Simple report flow</h4>
-              <p className="mt-1 text-xs text-slate-500">Create a report, open it, and start filling the checklist right away.</p>
+              <h4 className="text-sm font-semibold text-slate-900">
+                Simple report flow
+              </h4>
+              <p className="mt-1 text-xs text-slate-500">
+                Create a report, open it, and start filling the checklist right
+                away.
+              </p>
             </div>
           </div>
           <Link href="/templates">
-            <Button size="sm" variant="outline" className="mt-4 w-full" data-testid="button-view-default-checklist">
+            <Button
+              size="sm"
+              variant="outline"
+              className="mt-4 w-full"
+              data-testid="button-view-default-checklist"
+            >
               View default checklist
             </Button>
           </Link>
@@ -89,12 +117,19 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
       <div className="fixed left-0 right-0 top-0 z-40 flex h-14 items-center justify-between border-b border-sidebar-border bg-background px-4 md:hidden">
         <div className="flex items-center gap-2 font-heading text-lg font-bold text-primary">
-          <div className="flex h-6 w-6 items-center justify-center rounded bg-primary text-[10px] text-primary-foreground">R</div>
+          <div className="flex h-6 w-6 items-center justify-center rounded bg-primary text-[10px] text-primary-foreground">
+            R
+          </div>
           ReportGen
         </div>
         <Sheet open={isMobileOpen} onOpenChange={setIsMobileOpen}>
           <SheetTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-9 w-9" data-testid="button-open-mobile-menu">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9"
+              data-testid="button-open-mobile-menu"
+            >
               <Menu className="h-5 w-5" />
             </Button>
           </SheetTrigger>
