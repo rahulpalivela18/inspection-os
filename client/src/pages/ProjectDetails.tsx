@@ -98,11 +98,7 @@ const buildChecklistWithPreservedResponses = (
     triggerOn?: "yes" | "no";
   }>,
   currentChecklist: ChecklistItem[] = [],
-  spaceCounts: { bedrooms: number; bathrooms: number; balconies: number } = {
-    bedrooms: 1,
-    bathrooms: 1,
-    balconies: 1,
-  },
+  repeatableCounts: Record<string, number> = {},
 ): ChecklistItem[] => {
   let runningId = currentChecklist.length + 1;
   const items: ChecklistItem[] = [];
@@ -111,35 +107,15 @@ const buildChecklistWithPreservedResponses = (
     currentChecklist.map((item) => [`${item.category}:::${item.point}`, item]),
   );
 
-  const repeatableCategories = ["bedroom", "bathroom", "balcony"];
+  const allCategories = Array.from(new Set(templates.map((t) => t.category)));
 
-  const categories = Array.from(
-    new Set(
-      templates.map((t) => {
-        const cat = t.category.toLowerCase().trim();
-        return repeatableCategories.includes(cat) ? cat : t.category;
-      }),
-    ),
-  );
+  for (const cat of allCategories) {
+    const catTemplates = templates.filter((t) => t.category === cat);
+    const repeatCount = repeatableCounts[cat] || 0;
 
-  for (const cat of categories) {
-    const catTemplates = templates.filter((t) => {
-      const tCat = t.category.toLowerCase().trim();
-      return repeatableCategories.includes(tCat)
-        ? tCat === cat
-        : t.category === cat;
-    });
-
-    if (repeatableCategories.includes(cat.toLowerCase())) {
-      const count =
-        cat === "bedroom"
-          ? spaceCounts.bedrooms
-          : cat === "bathroom"
-            ? spaceCounts.bathrooms
-            : spaceCounts.balconies;
-
-      for (let i = 1; i <= count; i++) {
-        const spaceLabel = `${cat.charAt(0).toUpperCase() + cat.slice(1)} ${i}`;
+    if (repeatCount > 0) {
+      for (let i = 1; i <= repeatCount; i++) {
+        const spaceLabel = `${cat} ${i}`;
 
         for (const template of catTemplates) {
           const key = `${spaceLabel}:::${template.point}`;
@@ -156,23 +132,6 @@ const buildChecklistWithPreservedResponses = (
               triggerOn: template.triggerOn ?? "no",
             });
           }
-        }
-      }
-    } else {
-      for (const template of catTemplates) {
-        const key = `${template.category}:::${template.point}`;
-        const existing = preservedItems.get(key);
-
-        if (existing) {
-          items.push({ ...existing, triggerOn: template.triggerOn ?? "no" });
-        } else {
-          items.push({
-            id: `c${runningId++}`,
-            category: template.category,
-            point: template.point,
-            status: null,
-            triggerOn: template.triggerOn ?? "no",
-          });
         }
       }
     }
@@ -202,7 +161,6 @@ export default function ProjectDetails() {
   const [isEditProjectOpen, setIsEditProjectOpen] = useState(false);
   const [isEditReportOpen, setIsEditReportOpen] = useState(false);
   const [editingReport, setEditingReport] = useState<any>(null);
-  const [editInspectionTypeInput, setEditInspectionTypeInput] = useState("");
   const [reportToDelete, setReportToDelete] = useState<any>(null);
   const [editProjectData, setEditProjectData] = useState<any>(null);
 
@@ -214,7 +172,12 @@ export default function ProjectDetails() {
     date: format(new Date(), "yyyy-MM-dd"),
     spaceCounts: { ...DEFAULT_SPACE_COUNTS },
   });
-  const [inspectionTypeInput, setInspectionTypeInput] = useState("");
+  const [categoryCounts, setCategoryCounts] = useState<Record<string, number>>(
+    {},
+  );
+  const [editCategoryCounts, setEditCategoryCounts] = useState<
+    Record<string, number>
+  >({});
 
   const { data: project, isLoading: loadingProject } = useQuery({
     queryKey: ["project", params?.id],
@@ -262,7 +225,7 @@ export default function ProjectDetails() {
         date: format(new Date(), "yyyy-MM-dd"),
         spaceCounts: { ...DEFAULT_SPACE_COUNTS },
       });
-      setInspectionTypeInput("");
+      setCategoryCounts({});
       setLocation(`/report/${report.id}`);
     },
     onError: (err: any) =>
@@ -300,9 +263,9 @@ export default function ProjectDetails() {
       toast({
         title: "Error",
         description: err.message,
-       variant: "destructive",
-       }),
-   });
+        variant: "destructive",
+      }),
+  });
 
   const updateSpaceCount = (key: keyof ReportSpaceCounts, value: string) => {
     const nextValue = Math.max(0, Number(value) || 0);
@@ -328,18 +291,39 @@ export default function ProjectDetails() {
         report.spaceCounts ?? DEFAULT_SPACE_COUNTS,
       ),
     });
+    const reportType = Array.isArray(report.inspectionType)
+      ? report.inspectionType[0]
+      : report.inspectionType || "Home Inspection";
+    const typeTemplates = checklistTemplates.filter(
+      (t: any) => t.checklistType === reportType,
+    );
+    const typeCategories = Array.from(
+      new Set(typeTemplates.map((t: any) => t.category)),
+    );
+
+    const counts: Record<string, number> = {};
+    typeCategories.forEach((cat: any) => {
+      counts[cat] = report.spaceCounts?.[cat] ?? 0;
+    });
+
+    setEditCategoryCounts(counts);
     setIsEditReportOpen(true);
   };
 
   const handleUpdateReport = () => {
     if (!editingReport?.title) return;
-    const nextSpaceCounts = normalizeSpaceCounts(
-      editingReport.spaceCounts ?? DEFAULT_SPACE_COUNTS,
+    const selectedType = editingReport.inspectionType?.[0] || "Home Inspection";
+    const typeTemplates = checklistTemplates.filter(
+      (t: any) => t.checklistType === selectedType,
     );
+    const typeCategories = Array.from(
+      new Set(typeTemplates.map((t: any) => t.category)),
+    );
+
     const nextChecklist = buildChecklistWithPreservedResponses(
-      checklistTemplates,
+      typeTemplates,
       editingReport.checklist,
-      nextSpaceCounts,
+      editCategoryCounts,
     );
     const nextDimensionUnit =
       editingReport.dimensionUnit ?? DEFAULT_DIMENSION_UNIT;
@@ -353,9 +337,10 @@ export default function ProjectDetails() {
       id: editingReport.id,
       data: {
         ...editingReport,
-        inspectionType:
-          Array.isArray(editingReport.inspectionType) ? editingReport.inspectionType : [editingReport.inspectionType || "Home Inspection"],
-        spaceCounts: nextSpaceCounts,
+        inspectionType: Array.isArray(editingReport.inspectionType)
+          ? editingReport.inspectionType
+          : [editingReport.inspectionType || "Home Inspection"],
+        spaceCounts: editCategoryCounts,
         dimensionUnit: nextDimensionUnit,
         dimensions: nextDimensions,
         checklist: nextChecklist,
@@ -364,15 +349,39 @@ export default function ProjectDetails() {
   };
 
   const handleCreateReport = () => {
-    if (
-      !newReport.title ||
-      !newReport.author ||
-      checklistTemplates.length === 0
-    )
-      return;
-    const checklist = buildChecklistFromTemplates(checklistTemplates);
-    createReportMutation.mutate({
-      ...newReport,
+    if (!newReport.title || !newReport.author) return;
+    const selectedTemplates = checklistTemplates.filter((t: any) =>
+      newReport.inspectionType.includes(t.checklistType),
+    );
+
+    const checklist = buildChecklistWithPreservedResponses(
+      selectedTemplates,
+      [],
+      categoryCounts,
+    );
+
+    const isHomeInspection = newReport.inspectionType[0] === "Home Inspection";
+    let spaceCountsToSave: Record<string, number> | null = null;
+    if (isHomeInspection) {
+      spaceCountsToSave = { bedrooms: 0, bathrooms: 0, balconies: 0 };
+      Object.entries(categoryCounts).forEach(([cat, count]) => {
+        const catLower = cat.toLowerCase();
+        if (catLower.includes("bedroom")) spaceCountsToSave!.bedrooms = count;
+        else if (catLower.includes("bathroom"))
+          spaceCountsToSave!.bathrooms = count;
+        else if (catLower.includes("balcony"))
+          spaceCountsToSave!.balconies = count;
+      });
+    } else {
+      spaceCountsToSave = categoryCounts as Record<string, number>;
+    }
+
+    const reportData = {
+      title: newReport.title,
+      author: newReport.author,
+      date: newReport.date,
+      status: newReport.status,
+      inspectionType: newReport.inspectionType,
       checklist,
       dimensionUnit: DEFAULT_DIMENSION_UNIT,
       dimensions: buildDimensionsFromChecklist(
@@ -380,7 +389,9 @@ export default function ProjectDetails() {
         [],
         DEFAULT_DIMENSION_UNIT,
       ),
-    });
+      spaceCounts: spaceCountsToSave,
+    };
+    createReportMutation.mutate(reportData);
   };
 
   if (!match || !params) return <NotFound />;
@@ -394,9 +405,16 @@ export default function ProjectDetails() {
     );
   if (!project) return <NotFound />;
 
+  const templatesToUse = checklistTemplates.filter((t: any) =>
+    newReport.inspectionType.includes(t.checklistType),
+  );
+  const repeatableCategories = Array.from(
+    new Set(templatesToUse.map((t: any) => t.category)),
+  );
   const checklistPreviewCount =
-    checklistTemplates.length > 0
-      ? buildChecklistFromTemplates(checklistTemplates).length
+    templatesToUse.length > 0
+      ? buildChecklistWithPreservedResponses(templatesToUse, [], categoryCounts)
+          .length
       : 0;
 
   return (
@@ -496,79 +514,32 @@ export default function ProjectDetails() {
                               <Label htmlFor="inspection-type">
                                 Type of inspection
                               </Label>
-                              <div className="flex flex-wrap gap-2 mb-2">
-                                {newReport.inspectionType.map(
-                                  (type: string, idx: number) => (
-                                    <span
-                                      key={idx}
-                                      className="inline-flex items-center gap-1 px-3 py-1 bg-slate-100 rounded-full text-sm"
-                                    >
+                              <Select
+                                value={newReport.inspectionType[0] || ""}
+                                onValueChange={(val) =>
+                                  setNewReport({
+                                    ...newReport,
+                                    inspectionType: [val],
+                                  })
+                                }
+                              >
+                                <SelectTrigger data-testid="select-inspection-type">
+                                  <SelectValue placeholder="Select inspection type" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {Array.from(
+                                    new Set(
+                                      checklistTemplates.map(
+                                        (t: any) => t.checklistType,
+                                      ),
+                                    ),
+                                  ).map((type: any) => (
+                                    <SelectItem key={type} value={type}>
                                       {type}
-                                      <button
-                                        type="button"
-                                        className="text-slate-400 hover:text-red-500"
-                                        onClick={() =>
-                                          setNewReport({
-                                            ...newReport,
-                                            inspectionType:
-                                              newReport.inspectionType.filter(
-                                                (_: any, i: number) =>
-                                                  i !== idx,
-                                              ),
-                                          })
-                                        }
-                                      >
-                                        ×
-                                      </button>
-                                    </span>
-                                  ),
-                                )}
-                              </div>
-                              <div className="flex gap-2">
-                                <Input
-                                  id="inspection-type"
-                                  placeholder="e.g. Home Inspection"
-                                  value={inspectionTypeInput}
-                                  onChange={(e) =>
-                                    setInspectionTypeInput(e.target.value)
-                                  }
-                                  onKeyDown={(e) => {
-                                    if (
-                                      e.key === "Enter" &&
-                                      inspectionTypeInput.trim()
-                                    ) {
-                                      e.preventDefault();
-                                      setNewReport({
-                                        ...newReport,
-                                        inspectionType: [
-                                          ...newReport.inspectionType,
-                                          inspectionTypeInput.trim(),
-                                        ],
-                                      });
-                                      setInspectionTypeInput("");
-                                    }
-                                  }}
-                                  data-testid="input-report-inspection-type"
-                                />
-                                <Button
-                                  type="button"
-                                  size="sm"
-                                  onClick={() => {
-                                    if (inspectionTypeInput.trim()) {
-                                      setNewReport({
-                                        ...newReport,
-                                        inspectionType: [
-                                          ...newReport.inspectionType,
-                                          inspectionTypeInput.trim(),
-                                        ],
-                                      });
-                                      setInspectionTypeInput("");
-                                    }
-                                  }}
-                                >
-                                  Add
-                                </Button>
-                              </div>
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
                             </div>
                           </div>
                           <div className="grid gap-2">
@@ -616,53 +587,31 @@ export default function ProjectDetails() {
                                 {checklistPreviewCount} points total
                               </div>
                             </div>
-                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                              <div className="grid gap-2">
-                                <Label htmlFor="bedrooms">Bedrooms</Label>
-                                <Input
-                                  id="bedrooms"
-                                  type="number"
-                                  min="0"
-                                  value={newReport.spaceCounts.bedrooms}
-                                  onChange={(e) =>
-                                    updateSpaceCount("bedrooms", e.target.value)
-                                  }
-                                  data-testid="input-bedroom-count"
-                                />
+                            {repeatableCategories.length === 0 ? (
+                              <p className="text-sm text-muted-foreground">
+                                No repeatable spaces for this inspection type.
+                              </p>
+                            ) : (
+                              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                                {repeatableCategories.map((cat: any) => (
+                                  <div key={cat} className="grid gap-2">
+                                    <Label htmlFor={cat}>{cat}</Label>
+                                    <Input
+                                      id={cat}
+                                      type="number"
+                                      min="0"
+                                      value={categoryCounts[cat] || 0}
+                                      onChange={(e) =>
+                                        setCategoryCounts((prev) => ({
+                                          ...prev,
+                                          [cat]: parseInt(e.target.value) || 0,
+                                        }))
+                                      }
+                                    />
+                                  </div>
+                                ))}
                               </div>
-                              <div className="grid gap-2">
-                                <Label htmlFor="bathrooms">Bathrooms</Label>
-                                <Input
-                                  id="bathrooms"
-                                  type="number"
-                                  min="0"
-                                  value={newReport.spaceCounts.bathrooms}
-                                  onChange={(e) =>
-                                    updateSpaceCount(
-                                      "bathrooms",
-                                      e.target.value,
-                                    )
-                                  }
-                                  data-testid="input-bathroom-count"
-                                />
-                              </div>
-                              <div className="grid gap-2">
-                                <Label htmlFor="balconies">Balconies</Label>
-                                <Input
-                                  id="balconies"
-                                  type="number"
-                                  min="0"
-                                  value={newReport.spaceCounts.balconies}
-                                  onChange={(e) =>
-                                    updateSpaceCount(
-                                      "balconies",
-                                      e.target.value,
-                                    )
-                                  }
-                                  data-testid="input-balcony-count"
-                                />
-                              </div>
-                            </div>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -740,12 +689,19 @@ export default function ProjectDetails() {
                           <h3 className="text-base md:text-lg font-semibold truncate group-hover:text-primary transition-colors">
                             {report.title}
                           </h3>
-                          <Badge
-                            variant="outline"
-                            className={`${getStatusColor(report.status)} border-0 font-medium text-[10px] md:text-xs`}
-                          >
-                            {report.status}
-                          </Badge>
+                          <div className="flex items-center gap-2">
+                            <Badge
+                              variant="outline"
+                              className={`${getStatusColor(report.status)} border-0 font-medium text-[10px] md:text-xs`}
+                            >
+                              {report.status}
+                            </Badge>
+                            {report.inspectionType?.[0] && (
+                              <span className="text-[10px] md:text-xs text-muted-foreground">
+                                {report.inspectionType[0]}
+                              </span>
+                            )}
+                          </div>
                         </div>
                         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] md:text-sm text-muted-foreground">
                           <span className="flex items-center gap-1">
@@ -759,27 +715,36 @@ export default function ProjectDetails() {
                             {format(new Date(report.createdAt), "MMM d")}
                           </span>
                         </div>
-                        {report.spaceCounts && (
-                          <div
-                            className="mt-3 flex flex-wrap gap-2"
-                            data-testid={`text-space-summary-${report.id}`}
-                          >
-                            <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-semibold text-slate-600">
-                              {report.spaceCounts.bedrooms} Bedroom
-                              {report.spaceCounts.bedrooms === 1 ? "" : "s"}
-                            </span>
-                            <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-semibold text-slate-600">
-                              {report.spaceCounts.bathrooms} Bathroom
-                              {report.spaceCounts.bathrooms === 1 ? "" : "s"}
-                            </span>
-                            <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-semibold text-slate-600">
-                              {report.spaceCounts.balconies}{" "}
-                              {report.spaceCounts.balconies === 1
-                                ? "Balcony"
-                                : "Balconies"}
-                            </span>
-                          </div>
-                        )}
+                        {report.spaceCounts &&
+                          report.inspectionType?.[0] === "Home Inspection" && (
+                            <div
+                              className="mt-3 flex flex-wrap gap-2"
+                              data-testid={`text-space-summary-${report.id}`}
+                            >
+                              {report.spaceCounts.bedrooms > 0 && (
+                                <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-semibold text-slate-600">
+                                  {report.spaceCounts.bedrooms} Bedroom
+                                  {report.spaceCounts.bedrooms === 1 ? "" : "s"}
+                                </span>
+                              )}
+                              {report.spaceCounts.bathrooms > 0 && (
+                                <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-semibold text-slate-600">
+                                  {report.spaceCounts.bathrooms} Bathroom
+                                  {report.spaceCounts.bathrooms === 1
+                                    ? ""
+                                    : "s"}
+                                </span>
+                              )}
+                              {report.spaceCounts.balconies > 0 && (
+                                <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-semibold text-slate-600">
+                                  {report.spaceCounts.balconies}{" "}
+                                  {report.spaceCounts.balconies === 1
+                                    ? "Balcony"
+                                    : "Balconies"}
+                                </span>
+                              )}
+                            </div>
+                          )}
                       </div>
                       <div className="flex-shrink-0 flex flex-col md:flex-row items-center md:border-l md:pl-4 mt-2 md:mt-0 pt-2 md:pt-0 border-t md:border-t-0 gap-2">
                         <Button
@@ -909,183 +874,163 @@ export default function ProjectDetails() {
                   </DialogDescription>
                 </DialogHeader>
                 <div className="flex-1 space-y-4 overflow-y-auto px-4 py-4 sm:px-6 sm:py-5">
-                <div className="grid gap-2">
-                  <Label>Report Title</Label>
-                  <Input
-                    value={editingReport.title}
-                    onChange={(e) =>
-                      setEditingReport({
-                        ...editingReport,
-                        title: e.target.value,
-                      })
-                    }
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label>Author</Label>
-                  <Input
-                    value={editingReport.author}
-                    onChange={(e) =>
-                      setEditingReport({
-                        ...editingReport,
-                        author: e.target.value,
-                      })
-                    }
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label>Inspection Type</Label>
-                  <div className="flex flex-wrap gap-2 mb-2">
-                    {(editingReport.inspectionType || []).map(
-                      (type: string, idx: number) => (
-                        <span
-                          key={idx}
-                          className="inline-flex items-center gap-1 px-3 py-1 bg-slate-100 rounded-full text-sm"
-                        >
-                          {type}
-                          <button
-                            type="button"
-                            className="text-slate-400 hover:text-red-500"
-                            onClick={() =>
-                              setEditingReport({
-                                ...editingReport,
-                                inspectionType:
-                                  editingReport.inspectionType.filter(
-                                    (_: any, i: number) => i !== idx,
-                                  ),
-                              })
-                            }
-                          >
-                            ×
-                          </button>
-                        </span>
-                      ),
-                    )}
-                  </div>
-                  <div className="flex gap-2">
+                  <div className="grid gap-2">
+                    <Label>Report Title</Label>
                     <Input
-                      placeholder="e.g. Dampness Inspection"
-                      value={editInspectionTypeInput}
+                      value={editingReport.title}
                       onChange={(e) =>
-                        setEditInspectionTypeInput(e.target.value)
+                        setEditingReport({
+                          ...editingReport,
+                          title: e.target.value,
+                        })
                       }
-                      onKeyDown={(e) => {
-                        if (
-                          e.key === "Enter" &&
-                          editInspectionTypeInput.trim()
-                        ) {
-                          e.preventDefault();
-                          setEditingReport({
-                            ...editingReport,
-                            inspectionType: [
-                              ...(editingReport.inspectionType || []),
-                              editInspectionTypeInput.trim(),
-                            ],
-                          });
-                          setEditInspectionTypeInput("");
-                        }
-                      }}
                     />
-                    <Button
-                      type="button"
-                      size="sm"
-                      onClick={() => {
-                        if (editInspectionTypeInput.trim()) {
-                          setEditingReport({
-                            ...editingReport,
-                            inspectionType: [
-                              ...(editingReport.inspectionType || []),
-                              editInspectionTypeInput.trim(),
-                            ],
-                          });
-                          setEditInspectionTypeInput("");
-                        }
+                  </div>
+                  <div className="grid gap-2">
+                    <Label>Author</Label>
+                    <Input
+                      value={editingReport.author}
+                      onChange={(e) =>
+                        setEditingReport({
+                          ...editingReport,
+                          author: e.target.value,
+                        })
+                      }
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label>Inspection Type</Label>
+                    <Select
+                      value={editingReport.inspectionType?.[0] || ""}
+                      onValueChange={(val) => {
+                        const newTypeTemplates = checklistTemplates.filter(
+                          (t: any) => t.checklistType === val,
+                        );
+                        const newCategories = Array.from(
+                          new Set(newTypeTemplates.map((t: any) => t.category)),
+                        );
+                        const newCounts: Record<string, number> = {};
+                        newCategories.forEach((cat: any) => {
+                          newCounts[cat] = 0;
+                        });
+                        setEditCategoryCounts(newCounts);
+                        setEditingReport({
+                          ...editingReport,
+                          inspectionType: [val],
+                        });
                       }}
                     >
-                      Add
-                    </Button>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select inspection type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Array.from(
+                          new Set(
+                            checklistTemplates.map((t: any) => t.checklistType),
+                          ),
+                        ).map((type: any) => (
+                          <SelectItem key={type} value={type}>
+                            {type}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
-                </div>
-                <div className="grid gap-2">
-                  <Label>Status</Label>
-                  <Select
-                    value={editingReport.status}
-                    onValueChange={(val) =>
-                      setEditingReport({ ...editingReport, status: val })
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Draft">Draft</SelectItem>
-                      <SelectItem value="Review">Review</SelectItem>
-                      <SelectItem value="Final">Final</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="grid gap-2">
-                  <Label>Date</Label>
-                  <Input
-                    type="date"
-                    value={editingReport.date}
-                    onChange={(e) =>
-                      setEditingReport({
-                        ...editingReport,
-                        date: e.target.value,
-                      })
-                    }
-                  />
-                </div>
-                <div className="rounded-xl border p-4">
-                  <p className="text-sm font-semibold mb-3">
-                    Repeatable Spaces
-                  </p>
-                  <div className="grid grid-cols-3 gap-3">
-                    {(["bedrooms", "bathrooms", "balconies"] as const).map(
-                      (key) => (
-                        <div key={key} className="grid gap-1">
-                          <Label className="capitalize text-xs">{key}</Label>
-                          <Input
-                            type="number"
-                            min="0"
-                            value={editingReport.spaceCounts?.[key] ?? 0}
-                            onChange={(e) =>
-                              setEditingReport({
-                                ...editingReport,
-                                spaceCounts: {
-                                  ...editingReport.spaceCounts,
-                                  [key]: Math.max(
-                                    0,
-                                    Number(e.target.value) || 0,
-                                  ),
-                                },
-                              })
-                            }
-                          />
+                  <div className="grid gap-2">
+                    <Label>Status</Label>
+                    <Select
+                      value={editingReport.status}
+                      onValueChange={(val) =>
+                        setEditingReport({ ...editingReport, status: val })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Draft">Draft</SelectItem>
+                        <SelectItem value="Review">Review</SelectItem>
+                        <SelectItem value="Final">Final</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="grid gap-2">
+                    <Label>Date</Label>
+                    <Input
+                      type="date"
+                      value={editingReport.date}
+                      onChange={(e) =>
+                        setEditingReport({
+                          ...editingReport,
+                          date: e.target.value,
+                        })
+                      }
+                    />
+                  </div>
+                  <div className="rounded-xl border p-4">
+                    {(editingReport.inspectionType?.[0]
+                      ? checklistTemplates.filter(
+                          (t: any) =>
+                            t.checklistType === editingReport.inspectionType[0],
+                        )
+                      : []
+                    ).length > 0 && (
+                      <>
+                        <p className="text-sm font-semibold mb-3">
+                          Repeatable Spaces
+                        </p>
+                        <div className="grid grid-cols-3 gap-3">
+                          {Array.from(
+                            new Set(
+                              (
+                                checklistTemplates.filter(
+                                  (t: any) =>
+                                    t.checklistType ===
+                                    editingReport.inspectionType?.[0],
+                                ) || []
+                              ).map((t: any) => t.category),
+                            ),
+                          ).map((cat: any) => (
+                            <div key={cat} className="grid gap-1">
+                              <Label className="text-xs">{cat}</Label>
+                              <Input
+                                type="number"
+                                min="0"
+                                value={editCategoryCounts[cat] ?? 0}
+                                onChange={(e) =>
+                                  setEditCategoryCounts((prev) => ({
+                                    ...prev,
+                                    [cat]: Math.max(
+                                      0,
+                                      Number(e.target.value) || 0,
+                                    ),
+                                  }))
+                                }
+                              />
+                            </div>
+                          ))}
                         </div>
-                      ),
+                      </>
                     )}
                   </div>
                 </div>
+                <DialogFooter className="border-t px-4 py-4 sm:px-6">
+                  <Button
+                    variant="outline"
+                    onClick={() => setIsEditReportOpen(false)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={handleUpdateReport}
+                    disabled={updateReportMutation.isPending}
+                  >
+                    {updateReportMutation.isPending
+                      ? "Saving..."
+                      : "Save Changes"}
+                  </Button>
+                </DialogFooter>
               </div>
-              <DialogFooter className="border-t px-4 py-4 sm:px-6">
-                <Button
-                  variant="outline"
-                  onClick={() => setIsEditReportOpen(false)}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  onClick={handleUpdateReport}
-                  disabled={updateReportMutation.isPending}
-                >
-                  {updateReportMutation.isPending
-                    ? "Saving..."
-                    : "Save Changes"}
-                </Button>
-              </DialogFooter>
-            </div>
             </DialogContent>
           </Dialog>
         )}

@@ -91,6 +91,9 @@ export default function ReportPreview({
       maximumFractionDigits: value >= 100 ? 0 : 2,
     }).format(value);
 
+  const spaceNameMap = new Map(
+    dimensions.map((d) => [d.space, d.spaceName || d.space]),
+  );
   const totalAreaSqFt = measuredDimensions.reduce(
     (sum, d) => sum + getAreaInSquareFeet(d.length, d.width, d.unit),
     0,
@@ -252,7 +255,7 @@ export default function ReportPreview({
                     >
                       <div>
                         <p className="font-semibold text-slate-900">
-                          {dimension.space}
+                          {dimension.spaceName || dimension.space}
                         </p>
                         {dimension.notes && (
                           <p className="mt-1 text-xs text-slate-500">
@@ -395,7 +398,7 @@ export default function ReportPreview({
                       Category
                     </p>
                     <p className="mt-1 text-sm font-semibold text-slate-700">
-                      {item.category}
+                      {spaceNameMap.get(item.category) || item.category}
                     </p>
                   </div>
                   <div>

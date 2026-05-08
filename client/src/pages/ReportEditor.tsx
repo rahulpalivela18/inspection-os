@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { Download } from "lucide-react";
 import Layout from "@/components/Layout";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -432,6 +432,9 @@ export default function ReportEditor() {
   const categories: string[] = Array.from(
     new Set((report.checklist ?? []).map((c: ChecklistItem) => c.category)),
   );
+  const spaceNameMap = new Map(
+    dimensionRows.map((d) => [d.space, d.spaceName || d.space]),
+  );
 
   return (
     <Layout>
@@ -595,6 +598,7 @@ export default function ReportEditor() {
                   <ChecklistView
                     report={report}
                     categories={categories}
+                    spaceNameMap={spaceNameMap}
                     updateChecklistItem={updateChecklistItem}
                   />
                 )}
@@ -825,10 +829,12 @@ export default function ReportEditor() {
 function ChecklistView({
   report,
   categories,
+  spaceNameMap,
   updateChecklistItem,
 }: {
   report: any;
   categories: string[];
+  spaceNameMap: Map<string, string>;
   updateChecklistItem: (id: string, updates: Partial<ChecklistItem>) => void;
 }) {
   const [expandedCategories, setExpandedCategories] = useState<
@@ -916,7 +922,7 @@ function ChecklistView({
                 ) : (
                   <ChevronRight className="h-4 w-4 text-slate-500" />
                 )}
-                {category}
+                {spaceNameMap.get(category) || category}
               </div>
               <div className="flex gap-2 text-xs font-normal">
                 <span className="text-green-600 bg-green-50 px-2 py-0.5 rounded-full">
@@ -1136,6 +1142,24 @@ function DimensionsView({
   updateDimensionField,
   updateDefaultUnit,
 }: any) {
+  const [draftNames, setDraftNames] = useState<Record<string, string>>({});
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    };
+  }, []);
+
+  const debouncedSaveName = useCallback(
+    (id: string, value: string) => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = setTimeout(() => {
+        updateDimensionField(id, "spaceName", value);
+      }, 300);
+    },
+    [updateDimensionField],
+  );
   return (
     <>
       <div className="rounded-[28px] border border-indigo-100 bg-gradient-to-br from-white via-indigo-50/50 to-slate-50 p-5 shadow-sm md:p-6">
@@ -1252,16 +1276,40 @@ function DimensionsView({
             >
               <div className="flex flex-col gap-5">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                  <div>
+                  <div className="flex-1">
                     <p className="text-xs font-semibold uppercase tracking-[0.22em] text-indigo-500">
                       Space
                     </p>
-                    <h3
-                      className="mt-1 text-xl font-semibold text-slate-900"
-                      data-testid={`text-dimension-space-${dimension.id}`}
-                    >
-                      {dimension.space}
-                    </h3>
+                    <div className="mt-1 flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 focus-within:border-indigo-400 focus-within:ring-1 focus-within:ring-indigo-400 transition-all">
+                      <input
+                        className="flex-1 text-xl font-semibold text-slate-900 bg-transparent outline-none"
+                        value={
+                          draftNames[dimension.id] ??
+                          (dimension.spaceName || dimension.space)
+                        }
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setDraftNames((prev) => ({
+                            ...prev,
+                            [dimension.id]: val,
+                          }));
+                          debouncedSaveName(dimension.id, val);
+                        }}
+                        data-testid={`text-dimension-space-${dimension.id}`}
+                      />
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className="h-4 w-4 shrink-0 text-slate-300"
+                      >
+                        <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+                      </svg>
+                    </div>
                   </div>
                   <div className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-600">
                     Input in {dimension.unit === "ft" ? "ft" : "m"}

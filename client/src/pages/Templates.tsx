@@ -40,13 +40,15 @@ export default function Templates() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const PREDEFINED_CATEGORIES = [
-    "Bedroom",
-    "Bathroom",
-    "Balcony",
-    "Common Area",
-    "External Area",
-  ];
+  const [isTypeDialogOpen, setIsTypeDialogOpen] = useState(false);
+  const [newChecklistType, setNewChecklistType] = useState("");
+  const [selectedType, setSelectedType] = useState<string>("Home Inspection");
+  const PREDEFINED_TYPES = ["Home Inspection", "Dampness Inspection"];
+  const PREDEFINED_CATEGORIES_BY_TYPE: Record<string, string[]> = {
+    "Home Inspection": ["Bedroom", "Bathroom", "Balcony", "Common Area", "External Area"],
+    "Dampness Inspection": ["External Walls", "Bathroom", "Utility Area", "Terrace/Roof", "Water Tank", "Appliances"],
+  };
+  const PREDEFINED_CATEGORIES = PREDEFINED_CATEGORIES_BY_TYPE[selectedType] || [];
   const [newItem, setNewItem] = useState({
     category: "",
     point: "",
@@ -63,6 +65,22 @@ export default function Templates() {
   const { data: templates = [], isLoading } = useQuery({
     queryKey: ["checklist-templates"],
     queryFn: api.getChecklistTemplates,
+  });
+
+  const filteredTemplates = templates.filter(
+    (t: any) => t.checklistType === selectedType
+  );
+
+  const customTypes = Array.from(
+    new Set(templates.map((t: any) => t.checklistType).filter(Boolean))
+  ).filter((t) => !PREDEFINED_TYPES.includes(t));
+  const allTypes = [...PREDEFINED_TYPES, ...customTypes].sort((a, b) => {
+    const aIdx = PREDEFINED_TYPES.indexOf(a);
+    const bIdx = PREDEFINED_TYPES.indexOf(b);
+    if (aIdx !== -1 && bIdx !== -1) return aIdx - bIdx;
+    if (aIdx !== -1) return -1;
+    if (bIdx !== -1) return 1;
+    return a.localeCompare(b);
   });
 
   const createMutation = useMutation({
@@ -120,6 +138,7 @@ export default function Templates() {
     let order = maxOrder + 1;
     for (const line of lines) {
       await createMutation.mutateAsync({
+        checklistType: selectedType,
         category: newItem.category,
         point: line,
         isRepeatable: false,
@@ -161,7 +180,7 @@ export default function Templates() {
     updateMutation.mutate({ id: item.id, data: { triggerOn: val } });
   };
 
-  const grouped = templates.reduce((acc: Record<string, any[]>, item: any) => {
+  const grouped = filteredTemplates.reduce((acc: Record<string, any[]>, item: any) => {
     if (!acc[item.category]) acc[item.category] = [];
     acc[item.category].push(item);
     return acc;
@@ -201,13 +220,40 @@ export default function Templates() {
           </div>
           <div className="max-w-3xl">
             <h1 className="text-3xl font-black tracking-tight text-slate-900 md:text-4xl">
-              Master Checklist
+              {selectedType} Checklist
             </h1>
             <p className="mt-2 text-base text-slate-500 md:text-lg">
-              Define your inspection points here. Click any point to edit it.
+              Define inspection points for {selectedType}. Click any point to edit it.
               Use bulk-add to paste many points at once.
             </p>
           </div>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <Select
+            value={selectedType}
+            onValueChange={(val) => {
+              if (val === "__new__") {
+                setIsTypeDialogOpen(true);
+              } else {
+                setSelectedType(val);
+              }
+            }}
+          >
+            <SelectTrigger className="w-64 font-bold">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {allTypes.map((type) => (
+                <SelectItem key={type} value={type}>
+                  {type}
+                </SelectItem>
+              ))}
+              <SelectItem value="__new__" className="text-blue-600 font-medium">
+                + Add New Type
+              </SelectItem>
+            </SelectContent>
+          </Select>
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2">
@@ -216,7 +262,7 @@ export default function Templates() {
               Total points
             </p>
             <p className="mt-2 text-3xl font-black text-slate-900">
-              {templates.length}
+              {filteredTemplates.length}
             </p>
           </div>
           <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
@@ -247,9 +293,9 @@ export default function Templates() {
           <div className="text-center py-12 text-muted-foreground">
             Loading checklist...
           </div>
-        ) : templates.length === 0 ? (
+        ) : filteredTemplates.length === 0 ? (
           <div className="text-center py-12 border-2 border-dashed rounded-xl text-muted-foreground">
-            No checklist items yet. Add your first one above.
+            No checklist items for {selectedType}. Add your first one above.
           </div>
         ) : (
           <div className="space-y-4">
@@ -580,6 +626,52 @@ export default function Templates() {
                 data-testid="button-confirm-edit"
               >
                 {updateMutation.isPending ? "Saving..." : "Save Changes"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* New Checklist Type Dialog */}
+        <Dialog open={isTypeDialogOpen} onOpenChange={setIsTypeDialogOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Add Checklist Type</DialogTitle>
+              <DialogDescription>
+                Create a new inspection type (e.g., Home Inspection, Dampness Inspection, Commercial Inspection)
+              </DialogDescription>
+            </DialogHeader>
+            <div className="py-4">
+              <Label htmlFor="new-type">Type Name</Label>
+              <Input
+                id="new-type"
+                value={newChecklistType}
+                onChange={(e) => setNewChecklistType(e.target.value)}
+                placeholder="e.g., Dampness Inspection"
+                className="mt-2"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && newChecklistType.trim()) {
+                    setSelectedType(newChecklistType.trim());
+                    setNewChecklistType("");
+                    setIsTypeDialogOpen(false);
+                  }
+                }}
+              />
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsTypeDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                onClick={() => {
+                  if (newChecklistType.trim()) {
+                    setSelectedType(newChecklistType.trim());
+                    setNewChecklistType("");
+                    setIsTypeDialogOpen(false);
+                  }
+                }}
+                disabled={!newChecklistType.trim()}
+              >
+                Create Type
               </Button>
             </DialogFooter>
           </DialogContent>

@@ -62,6 +62,7 @@ export const checklistTemplates = pgTable("checklist_templates", {
   workspaceId: varchar("workspace_id")
     .notNull()
     .references(() => workspaces.id, { onDelete: "cascade" }),
+  checklistType: text("checklist_type").notNull().default("Home Inspection"),
   category: text("category").notNull(),
   point: text("point").notNull(),
   order: integer("order").notNull().default(0),
