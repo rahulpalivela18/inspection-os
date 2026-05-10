@@ -3,6 +3,7 @@ import { Download } from "lucide-react";
 import Layout from "@/components/Layout";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import { buildChecklistWithPreservedResponses } from "@/lib/checklist";
 import type { ReportDimension, ChecklistItem, Issue } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,93 +35,7 @@ const openImageInNewTab = (src: string) => {
   window.open(src, "_blank");
 };
 
-const buildChecklistWithPreservedResponses = (
-  templates: Array<{
-    category: string;
-    point: string;
-    triggerOn?: "yes" | "no";
-  }>,
-  currentChecklist: ChecklistItem[] = [],
-  spaceCounts: { bedrooms: number; bathrooms: number; balconies: number } = {
-    bedrooms: 1,
-    bathrooms: 1,
-    balconies: 1,
-  },
-): ChecklistItem[] => {
-  let runningId = currentChecklist.length + 1;
-  const items: ChecklistItem[] = [...currentChecklist];
 
-  const preservedItems = new Map(
-    currentChecklist.map((item) => [`${item.category}:::${item.point}`, item]),
-  );
-
-  const repeatableCategories = ["bedroom", "bathroom", "balcony"];
-
-  const categorySet = templates.reduce((acc: string[], t) => {
-    const c = t.category.toLowerCase().trim();
-    const cat = repeatableCategories.includes(c) ? c : t.category;
-    if (!acc.includes(cat)) {
-      acc.push(cat);
-    }
-    return acc;
-  }, [] as string[]);
-
-  for (const cat of categorySet) {
-    const catTemplates = templates.filter((t) => {
-      const c = t.category.toLowerCase().trim();
-      return repeatableCategories.includes(c) ? c === cat : t.category === cat;
-    });
-
-    if (repeatableCategories.includes(cat.toLowerCase())) {
-      const count =
-        cat === "bedroom"
-          ? spaceCounts.bedrooms
-          : cat === "bathroom"
-            ? spaceCounts.bathrooms
-            : spaceCounts.balconies;
-
-      for (let i = 1; i <= count; i++) {
-        const spaceLabel = `${cat.charAt(0).toUpperCase() + cat.slice(1)} ${i}`;
-
-        for (const template of catTemplates) {
-          const key = `${spaceLabel}:::${template.point}`;
-          const existing = preservedItems.get(key);
-
-          if (existing) {
-            existing.triggerOn = template.triggerOn ?? "no";
-          } else {
-            items.push({
-              id: `c${runningId++}`,
-              category: spaceLabel,
-              point: template.point,
-              status: null,
-              triggerOn: template.triggerOn ?? "no",
-            });
-          }
-        }
-      }
-    } else {
-      for (const template of catTemplates) {
-        const key = `${template.category}:::${template.point}`;
-        const existing = preservedItems.get(key);
-
-        if (existing) {
-          existing.triggerOn = template.triggerOn ?? "no";
-        } else {
-          items.push({
-            id: `c${runningId++}`,
-            category: template.category,
-            point: template.point,
-            status: null,
-            triggerOn: template.triggerOn ?? "no",
-          });
-        }
-      }
-    }
-  }
-
-  return items;
-};
 import {
   Select,
   SelectContent,
@@ -238,35 +153,15 @@ export default function ReportEditor() {
     const updatedTemplates = freshTemplates.data ?? [];
     if (!updatedReport) return;
 
-    // Build fresh from templates - removes deleted points
-    const freshChecklist = buildChecklistWithPreservedResponses(
-      updatedTemplates,
-      [],
-      updatedReport.spaceCounts ?? { bedrooms: 1, bathrooms: 1, balconies: 1 },
+    const reportTypes = updatedReport.inspectionType ?? [];
+    const filteredTemplates = updatedTemplates.filter(
+      (t: any) => reportTypes.includes(t.checklistType),
     );
-
-    // But try to preserve responses for items that exist in both
-    const preserved = buildChecklistWithPreservedResponses(
-      updatedTemplates,
+    const syncedChecklist = buildChecklistWithPreservedResponses(
+      filteredTemplates,
       updatedReport.checklist ?? [],
       updatedReport.spaceCounts ?? { bedrooms: 1, bathrooms: 1, balconies: 1 },
     );
-
-    // Use fresh but preserve status/severity/image from existing
-    const syncedChecklist = freshChecklist.map((item) => {
-      const existing = preserved.find(
-        (p) => p.category === item.category && p.point === item.point,
-      );
-      if (existing) {
-        return {
-          ...item,
-          status: existing.status,
-          severity: existing.severity,
-          image: existing.image,
-        };
-      }
-      return item;
-    });
 
     saveReport({ ...updatedReport, checklist: syncedChecklist });
     setIsSyncConfirmOpen(false);
@@ -502,34 +397,6 @@ export default function ReportEditor() {
               <RefreshCw className="mr-2 h-3.5 w-3.5 md:h-4 md:w-4" /> Sync
             </Button>
 
-            <AlertDialog
-              open={isSyncConfirmOpen}
-              onOpenChange={setIsSyncConfirmOpen}
-            >
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Sync Checklist?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    {report.status === "Final" ? (
-                      <span className="text-amber-600 font-semibold">
-                        ⚠️ This report is Final - syncing may cause data loss!
-                      </span>
-                    ) : (
-                      "This will update your checklist from templates."
-                    )}
-                    New points will be added, deleted points will be removed,
-                    but your existing responses (Yes/No, photos, severity) will
-                    be preserved.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction onClick={handleSync}>
-                    Sync Now
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
             <Button
               variant="outline"
               size="sm"
@@ -1142,27 +1009,9 @@ function DimensionsView({
   updateDimensionField,
   updateDefaultUnit,
 }: any) {
-  const [draftNames, setDraftNames] = useState<Record<string, string>>({});
-  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    return () => {
-      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
-    };
-  }, []);
-
-  const debouncedSaveName = useCallback(
-    (id: string, value: string) => {
-      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
-      saveTimerRef.current = setTimeout(() => {
-        updateDimensionField(id, "spaceName", value);
-      }, 300);
-    },
-    [updateDimensionField],
-  );
   return (
     <>
-      <div className="rounded-[28px] border border-indigo-100 bg-gradient-to-br from-white via-indigo-50/50 to-slate-50 p-5 shadow-sm md:p-6">
+      <div className="rounded-[28px] border border-indigo-100 bg-linear-to-br from-white via-indigo-50/50 to-slate-50 p-5 shadow-sm md:p-6">
         <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
           <div className="max-w-2xl">
             <div className="inline-flex items-center gap-2 rounded-full border border-indigo-100 bg-white/90 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-indigo-600">
@@ -1283,18 +1132,14 @@ function DimensionsView({
                     <div className="mt-1 flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 focus-within:border-indigo-400 focus-within:ring-1 focus-within:ring-indigo-400 transition-all">
                       <input
                         className="flex-1 text-xl font-semibold text-slate-900 bg-transparent outline-none"
-                        value={
-                          draftNames[dimension.id] ??
-                          (dimension.spaceName || dimension.space)
+                        value={dimension.spaceName ?? dimension.space}
+                        onChange={(e) =>
+                          updateDimensionField(
+                            dimension.id,
+                            "spaceName",
+                            e.target.value,
+                          )
                         }
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          setDraftNames((prev) => ({
-                            ...prev,
-                            [dimension.id]: val,
-                          }));
-                          debouncedSaveName(dimension.id, val);
-                        }}
                         data-testid={`text-dimension-space-${dimension.id}`}
                       />
                       <svg
@@ -1360,7 +1205,7 @@ function DimensionsView({
                     <Label>Notes</Label>
                     <Textarea
                       placeholder="Optional notes about this measurement"
-                      className="min-h-[88px]"
+                      className="min-h-22"
                       value={dimension.notes || ""}
                       onChange={(e) =>
                         updateDimensionField(
