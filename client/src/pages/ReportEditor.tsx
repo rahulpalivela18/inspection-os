@@ -553,29 +553,8 @@ export default function ReportEditor() {
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="issue-engineer">Responsible Engineer</Label>
-                <Select
-                  value={formData.responsibleEngineer}
-                  onValueChange={(val: string) =>
-                    setFormData({ ...formData, responsibleEngineer: val })
-                  }
-                >
-                  <SelectTrigger id="issue-engineer">
-                    <SelectValue placeholder="Select engineer" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {teamMembers.map((member: any) => (
-                      <SelectItem key={member.id} value={member.name}>
-                        {member.name}
-                      </SelectItem>
-                    ))}
-                    {teamMembers.length === 0 && (
-                      <div className="px-2 py-1.5 text-xs text-slate-400">
-                        No team members found
-                      </div>
-                    )}
-                  </SelectContent>
-                </Select>
                 <Input
+                  id="issue-engineer"
                   value={formData.responsibleEngineer}
                   onChange={(e) =>
                     setFormData({
@@ -583,8 +562,7 @@ export default function ReportEditor() {
                       responsibleEngineer: e.target.value,
                     })
                   }
-                  placeholder="Or type custom name"
-                  className="mt-2"
+                  placeholder="Enter engineer name"
                 />
               </div>
               <div className="grid grid-cols-2 gap-4">
