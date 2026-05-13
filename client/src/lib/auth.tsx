@@ -22,6 +22,8 @@ type Workspace = {
   logoUrl?: string;
   address?: string;
   email?: string;
+  plan?: string;
+  planStatus?: string;
 };
 
 type AuthContextType = {

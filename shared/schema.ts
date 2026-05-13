@@ -20,6 +20,12 @@ export const workspaces = pgTable("workspaces", {
   logoUrl: text("logo_url"),
   address: text("address"),
   email: text("email"),
+  plan: text("plan", { enum: ["starter", "pro", "enterprise"] })
+    .notNull()
+    .default("starter"),
+  planStatus: text("plan_status", { enum: ["active", "inactive"] })
+    .notNull()
+    .default("inactive"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -41,7 +47,7 @@ export const users = pgTable("users", {
   email: text("email").notNull().unique(),
   password: text("password").notNull(),
   name: text("name").notNull(),
-  role: text("role", { enum: ["admin", "inspector", "viewer"] })
+  role: text("role", { enum: ["super_admin", "admin", "inspector", "viewer"] })
     .notNull()
     .default("inspector"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -132,6 +138,28 @@ export const insertReportSchema = createInsertSchema(reports).omit({
 });
 export type InsertReport = z.infer<typeof insertReportSchema>;
 export type Report = typeof reports.$inferSelect;
+
+// ─── Invoices (Receipts) ─────────────────────────────────────────────────────
+export const invoices = pgTable("invoices", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  workspaceId: varchar("workspace_id")
+    .notNull()
+    .references(() => workspaces.id, { onDelete: "cascade" }),
+  receiptNumber: text("receipt_number").notNull().unique(),
+  plan: text("plan", { enum: ["starter", "pro", "enterprise"] }).notNull(),
+  amount: text("amount").notNull(),
+  status: text("status", { enum: ["paid", "refunded"] }).notNull().default("paid"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertInvoiceSchema = createInsertSchema(invoices).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertInvoice = z.infer<typeof insertInvoiceSchema>;
+export type Invoice = typeof invoices.$inferSelect;
 
 // ─── Auth schemas (used in routes) ───────────────────────────────────────────
 export const loginSchema = z.object({

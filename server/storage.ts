@@ -6,6 +6,7 @@ import {
   projects,
   reports,
   checklistTemplates,
+  invoices,
   type User,
   type InsertUser,
   type Workspace,
@@ -16,11 +17,14 @@ import {
   type InsertReport,
   type ChecklistTemplate,
   type InsertChecklistTemplate,
+  type Invoice,
+  type InsertInvoice,
 } from "@shared/schema";
 
 export interface IStorage {
   // Workspaces
   getWorkspace(id: string): Promise<Workspace | undefined>;
+  getAllWorkspaces(): Promise<Workspace[]>;
   createWorkspace(w: InsertWorkspace): Promise<Workspace>;
   updateWorkspace(
     id: string,
@@ -70,6 +74,11 @@ export interface IStorage {
     data: Partial<InsertReport>,
   ): Promise<Report | undefined>;
   deleteReport(id: string, workspaceId: string): Promise<boolean>;
+
+  // Invoices
+  createInvoice(inv: InsertInvoice): Promise<Invoice>;
+  getInvoicesByWorkspace(workspaceId: string): Promise<Invoice[]>;
+  getAllInvoices(): Promise<Invoice[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -80,6 +89,9 @@ export class DatabaseStorage implements IStorage {
       .from(workspaces)
       .where(eq(workspaces.id, id));
     return row;
+  }
+  async getAllWorkspaces() {
+    return db.select().from(workspaces).orderBy(desc(workspaces.createdAt));
   }
   async createWorkspace(data: InsertWorkspace) {
     const [row] = await db.insert(workspaces).values(data).returning();
@@ -239,6 +251,22 @@ export class DatabaseStorage implements IStorage {
       .where(and(eq(reports.id, id), eq(reports.workspaceId, workspaceId)))
       .returning();
     return result.length > 0;
+  }
+
+  // Invoices
+  async createInvoice(data: InsertInvoice) {
+    const [row] = await db.insert(invoices).values(data).returning();
+    return row;
+  }
+  async getInvoicesByWorkspace(workspaceId: string) {
+    return db
+      .select()
+      .from(invoices)
+      .where(eq(invoices.workspaceId, workspaceId))
+      .orderBy(desc(invoices.createdAt));
+  }
+  async getAllInvoices() {
+    return db.select().from(invoices).orderBy(desc(invoices.createdAt));
   }
 }
 
