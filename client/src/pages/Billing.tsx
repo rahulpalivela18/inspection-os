@@ -37,6 +37,7 @@ export default function Billing() {
           workspaceAddress={workspace?.address || ""}
           workspaceId={workspace?.id || ""}
           plan={inv.plan}
+          receiptNumber={inv.receiptNumber}
         />
       ).toBlob();
       const url = URL.createObjectURL(blob);

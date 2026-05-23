@@ -60,10 +60,10 @@ export default function Admin() {
 
   const selectedWs = workspaces.find((w: any) => w.id === selectedId) || null;
 
-  const hasMonthReceipt = (wsId: string) => {
+  const hasMonthReceipt = (wsId: string, plan: string) => {
     const now = new Date();
     return adminInvoices.some((i: any) => {
-      if (i.workspaceId !== wsId) return false;
+      if (i.workspaceId !== wsId || i.plan !== plan) return false;
       const d = new Date(i.createdAt);
       return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
     });
@@ -98,18 +98,21 @@ export default function Admin() {
     if (!selectedWs || editStatus !== "active") return;
     setPdfLoading(true);
     try {
-      if (!hasMonthReceipt(selectedWs.id)) {
-        await api.createInvoice({
+      const existing = adminInvoices.find(
+        (i: any) => i.workspaceId === selectedWs.id && i.plan === editPlan
+      );
+      let receiptNumber: string;
+      if (existing) {
+        receiptNumber = existing.receiptNumber;
+      } else {
+        const newInvoice = await api.createInvoice({
           workspaceId: selectedWs.id,
           plan: editPlan,
           amount: PLAN_DETAILS[editPlan]?.price || "",
         });
+        receiptNumber = newInvoice.receiptNumber;
         queryClient.invalidateQueries({ queryKey: ["admin", "invoices"] });
       }
-      const existing = adminInvoices.find(
-        (i: any) => i.workspaceId === selectedWs.id && i.plan === editPlan
-      );
-      const receiptNum = existing?.receiptNumber || `RCP-${selectedWs.id.slice(0, 8)}-${Date.now().toString(36).toUpperCase()}`;
       const blob = await pdf(
         <ReceiptPDF
           workspaceName={selectedWs.name}
@@ -117,12 +120,13 @@ export default function Admin() {
           workspaceAddress={selectedWs.address || ""}
           workspaceId={selectedWs.id}
           plan={editPlan}
+          receiptNumber={receiptNumber}
         />
       ).toBlob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `receipt-${receiptNum}.pdf`;
+      a.download = `receipt-${receiptNumber}.pdf`;
       a.click();
       URL.revokeObjectURL(url);
     } catch {
@@ -285,7 +289,7 @@ export default function Admin() {
                       size="sm"
                     >
                       <Receipt className="h-4 w-4" />
-                      {pdfLoading ? "Generating..." : hasMonthReceipt(selectedWs.id) ? "Download Receipt" : "Generate Receipt"}
+                      {pdfLoading ? "Generating..." : hasMonthReceipt(selectedWs.id, editPlan) ? "Download Receipt" : "Generate Receipt"}
                     </Button>
                   )}
 

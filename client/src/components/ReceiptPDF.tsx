@@ -140,6 +140,7 @@ interface ReceiptPDFProps {
   workspaceAddress: string;
   workspaceId: string;
   plan: string;
+  receiptNumber: string;
 }
 
 export default function ReceiptPDF({
@@ -148,13 +149,13 @@ export default function ReceiptPDF({
   workspaceAddress,
   workspaceId,
   plan,
+  receiptNumber,
 }: ReceiptPDFProps) {
   const date = new Date().toLocaleDateString("en-IN", {
     year: "numeric",
     month: "long",
     day: "numeric",
   });
-  const receiptNum = `#RCP-${workspaceId.slice(0, 8)}-${Date.now().toString(36).toUpperCase()}`;
   const planLabel = plan.charAt(0).toUpperCase() + plan.slice(1);
 
   return (
@@ -167,7 +168,7 @@ export default function ReceiptPDF({
           </View>
           <View style={styles.receiptMeta}>
             <Text style={styles.receiptLabel}>RECEIPT</Text>
-            <Text style={styles.receiptValue}>{receiptNum}</Text>
+            <Text style={styles.receiptValue}>{receiptNumber}</Text>
             <Text style={styles.receiptValue}>{date}</Text>
           </View>
         </View>
