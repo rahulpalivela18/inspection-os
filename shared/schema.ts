@@ -150,7 +150,9 @@ export const invoices = pgTable("invoices", {
   receiptNumber: text("receipt_number").notNull().unique(),
   plan: text("plan", { enum: ["starter", "pro", "enterprise"] }).notNull(),
   amount: text("amount").notNull(),
-  status: text("status", { enum: ["paid", "refunded"] }).notNull().default("paid"),
+  status: text("status", { enum: ["paid", "refunded"] })
+    .notNull()
+    .default("paid"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

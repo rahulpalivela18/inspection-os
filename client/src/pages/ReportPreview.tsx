@@ -102,10 +102,44 @@ export default function ReportPreview({
   );
   const totalAreaSqM = totalAreaSqFt / 10.7639;
 
+  const Watermark = () => (
+    <div
+      className="absolute inset-0 overflow-hidden pointer-events-none select-none"
+      style={{ zIndex: 0 }}
+      aria-hidden="true"
+    >
+      <div
+        style={{
+          position: "absolute",
+          top: "50%",
+          left: "50%",
+          transform: "translate(-50%, -50%) rotate(-45deg)",
+          width: "160%",
+          height: "160%",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "space-around",
+        }}
+      >
+        {Array.from({ length: 4 }).map((_, i) => (
+          <span
+            key={i}
+            className="font-black text-slate-300 uppercase tracking-widest whitespace-nowrap"
+            style={{ fontSize: 20, opacity: 0.22 }}
+          >
+            {companyProfile.name}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+
   return (
     <div className="font-sans text-sm text-slate-900 leading-normal bg-white print:p-0 w-full max-w-[210mm] print:max-w-full print:w-full mx-auto overflow-hidden print:overflow-visible">
       {/* Cover Page */}
       <div className="min-h-[297mm] print:min-h-0 flex flex-col p-8 md:p-[25mm] bg-white break-after-page relative overflow-hidden print:overflow-visible">
+        <Watermark />
         <div
           className={cn(
             "absolute top-0 right-0 w-1/2 h-1/2 -rotate-12 translate-x-1/4 -translate-y-1/4 rounded-full blur-3xl -z-10 print:hidden",
@@ -206,7 +240,8 @@ export default function ReportPreview({
 
       {/* Dimensions & Area Summary - Before Findings */}
       {measuredDimensions.length > 0 && (
-        <div className="p-6 md:p-[15mm] bg-white break-before-page">
+        <div className="relative overflow-hidden p-6 md:p-[15mm] bg-white break-before-page">
+          <Watermark />
           <div className="mb-12 break-inside-avoid-page">
             <h3 className="text-lg font-bold mb-4 flex items-center gap-2 border-b pb-2 text-slate-900">
               Dimensions & Area Summary
@@ -283,7 +318,8 @@ export default function ReportPreview({
       )}
 
       {/* Findings Section */}
-      <div className="flex flex-col relative print:min-h-0 break-before-page">
+      <div className="flex flex-col relative overflow-hidden print:min-h-0 break-before-page">
+        <Watermark />
         <PageLogo />
 
         <div className="p-6 md:p-[15mm] bg-white flex-1">
@@ -336,220 +372,264 @@ export default function ReportPreview({
         </div>
       </div>
 
-      {/* Failed Checklist Items - Each on new page */}
+      {/* Failed Checklist Items — one per page, spread layout */}
       {failedChecklistItems.map((item, index) => (
         <div
           key={item.id}
-          className="break-before-page border-t border-slate-100 bg-white p-6 md:p-[15mm] relative"
+          className="break-before-page bg-white p-6 md:p-[15mm] relative overflow-hidden min-h-[297mm]"
         >
+          <Watermark />
           <PageLogo />
-          <div className="mx-auto flex min-h-[255mm] max-w-[180mm] flex-col">
-            <div className="mb-5 border-b border-slate-100 pb-4 pr-24 md:pr-40">
-              <p className="text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">
-                Failed checklist item
+
+          {/* Header */}
+          <div className="border-b-2 border-slate-900 pb-4 mb-6 flex justify-between items-start mt-12 md:mt-0">
+            <div className="flex-1 pr-6">
+              <p className="text-[9px] font-black uppercase tracking-[0.25em] text-slate-400">
+                Failed Checklist Item &nbsp;·&nbsp; Observation {index + 1} of {failedChecklistItems.length}
               </p>
-              <div className="mt-2 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                <h3 className="text-2xl font-black tracking-tight text-slate-900">
-                  Observation {index + 1}
-                </h3>
-                <div className="flex flex-wrap gap-2">
-                  <span
-                    className={cn(
-                      "rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-widest",
-                      item.status === "Y"
-                        ? "border-green-200 bg-green-100 text-green-700"
-                        : "border-yellow-200 bg-yellow-100 text-yellow-700",
-                    )}
-                  >
-                    {item.status === "Y" ? "YES" : "NO"}
-                  </span>
-                  {item.severity && (
-                    <span
-                      className={cn(
-                        "rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-widest",
-                        item.severity === "MAJOR"
-                          ? "border-red-200 bg-red-50 text-red-700"
-                          : item.severity === "MINOR"
-                            ? "border-orange-200 bg-orange-50 text-orange-700"
-                            : "border-blue-200 bg-blue-50 text-blue-700",
-                      )}
-                    >
-                      {item.severity}
-                    </span>
-                  )}
-                </div>
-              </div>
+              <h2 className="text-2xl font-black tracking-tight text-slate-900 leading-tight mt-1">
+                {item.point}
+              </h2>
             </div>
+            <div className="flex gap-2 shrink-0">
+              <span className="rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-widest border-amber-200 bg-amber-50 text-amber-700">
+                Flagged
+              </span>
+              {item.severity && (
+                <span
+                  className={cn(
+                    "rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-widest",
+                    item.severity === "MAJOR"
+                      ? "border-red-200 bg-red-100 text-red-700"
+                      : item.severity === "MINOR"
+                        ? "border-orange-200 bg-orange-100 text-orange-700"
+                        : "border-blue-200 bg-blue-100 text-blue-700",
+                  )}
+                >
+                  {item.severity}
+                </span>
+              )}
+            </div>
+          </div>
 
-            <div className="flex-1 flex-col gap-5">
-              <div className="overflow-hidden rounded-3xl border border-slate-200 bg-slate-50 shadow-sm">
-                {item.image ? (
-                  <img
-                    src={item.image}
-                    alt={item.point}
-                    className="h-[132mm] w-full object-contain bg-white"
-                  />
-                ) : (
-                  <div className="flex h-[132mm] items-center justify-center px-8 text-center text-sm font-medium text-slate-400">
-                    No photo was attached for this failed checklist point.
-                  </div>
-                )}
-              </div>
+          {/* Meta */}
+          <div
+            className="mb-6 pb-5 border-b border-slate-100"
+            style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}
+          >
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">
+                Category
+              </p>
+              <p className="text-sm font-bold text-slate-800">
+                {spaceNameMap.get(item.category) || item.category}
+              </p>
+            </div>
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">
+                Inspection Type
+              </p>
+              <p className="text-sm font-bold text-slate-800">{inspectionType}</p>
+            </div>
+          </div>
 
-              <div className="rounded-3xl border border-slate-200 bg-white p-5">
-                <p className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-400">
-                  Checklist point
-                </p>
-                <p className="mt-3 text-xl font-bold leading-snug text-slate-900">
-                  {item.point}
-                </p>
-                <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <div>
-                    <p className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-400">
-                      Category
-                    </p>
-                    <p className="mt-1 text-sm font-semibold text-slate-700">
-                      {spaceNameMap.get(item.category) || item.category}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-400">
-                      Inspection type
-                    </p>
-                    <p className="mt-1 text-sm font-semibold text-slate-700">
-                      {inspectionType}
-                    </p>
-                  </div>
+          {/* Image — fixed height, full width, never overflows */}
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-3">
+              Photo Evidence
+            </p>
+            <div
+              className="w-full rounded-2xl border border-slate-200 overflow-hidden bg-slate-50"
+              style={{ height: "155mm" }}
+            >
+              {item.image ? (
+                <img
+                  src={item.image}
+                  alt={item.point}
+                  className="w-full h-full object-contain"
+                />
+              ) : (
+                <div className="flex h-full items-center justify-center text-sm font-medium text-slate-400">
+                  No photo was attached for this checklist point.
                 </div>
-              </div>
+              )}
             </div>
           </div>
         </div>
       ))}
 
-      {/* Issues Section */}
-      {report.issues && report.issues.length > 0 && (
-        <div className="p-[15mm] bg-white min-h-[297mm] relative break-before-page">
-          <PageLogo />
-          <div className="border-b-2 border-slate-900 pb-4 mb-8 flex justify-between items-center">
-            <h2 className="text-2xl font-black uppercase tracking-tight">
-              Issue Reports
-            </h2>
-            <span className="text-slate-400 text-xs font-bold uppercase tracking-widest">
-              Section 02 / Issues
-            </span>
-          </div>
+      {/* Issues Section — one per page, spread layout */}
+      {report.issues &&
+        report.issues.map((issue: any, index: number) => (
+          <div
+            key={issue.id}
+            className="break-before-page bg-white p-6 md:p-[15mm] relative overflow-hidden min-h-[297mm]"
+          >
+            <Watermark />
+            <PageLogo />
 
-          <div className="space-y-12">
-            {report.issues.map((issue: any, index) => (
-              <div
-                key={issue.id}
-                className="break-inside-avoid border border-slate-100 rounded-2xl overflow-hidden shadow-sm bg-white mb-8"
-              >
-                <div className="bg-slate-50 p-4 border-b border-slate-100 flex justify-between items-center">
-                  <div className="flex items-center gap-4">
-                    <span className="bg-slate-900 text-white w-8 h-8 rounded-full flex items-center justify-center text-sm font-black">
-                      {index + 1}
-                    </span>
-                    <h3 className="font-bold text-xl tracking-tight text-slate-900">
-                      {issue.title}
-                    </h3>
-                  </div>
-                  <div className="flex gap-2">
-                    <span
-                      className={cn(
-                        "px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border shadow-sm",
-                        issue.severity === "Critical"
-                          ? "bg-red-500 text-white border-red-600"
-                          : issue.severity === "High"
-                            ? "bg-orange-500 text-white border-orange-600"
-                            : issue.severity === "Medium"
-                              ? "bg-amber-100 text-amber-800 border-amber-200"
-                              : "bg-slate-100 text-slate-800 border-slate-200",
-                      )}
-                    >
-                      {issue.severity}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="p-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    <div className="space-y-6">
-                      <div>
-                        <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">
-                          Observations & Notes
-                        </h4>
-                        <p className="text-slate-700 leading-relaxed font-medium whitespace-pre-wrap">
-                          {issue.note}
-                        </p>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-4 pt-4 border-t border-slate-100">
-                        <div>
-                          <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
-                            Location
-                          </h4>
-                          <p className="text-sm font-bold text-indigo-600">
-                            {issue.location}
-                          </p>
-                        </div>
-                        <div>
-                          <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
-                            Responsible Engineer
-                          </h4>
-                          <p className="text-sm font-bold">
-                            {issue.responsibleEngineer}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="space-y-3">
-                      <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">
-                        Visual Evidence
-                      </h4>
-                      <div
-                        className={cn(
-                          "grid gap-3",
-                          issue.images?.length === 1
-                            ? "grid-cols-1"
-                            : "grid-cols-2",
-                        )}
-                      >
-                        {issue.images?.map((img: string, idx: number) => (
-                          <div
-                            key={idx}
-                            className={cn(
-                              "bg-slate-50 border border-slate-200 rounded-xl overflow-hidden shadow-sm flex items-center justify-center p-2",
-                              idx === 0 && issue.images.length === 3
-                                ? "col-span-2 aspect-[16/9]"
-                                : "aspect-square",
-                            )}
-                          >
-                            <img
-                              src={img}
-                              className="max-w-full max-h-full object-contain"
-                              alt={`Issue ${index + 1} - Photo ${idx + 1}`}
-                            />
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
+            {/* Header */}
+            <div className="border-b-2 border-slate-900 pb-4 mb-6 flex justify-between items-center mt-12 md:mt-0">
+              <div className="flex items-center gap-3">
+                <span className="bg-indigo-600 text-white w-9 h-9 rounded-full flex items-center justify-center text-sm font-black shrink-0">
+                  {String(index + 1).padStart(2, "0")}
+                </span>
+                <div>
+                  <p className="text-[9px] font-black uppercase tracking-[0.25em] text-slate-400">
+                    Issue {index + 1} of {report.issues!.length}
+                  </p>
+                  <h2 className="text-2xl font-black tracking-tight text-slate-900 leading-tight">
+                    {issue.title}
+                  </h2>
                 </div>
               </div>
-            ))}
+              <span
+                className={cn(
+                  "px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border shrink-0",
+                  issue.severity === "Critical"
+                    ? "bg-red-100 text-red-700 border-red-200"
+                    : issue.severity === "High"
+                      ? "bg-orange-100 text-orange-700 border-orange-200"
+                      : issue.severity === "Medium"
+                        ? "bg-amber-100 text-amber-700 border-amber-200"
+                        : "bg-slate-100 text-slate-600 border-slate-200",
+                )}
+              >
+                {issue.severity}
+              </span>
+            </div>
+
+            {/* Notes */}
+            <div className="mb-5 pb-5 border-b border-slate-100">
+              <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">
+                Observations & Notes
+              </h4>
+              <p className="text-slate-700 leading-relaxed font-medium whitespace-pre-wrap">
+                {issue.note}
+              </p>
+            </div>
+
+            {/* Meta */}
+            <div
+              className="mb-6 pb-5 border-b border-slate-100"
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: "16px",
+              }}
+            >
+              <div>
+                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
+                  Location
+                </h4>
+                <p className="text-sm font-bold text-indigo-600">
+                  {issue.location}
+                </p>
+              </div>
+              <div>
+                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
+                  Responsible Engineer
+                </h4>
+                <p className="text-sm font-bold text-slate-800">
+                  {issue.responsibleEngineer}
+                </p>
+              </div>
+            </div>
+
+            {/* Images — fixed mm heights so they never overflow */}
+            {issue.images && issue.images.length > 0 && (
+              <div>
+                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">
+                  Visual Evidence
+                </h4>
+
+                {/* 1 image — full width, tall */}
+                {issue.images.length === 1 && (
+                  <div
+                    className="w-full rounded-2xl border border-slate-200 overflow-hidden bg-slate-50"
+                    style={{ height: "148mm" }}
+                  >
+                    <img
+                      src={issue.images[0]}
+                      className="w-full h-full object-cover"
+                      alt="Issue photo 1"
+                    />
+                  </div>
+                )}
+
+                {/* 2 images — side by side, full width */}
+                {issue.images.length === 2 && (
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "1fr 1fr",
+                      gap: "12px",
+                    }}
+                  >
+                    {issue.images.map((img: string, idx: number) => (
+                      <div
+                        key={idx}
+                        className="rounded-2xl border border-slate-200 overflow-hidden bg-slate-50"
+                        style={{ height: "130mm" }}
+                      >
+                        <img
+                          src={img}
+                          className="w-full h-full object-cover"
+                          alt={`Issue photo ${idx + 1}`}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* 3 images — first full width, then two side by side */}
+                {issue.images.length === 3 && (
+                  <div
+                    style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}
+                  >
+                    <div
+                      className="rounded-2xl border border-slate-200 overflow-hidden bg-slate-50"
+                      style={{ height: "88mm", gridColumn: "1 / -1" }}
+                    >
+                      <img
+                        src={issue.images[0]}
+                        className="w-full h-full object-cover"
+                        alt="Issue photo 1"
+                      />
+                    </div>
+                    <div
+                      className="rounded-2xl border border-slate-200 overflow-hidden bg-slate-50"
+                      style={{ height: "72mm" }}
+                    >
+                      <img
+                        src={issue.images[1]}
+                        className="w-full h-full object-cover"
+                        alt="Issue photo 2"
+                      />
+                    </div>
+                    <div
+                      className="rounded-2xl border border-slate-200 overflow-hidden bg-slate-50"
+                      style={{ height: "72mm" }}
+                    >
+                      <img
+                        src={issue.images[2]}
+                        className="w-full h-full object-cover"
+                        alt="Issue photo 3"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
-        </div>
-      )}
+        ))}
 
       {/* Footer */}
       <div className="border-t border-slate-100 bg-white p-6 text-center md:p-[15mm]">
         <div className="flex flex-col items-center justify-between gap-2 text-[9px] font-bold uppercase tracking-widest text-slate-400 md:flex-row md:text-[10px]">
           <span>End of Report</span>
           <span>
-            Report generated by ReportGen © {new Date().getFullYear()}
+            Report generated by ReportGen ©️ {new Date().getFullYear()}
           </span>
         </div>
       </div>

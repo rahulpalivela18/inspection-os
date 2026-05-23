@@ -29,7 +29,10 @@ function requireAuth(req: Request, res: Response, next: NextFunction) {
 }
 function requireAdmin(req: Request, res: Response, next: NextFunction) {
   const user = req.user as any;
-  if (!req.isAuthenticated() || (user?.role !== "admin" && user?.role !== "super_admin"))
+  if (
+    !req.isAuthenticated() ||
+    (user?.role !== "admin" && user?.role !== "super_admin")
+  )
     return res.status(403).json({ message: "Forbidden" });
   next();
 }
@@ -231,9 +234,9 @@ export async function registerRoutes(
       parsed.data.planStatus !== undefined
     ) {
       if (user.role !== "super_admin")
-        return res
-          .status(403)
-          .json({ message: "Only the platform owner can change billing settings." });
+        return res.status(403).json({
+          message: "Only the platform owner can change billing settings.",
+        });
     }
 
     // Upload logo to GCP if it's a base64 data URL
@@ -267,11 +270,19 @@ export async function registerRoutes(
   app.post("/api/admin/invoices", requireSuperAdmin, async (req, res) => {
     const { workspaceId, plan, amount } = req.body;
     if (!workspaceId || !plan || !amount)
-      return res.status(400).json({ message: "workspaceId, plan, and amount are required" });
+      return res
+        .status(400)
+        .json({ message: "workspaceId, plan, and amount are required" });
     const ws = await storage.getWorkspace(workspaceId);
     if (!ws) return res.status(404).json({ message: "Workspace not found" });
     const receiptNumber = `RCP-${workspaceId.slice(0, 8)}-${Date.now().toString(36).toUpperCase()}`;
-    const invoice = await storage.createInvoice({ workspaceId, plan, amount, receiptNumber, status: "paid" });
+    const invoice = await storage.createInvoice({
+      workspaceId,
+      plan,
+      amount,
+      receiptNumber,
+      status: "paid",
+    });
     res.status(201).json(invoice);
   });
 
