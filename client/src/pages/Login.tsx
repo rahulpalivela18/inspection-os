@@ -4,7 +4,6 @@ import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import Footer from "@/components/Footer";
 import {
   Card,
   CardContent,
@@ -13,7 +12,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { ClipboardCheck, Loader2, Eye, EyeOff, ArrowLeft } from "lucide-react";
+import { ClipboardCheck, Loader2, Eye, EyeOff } from "lucide-react";
 
 function isValidEmail(email: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
@@ -169,14 +168,13 @@ export default function Login() {
                   type="button"
                   className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700"
                 >
-                  <ArrowLeft className="h-3.5 w-3.5" /> Back to Home
+                  &larr; Back to Home
                 </button>
               </Link>
             </CardFooter>
           </form>
         </Card>
       </div>
-      <Footer />
     </div>
   );
 }

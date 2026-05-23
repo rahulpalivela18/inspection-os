@@ -6,6 +6,8 @@ import {
   Menu,
   Building2,
   CheckSquare,
+  Shield,
+  Receipt,
 } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -17,12 +19,16 @@ import Footer from "@/components/Footer";
 export default function Layout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
   const [isMobileOpen, setIsMobileOpen] = useState(false);
-  const { workspace } = useAuth();
+  const { user, workspace } = useAuth();
 
   const navigation = [
     { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
     { name: "Projects", href: "/dashboard", icon: FolderOpen },
+    { name: "Billing", href: "/billing", icon: Receipt },
     { name: "Settings", href: "/settings", icon: Settings },
+    ...(user?.role === "super_admin"
+      ? [{ name: "Admin", href: "/admin", icon: Shield }]
+      : []),
   ];
 
   const SidebarContent = () => (

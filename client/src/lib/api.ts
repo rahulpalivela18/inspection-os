@@ -36,6 +36,15 @@ export const api = {
   updateWorkspace: (data: any) =>
     request("/api/workspace", { method: "PATCH", body: JSON.stringify(data) }),
 
+  // Admin (super_admin only)
+  getAdminWorkspaces: () => request<any[]>("/api/admin/workspaces"),
+  createInvoice: (data: { workspaceId: string; plan: string; amount: string }) =>
+    request<any>("/api/admin/invoices", { method: "POST", body: JSON.stringify(data) }),
+  getAdminInvoices: () => request<any[]>("/api/admin/invoices"),
+
+  // Workspace invoices (authenticated users)
+  getWorkspaceInvoices: () => request<any[]>("/api/workspace/invoices"),
+
   // Checklist templates
   getChecklistTemplates: () => request<any[]>("/api/checklist-templates"),
   createChecklistTemplate: (data: any) =>

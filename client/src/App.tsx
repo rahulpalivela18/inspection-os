@@ -10,6 +10,8 @@ import ReportEditor from "@/pages/ReportEditor";
 import Templates from "@/pages/Templates";
 import LandingPage from "@/pages/LandingPage";
 import Settings from "@/pages/Settings";
+import Admin from "@/pages/Admin";
+import Billing from "@/pages/Billing";
 import Login from "@/pages/Login";
 import Register from "@/pages/Register";
 import Contact from "@/pages/Contact";
@@ -77,6 +79,12 @@ function Router() {
       </Route>
       <Route path="/settings">
         <ProtectedRoute component={Settings} />
+      </Route>
+      <Route path="/admin">
+        <ProtectedRoute component={Admin} />
+      </Route>
+      <Route path="/billing">
+        <ProtectedRoute component={Billing} />
       </Route>
       <Route path="/project/:id">
         <ProtectedRoute component={ProjectDetails} />
