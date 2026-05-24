@@ -102,43 +102,52 @@ export default function ReportPreview({
   );
   const totalAreaSqM = totalAreaSqFt / 10.7639;
 
-  const Watermark = () => (
-    <div
-      className="absolute inset-0 overflow-hidden pointer-events-none select-none"
-      style={{ zIndex: 0 }}
-      aria-hidden="true"
-    >
+  function PDFPage({ children, className = "" }: { children: React.ReactNode; className?: string }) {
+    return (
       <div
+        className={`relative overflow-hidden isolate bg-white break-after-page ${className}`}
         style={{
-          position: "absolute",
-          top: "50%",
-          left: "50%",
-          transform: "translate(-50%, -50%) rotate(-45deg)",
-          width: "160%",
-          height: "160%",
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "space-around",
+          width: "210mm",
+          height: "297mm",
+          contain: "layout paint",
         }}
       >
-        {Array.from({ length: 4 }).map((_, i) => (
-          <span
-            key={i}
-            className="font-black text-slate-300 uppercase tracking-widest whitespace-nowrap"
-            style={{ fontSize: 20, opacity: 0.22 }}
-          >
-            {companyProfile.name}
-          </span>
-        ))}
+        {children}
       </div>
+    );
+  }
+
+  const Watermark = () => (
+    <div
+      className="absolute inset-0 pointer-events-none select-none z-0"
+      style={{ contain: "paint", overflow: "hidden" }}
+      aria-hidden="true"
+    >
+      {[
+        [20, 12], [20, 55],
+        [80, 12], [80, 55],
+      ].map(([left, top], i) => (
+        <span
+          key={i}
+          className="absolute font-black text-slate-300 uppercase tracking-widest whitespace-nowrap"
+          style={{
+            left: `${left}%`,
+            top: `${top}%`,
+            transform: "translate(-50%, -50%) rotate(-45deg)",
+            fontSize: 20,
+            opacity: 0.22,
+          }}
+        >
+          {companyProfile.name}
+        </span>
+      ))}
     </div>
   );
 
   return (
     <div className="font-sans text-sm text-slate-900 leading-normal bg-white print:p-0 w-full max-w-[210mm] print:max-w-full print:w-full mx-auto overflow-hidden print:overflow-visible">
       {/* Cover Page */}
-      <div className="min-h-[297mm] print:min-h-0 flex flex-col p-8 md:p-[25mm] bg-white break-after-page relative overflow-hidden print:overflow-visible">
+      <PDFPage className="p-8 md:p-[25mm] flex flex-col">
         <Watermark />
         <div
           className={cn(
@@ -236,13 +245,13 @@ export default function ReportPreview({
           <span>REPORT ID: {report.id.toUpperCase()}</span>
           <span>CONFIDENTIAL</span>
         </div>
-      </div>
+      </PDFPage>
 
       {/* Dimensions & Area Summary - Before Findings */}
       {measuredDimensions.length > 0 && (
-        <div className="relative overflow-hidden p-6 md:p-[15mm] bg-white break-before-page">
+        <PDFPage className="p-6 md:p-[15mm]">
           <Watermark />
-          <div className="mb-12 break-inside-avoid-page">
+          <div className="mb-12">
             <h3 className="text-lg font-bold mb-4 flex items-center gap-2 border-b pb-2 text-slate-900">
               Dimensions & Area Summary
             </h3>
@@ -314,15 +323,15 @@ export default function ReportPreview({
               </div>
             </div>
           </div>
-        </div>
+        </PDFPage>
       )}
 
       {/* Findings Section */}
-      <div className="flex flex-col relative overflow-hidden print:min-h-0 break-before-page">
+      <PDFPage className="p-6 md:p-[15mm] flex flex-col">
         <Watermark />
         <PageLogo />
 
-        <div className="p-6 md:p-[15mm] bg-white flex-1">
+        <div className="flex-1">
           <div className="border-b-2 border-slate-900 pb-4 mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-2 mt-12 md:mt-0">
             <h2 className="text-xl md:text-2xl font-black uppercase tracking-tight">
               Inspection Findings
@@ -370,14 +379,11 @@ export default function ReportPreview({
             )}
           </div>
         </div>
-      </div>
+      </PDFPage>
 
       {/* Failed Checklist Items — one per page, spread layout */}
       {failedChecklistItems.map((item, index) => (
-        <div
-          key={item.id}
-          className="break-before-page bg-white p-6 md:p-[15mm] relative overflow-hidden min-h-[297mm]"
-        >
+        <PDFPage key={item.id} className="p-6 md:p-[15mm]">
           <Watermark />
           <PageLogo />
 
@@ -455,16 +461,13 @@ export default function ReportPreview({
               )}
             </div>
           </div>
-        </div>
+        </PDFPage>
       ))}
 
       {/* Issues Section — one per page, spread layout */}
       {report.issues &&
         report.issues.map((issue: any, index: number) => (
-          <div
-            key={issue.id}
-            className="break-before-page bg-white p-6 md:p-[15mm] relative overflow-hidden min-h-[297mm]"
-          >
+          <PDFPage key={issue.id} className="p-6 md:p-[15mm]">
             <Watermark />
             <PageLogo />
 
@@ -621,7 +624,7 @@ export default function ReportPreview({
                 )}
               </div>
             )}
-          </div>
+          </PDFPage>
         ))}
 
       {/* Footer */}

@@ -97,7 +97,7 @@
 
 @media print {
   @page {
-    margin: 0;
+    margin: 3mm;
   }
 
   html,
