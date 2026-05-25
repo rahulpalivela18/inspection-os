@@ -169,7 +169,7 @@ export default function ReportEditor() {
 
   const handlePrint = useReactToPrint({
     contentRef: componentRef,
-    documentTitle: "Inspection Report",
+    documentTitle: report ? `${report.title} - ${report.id}` : "Inspection Report",
   });
 
   const openNewIssueSheet = () => {

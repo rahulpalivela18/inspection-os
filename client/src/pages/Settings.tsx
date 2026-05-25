@@ -67,7 +67,7 @@ export default function Settings() {
   const { toast } = useToast();
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
-  const isAdmin = user?.role === "admin";
+  const isAdmin = user?.role === "admin" || user?.role === "super_admin";
 
   const [profile, setProfile] = useState({
     name: workspace?.name || "",

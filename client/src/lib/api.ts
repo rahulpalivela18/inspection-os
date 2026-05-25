@@ -38,8 +38,15 @@ export const api = {
 
   // Admin (super_admin only)
   getAdminWorkspaces: () => request<any[]>("/api/admin/workspaces"),
-  createInvoice: (data: { workspaceId: string; plan: string; amount: string }) =>
-    request<any>("/api/admin/invoices", { method: "POST", body: JSON.stringify(data) }),
+  createInvoice: (data: {
+    workspaceId: string;
+    plan: string;
+    amount: string;
+  }) =>
+    request<any>("/api/admin/invoices", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
   getAdminInvoices: () => request<any[]>("/api/admin/invoices"),
 
   // Workspace invoices (authenticated users)
