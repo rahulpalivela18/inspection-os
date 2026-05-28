@@ -9,7 +9,7 @@
 - `npm run check` — TypeScript type check (noEmit)
 - `npm run db:push` — Push Drizzle schema changes to DB
 
-No test, lint, or format commands configured.
+No test, lint, or format commands configured
 
 ## Architecture
 

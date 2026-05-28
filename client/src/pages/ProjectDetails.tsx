@@ -8,7 +8,6 @@ import {
   DEFAULT_SPACE_COUNTS,
   type ReportSpaceCounts,
 } from "@/lib/defaultChecklist";
-import type { ChecklistItem } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -52,6 +51,7 @@ import {
 import { Link, useRoute, useLocation } from "wouter";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
+import { buildChecklistWithPreservedResponses } from "@/lib/checklist";
 import NotFound from "./not-found";
 
 const normalizeSpaceCounts = (
@@ -62,83 +62,7 @@ const normalizeSpaceCounts = (
   balconies: Math.max(0, Number(spaceCounts?.balconies) || 0),
 });
 
-const buildChecklistFromTemplates = (
-  templates: Array<{
-    category: string;
-    point: string;
-    triggerOn?: "yes" | "no";
-  }>,
-): ChecklistItem[] => {
-  let runningId = 1;
-  const items: ChecklistItem[] = [];
 
-  const categories = Array.from(new Set(templates.map((t) => t.category)));
-
-  for (const category of categories) {
-    const categoryTemplates = templates.filter((t) => t.category === category);
-
-    for (const template of categoryTemplates) {
-      items.push({
-        id: `c${runningId++}`,
-        category: category,
-        point: template.point,
-        status: null,
-        triggerOn: template.triggerOn ?? "no",
-      });
-    }
-  }
-
-  return items;
-};
-
-const buildChecklistWithPreservedResponses = (
-  templates: Array<{
-    category: string;
-    point: string;
-    triggerOn?: "yes" | "no";
-  }>,
-  currentChecklist: ChecklistItem[] = [],
-  repeatableCounts: Record<string, number> = {},
-): ChecklistItem[] => {
-  let runningId = currentChecklist.length + 1;
-  const items: ChecklistItem[] = [];
-
-  const preservedItems = new Map(
-    currentChecklist.map((item) => [`${item.category}:::${item.point}`, item]),
-  );
-
-  const allCategories = Array.from(new Set(templates.map((t) => t.category)));
-
-  for (const cat of allCategories) {
-    const catTemplates = templates.filter((t) => t.category === cat);
-    const repeatCount = repeatableCounts[cat] || 0;
-
-    if (repeatCount > 0) {
-      for (let i = 1; i <= repeatCount; i++) {
-        const spaceLabel = `${cat} ${i}`;
-
-        for (const template of catTemplates) {
-          const key = `${spaceLabel}:::${template.point}`;
-          const existing = preservedItems.get(key);
-
-          if (existing) {
-            items.push({ ...existing, triggerOn: template.triggerOn ?? "no" });
-          } else {
-            items.push({
-              id: `c${runningId++}`,
-              category: spaceLabel,
-              point: template.point,
-              status: null,
-              triggerOn: template.triggerOn ?? "no",
-            });
-          }
-        }
-      }
-    }
-  }
-
-  return items;
-};
 
 const getStatusColor = (status: string) => {
   switch (status) {

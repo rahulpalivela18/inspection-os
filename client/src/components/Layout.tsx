@@ -6,33 +6,40 @@ import {
   Menu,
   Building2,
   CheckSquare,
+  Shield,
+  Receipt,
 } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth";
+import Footer from "@/components/Footer";
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
   const [isMobileOpen, setIsMobileOpen] = useState(false);
-  const { workspace } = useAuth();
+  const { user, workspace } = useAuth();
 
   const navigation = [
     { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
     { name: "Projects", href: "/dashboard", icon: FolderOpen },
+    { name: "Billing", href: "/billing", icon: Receipt },
     { name: "Settings", href: "/settings", icon: Settings },
+    ...(user?.role === "super_admin"
+      ? [{ name: "Admin", href: "/admin", icon: Shield }]
+      : []),
   ];
 
   const SidebarContent = () => (
     <div className="flex h-full flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground">
       <div className="space-y-4 p-6">
-        <div className="flex items-center gap-2 font-heading text-2xl font-bold text-primary">
+        <Link href="/" className="flex items-center gap-2 font-heading text-2xl font-bold text-primary hover:text-primary/80 transition-colors">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
             R
           </div>
           ReportGen
-        </div>
+        </Link>
         <div className="rounded-2xl border border-indigo-100 bg-gradient-to-br from-indigo-50 via-white to-slate-50 p-4 shadow-sm">
           <div className="flex items-start gap-3">
             <div className="mt-0.5 flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-lg shadow-indigo-600/20">
@@ -116,12 +123,12 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       </div>
 
       <div className="fixed left-0 right-0 top-0 z-40 flex h-14 items-center justify-between border-b border-sidebar-border bg-background px-4 md:hidden">
-        <div className="flex items-center gap-2 font-heading text-lg font-bold text-primary">
+        <Link href="/" className="flex items-center gap-2 font-heading text-lg font-bold text-primary hover:text-primary/80 transition-colors">
           <div className="flex h-6 w-6 items-center justify-center rounded bg-primary text-[10px] text-primary-foreground">
             R
           </div>
           ReportGen
-        </div>
+        </Link>
         <Sheet open={isMobileOpen} onOpenChange={setIsMobileOpen}>
           <SheetTrigger asChild>
             <Button
@@ -141,6 +148,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
       <main className="h-full w-full flex-1 overflow-y-auto pt-14 md:pt-0">
         <div className="min-h-full">{children}</div>
+        <Footer />
       </main>
     </div>
   );
