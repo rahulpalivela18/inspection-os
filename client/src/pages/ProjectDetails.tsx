@@ -266,6 +266,23 @@ export default function ProjectDetails() {
       nextDimensionUnit,
     );
 
+    const isHomeInspection = selectedType === "Home Inspection";
+    let spaceCountsToSave: Record<string, number>;
+    if (isHomeInspection) {
+      spaceCountsToSave = { bedrooms: 0, bathrooms: 0, balconies: 0 };
+      Object.entries(editCategoryCounts).forEach(([cat, count]) => {
+        const catLower = cat.toLowerCase();
+        if (catLower.includes("bedroom"))
+          spaceCountsToSave.bedrooms = count;
+        else if (catLower.includes("bathroom"))
+          spaceCountsToSave.bathrooms = count;
+        else if (catLower.includes("balcony"))
+          spaceCountsToSave.balconies = count;
+      });
+    } else {
+      spaceCountsToSave = editCategoryCounts;
+    }
+
     updateReportMutation.mutate({
       id: editingReport.id,
       data: {
@@ -273,7 +290,7 @@ export default function ProjectDetails() {
         inspectionType: Array.isArray(editingReport.inspectionType)
           ? editingReport.inspectionType
           : [editingReport.inspectionType || "Home Inspection"],
-        spaceCounts: editCategoryCounts,
+        spaceCounts: spaceCountsToSave,
         dimensionUnit: nextDimensionUnit,
         dimensions: nextDimensions,
         checklist: nextChecklist,
