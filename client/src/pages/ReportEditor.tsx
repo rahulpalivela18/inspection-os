@@ -1157,8 +1157,8 @@ function DimensionsView({
                       placeholder={
                         dimension.unit === "ft" ? "e.g. 12.5" : "e.g. 3.8"
                       }
-                      value={dimension.length}
-                      onChange={(e) =>
+                      defaultValue={dimension.length}
+                      onBlur={(e) =>
                         updateDimensionField(
                           dimension.id,
                           "length",
@@ -1175,8 +1175,8 @@ function DimensionsView({
                       placeholder={
                         dimension.unit === "ft" ? "e.g. 10" : "e.g. 3.2"
                       }
-                      value={dimension.width}
-                      onChange={(e) =>
+                      defaultValue={dimension.width}
+                      onBlur={(e) =>
                         updateDimensionField(
                           dimension.id,
                           "width",
@@ -1194,8 +1194,8 @@ function DimensionsView({
                     <Textarea
                       placeholder="Optional notes about this measurement"
                       className="min-h-22"
-                      value={dimension.notes || ""}
-                      onChange={(e) =>
+                      defaultValue={dimension.notes || ""}
+                      onBlur={(e) =>
                         updateDimensionField(
                           dimension.id,
                           "notes",

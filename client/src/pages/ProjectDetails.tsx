@@ -54,14 +54,6 @@ import { useToast } from "@/hooks/use-toast";
 import { buildChecklistWithPreservedResponses } from "@/lib/checklist";
 import NotFound from "./not-found";
 
-const normalizeSpaceCounts = (
-  spaceCounts?: Partial<ReportSpaceCounts>,
-): ReportSpaceCounts => ({
-  bedrooms: Math.max(0, Number(spaceCounts?.bedrooms) || 0),
-  bathrooms: Math.max(0, Number(spaceCounts?.bathrooms) || 0),
-  balconies: Math.max(0, Number(spaceCounts?.balconies) || 0),
-});
-
 
 
 const getStatusColor = (status: string) => {
@@ -211,9 +203,6 @@ export default function ProjectDetails() {
       inspectionType: Array.isArray(report.inspectionType)
         ? report.inspectionType
         : [report.inspectionType || "Home Inspection"],
-      spaceCounts: normalizeSpaceCounts(
-        report.spaceCounts ?? DEFAULT_SPACE_COUNTS,
-      ),
     });
     const reportType = Array.isArray(report.inspectionType)
       ? report.inspectionType[0]
