@@ -1111,13 +1111,23 @@ function DimensionsView({
                       <input
                         className="flex-1 text-xl font-semibold text-slate-900 bg-transparent outline-none"
                         defaultValue={dimension.spaceName ?? dimension.space}
-                        onBlur={(e) =>
-                          updateDimensionField(
-                            dimension.id,
-                            "spaceName",
-                            e.target.value,
-                          )
-                        }
+                        onBlur={(e) => {
+                          const val = e.target.value.trim();
+                          if (!val) {
+                            e.target.value = dimension.space;
+                            updateDimensionField(
+                              dimension.id,
+                              "spaceName",
+                              dimension.space,
+                            );
+                          } else {
+                            updateDimensionField(
+                              dimension.id,
+                              "spaceName",
+                              val,
+                            );
+                          }
+                        }}
                         data-testid={`text-dimension-space-${dimension.id}`}
                       />
                       <svg

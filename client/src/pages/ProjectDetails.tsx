@@ -227,7 +227,16 @@ export default function ProjectDetails() {
 
     const counts: Record<string, number> = {};
     typeCategories.forEach((cat: any) => {
-      counts[cat] = report.spaceCounts?.[cat] ?? 0;
+      const catLower = cat.toLowerCase();
+      const savedKey = Object.keys(report.spaceCounts ?? {}).find((k) => {
+        const lower = k.toLowerCase();
+        return (
+          lower === catLower ||
+          lower === `${catLower}s` ||
+          lower.replace(/ies$/, "y") === catLower
+        );
+      });
+      counts[cat] = savedKey ? report.spaceCounts![savedKey] : 0;
     });
 
     setEditCategoryCounts(counts);
