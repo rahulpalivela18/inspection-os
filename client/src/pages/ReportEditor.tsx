@@ -1110,8 +1110,8 @@ function DimensionsView({
                     <div className="mt-1 flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 focus-within:border-indigo-400 focus-within:ring-1 focus-within:ring-indigo-400 transition-all">
                       <input
                         className="flex-1 text-xl font-semibold text-slate-900 bg-transparent outline-none"
-                        value={dimension.spaceName ?? dimension.space}
-                        onChange={(e) =>
+                        defaultValue={dimension.spaceName ?? dimension.space}
+                        onBlur={(e) =>
                           updateDimensionField(
                             dimension.id,
                             "spaceName",
