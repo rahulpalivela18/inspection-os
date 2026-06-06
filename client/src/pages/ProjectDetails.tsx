@@ -256,22 +256,7 @@ export default function ProjectDetails() {
       nextDimensionUnit,
     );
 
-    const isHomeInspection = selectedType === "Home Inspection";
-    let spaceCountsToSave: Record<string, number>;
-    if (isHomeInspection) {
-      spaceCountsToSave = { bedrooms: 0, bathrooms: 0, balconies: 0 };
-      Object.entries(editCategoryCounts).forEach(([cat, count]) => {
-        const catLower = cat.toLowerCase();
-        if (catLower.includes("bedroom"))
-          spaceCountsToSave.bedrooms = count;
-        else if (catLower.includes("bathroom"))
-          spaceCountsToSave.bathrooms = count;
-        else if (catLower.includes("balcony"))
-          spaceCountsToSave.balconies = count;
-      });
-    } else {
-      spaceCountsToSave = editCategoryCounts;
-    }
+    const spaceCountsToSave = { ...editCategoryCounts };
 
     updateReportMutation.mutate({
       id: editingReport.id,
@@ -300,21 +285,7 @@ export default function ProjectDetails() {
       categoryCounts,
     );
 
-    const isHomeInspection = newReport.inspectionType[0] === "Home Inspection";
-    let spaceCountsToSave: Record<string, number> | null = null;
-    if (isHomeInspection) {
-      spaceCountsToSave = { bedrooms: 0, bathrooms: 0, balconies: 0 };
-      Object.entries(categoryCounts).forEach(([cat, count]) => {
-        const catLower = cat.toLowerCase();
-        if (catLower.includes("bedroom")) spaceCountsToSave!.bedrooms = count;
-        else if (catLower.includes("bathroom"))
-          spaceCountsToSave!.bathrooms = count;
-        else if (catLower.includes("balcony"))
-          spaceCountsToSave!.balconies = count;
-      });
-    } else {
-      spaceCountsToSave = categoryCounts as Record<string, number>;
-    }
+    const spaceCountsToSave = { ...categoryCounts } as Record<string, number>;
 
     const reportData = {
       title: newReport.title,
