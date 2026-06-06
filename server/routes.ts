@@ -139,6 +139,7 @@ export async function registerRoutes(
         "address",
         "email",
         "plan",
+        "planStatus",
       ]);
       res.status(201).json({ user: safe, workspace: safeWs });
     });
@@ -166,6 +167,7 @@ export async function registerRoutes(
           "address",
           "email",
           "plan",
+          "planStatus",
         ]);
         res.json({ user: safe, workspace: safeWs });
       });
@@ -189,6 +191,7 @@ export async function registerRoutes(
       "address",
       "email",
       "plan",
+      "planStatus",
     ]);
     res.json({ user: safe, workspace: safeWs });
   });

@@ -1,3 +1,8 @@
+---
+name: database
+description: Use when working on database schema design, Drizzle ORM queries, PostgreSQL, migrations, query optimization, or storage layer.
+---
+
 # Database Skill
 
 ## Stack
@@ -27,7 +32,8 @@ All child tables cascade-delete on `workspaceId` FK deletion.
 ```ts
 { id, name, logoUrl, address, email,
   plan: "starter"|"pro"|"enterprise",
-  planStatus: "active"|"inactive", createdAt }
+  planStatus: "active"|"inactive" (default: "inactive"),
+  createdAt }
 ```
 
 ### users
@@ -45,16 +51,21 @@ All child tables cascade-delete on `workspaceId` FK deletion.
 ```ts
 { id, projectId, workspaceId, title, author, date,
   status: "Draft"|"Review"|"Final",
-  inspectionType, dimensionUnit, spaceCounts,
-  checklist,    // JSONB — checklist responses
-  dimensions,   // JSONB — room/space dimension data
-  issues,       // JSONB — issues list with severity, photos, notes
+  inspectionType,  // JSONB — array of inspection types
+  dimensionUnit,   // "ft" | "m"
+  spaceCounts,     // JSONB
+  checklist,       // JSONB — checklist responses
+  dimensions,      // JSONB — room/space dimension data
+  issues,          // JSONB — issues list with severity, images, notes
   createdAt }
 ```
 
 ### checklistTemplates
 ```ts
-{ id, workspaceId, checklistType, category, point, order, triggerOn, createdAt }
+{ id, workspaceId, checklistType, category, point,
+  order,          // integer
+  triggerOn,      // "yes" | "no"
+  createdAt }
 ```
 
 ### invoices

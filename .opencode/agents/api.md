@@ -1,3 +1,17 @@
+---
+name: "api"
+description: "REST API design expert — endpoint contracts, Zod validation, route patterns, and API documentation"
+mode: "subagent"
+permission:
+  read: allow
+  edit:
+    "*": deny
+    "server/routes.ts": allow
+    "client/src/lib/api.ts": allow
+    "shared/schema.ts": allow
+  bash: deny
+---
+
 # API Skill
 
 ## Architecture
@@ -24,6 +38,8 @@ GET    /api/workspace/invoices    — billing history
 
 GET    /api/projects              — list projects
 POST   /api/projects              — create project
+GET    /api/projects/:id          — get single project
+PATCH  /api/projects/:id          — update project
 DELETE /api/projects/:id          — delete project
 
 GET    /api/projects/:id/reports  — list reports for project
@@ -39,6 +55,7 @@ PATCH  /api/checklist-templates/:id  — update template (admin+)
 DELETE /api/checklist-templates/:id  — delete template (admin+)
 
 GET    /api/admin/workspaces      — all workspaces (super_admin)
+POST   /api/admin/invoices        — create invoice (super_admin)
 GET    /api/admin/invoices        — all invoices (super_admin)
 ```
 
