@@ -10,6 +10,31 @@ export type ReportSpaceCounts = {
   balconies: number;
 };
 
+export function normalizeCategoryKey(key: string): string {
+  return key
+    .toLowerCase()
+    .replace(/\s+/g, "")
+    .replace(/ies$/, "y")
+    .replace(/s$/, "");
+}
+
+export function pluralize(word: string, count: number): string {
+  if (count === 1) return word;
+  if (word.endsWith("y")) return word.slice(0, -1) + "ies";
+  return word + "s";
+}
+
+export function getSpaceCount(
+  spaceCounts: Record<string, number>,
+  category: string,
+): number {
+  const normalized = normalizeCategoryKey(category);
+  const match = Object.entries(spaceCounts).find(
+    ([k]) => normalizeCategoryKey(k) === normalized,
+  );
+  return match ? match[1] : 0;
+}
+
 export const DEFAULT_SPACE_COUNTS: ReportSpaceCounts = {
   bedrooms: 1,
   bathrooms: 1,

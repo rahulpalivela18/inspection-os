@@ -329,7 +329,8 @@ export async function registerRoutes(
 
   app.get("/api/checklist-templates", requireAuth, async (req, res) => {
     const user = req.user as any;
-    const items = await storage.getChecklistTemplates(user.workspaceId);
+    const type = req.query.type as string | undefined;
+    const items = await storage.getChecklistTemplates(user.workspaceId, type);
     res.json(items);
   });
 

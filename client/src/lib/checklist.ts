@@ -1,4 +1,5 @@
 import type { ChecklistItem } from "@/lib/store";
+import { getSpaceCount } from "@/lib/defaultChecklist";
 
 export function buildChecklistWithPreservedResponses(
   templates: Array<{
@@ -28,15 +29,7 @@ export function buildChecklistWithPreservedResponses(
     let isRepeatable = false;
 
     if (isBuiltinRepeatable) {
-      const normalizedKey = Object.keys(spaceCounts).find((k) => {
-        const lower = k.toLowerCase();
-        return (
-          lower === catLower ||
-          lower === `${catLower}s` ||
-          lower.replace(/ies$/, "y") === catLower
-        );
-      });
-      count = normalizedKey ? spaceCounts[normalizedKey] : 1;
+      count = getSpaceCount(spaceCounts, cat) || 1;
       isRepeatable = true;
     } else if (cat in spaceCounts) {
       count = spaceCounts[cat];
