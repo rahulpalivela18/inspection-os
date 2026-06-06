@@ -166,8 +166,6 @@ export default function Templates() {
         checklistType: selectedType,
         category: newItem.category,
         point: line,
-        isRepeatable: false,
-        spaceType: null,
         triggerOn: newItem.triggerOn,
         order: order,
       });

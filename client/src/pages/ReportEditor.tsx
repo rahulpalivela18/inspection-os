@@ -125,9 +125,9 @@ export default function ReportEditor() {
 
   const { data: checklistTemplates = [], refetch: refetchTemplates } = useQuery(
     {
-      queryKey: ["checklistTemplates"],
+      queryKey: ["checklist-templates"],
       queryFn: () => api.getChecklistTemplates(),
-      staleTime: 0,
+      staleTime: Infinity,
     },
   );
 
@@ -163,7 +163,7 @@ export default function ReportEditor() {
       updatedReport.spaceCounts ?? { bedrooms: 1, bathrooms: 1, balconies: 1 },
     );
 
-    saveReport({ ...updatedReport, checklist: syncedChecklist });
+    saveReport({ checklist: syncedChecklist });
     setIsSyncConfirmOpen(false);
   };
 
@@ -230,7 +230,7 @@ export default function ReportEditor() {
       const updatedIssues = currentIssues.map((issue: Issue) =>
         issue.id === editingIssue.id ? { ...issue, ...formData } : issue,
       );
-      saveReport({ ...report, issues: updatedIssues });
+      saveReport({ issues: updatedIssues });
     } else {
       const newIssue: Issue = {
         ...formData,
@@ -238,7 +238,7 @@ export default function ReportEditor() {
         reportId: report.id,
         createdAt: new Date().toISOString(),
       };
-      saveReport({ ...report, issues: [...currentIssues, newIssue] });
+      saveReport({ issues: [...currentIssues, newIssue] });
     }
     setIsSheetOpen(false);
   };
@@ -306,12 +306,12 @@ export default function ReportEditor() {
     const next = dimensionRows.map((d) =>
       d.id === dimensionId ? { ...d, [field]: value } : d,
     );
-    saveReport({ ...report, dimensions: next });
+    saveReport({ dimensions: next });
   };
 
   const updateDefaultUnit = (nextUnit: "ft" | "m") => {
     const next = dimensionRows.map((d) => ({ ...d, unit: nextUnit }));
-    saveReport({ ...report, dimensionUnit: nextUnit, dimensions: next });
+    saveReport({ dimensionUnit: nextUnit, dimensions: next });
   };
 
   const updateChecklistItem = (
@@ -321,7 +321,7 @@ export default function ReportEditor() {
     const next = report.checklist?.map((c: ChecklistItem) =>
       c.id === itemId ? { ...c, ...updates } : c,
     );
-    saveReport({ ...report, checklist: next });
+    saveReport({ checklist: next });
   };
 
   const categories: string[] = Array.from(

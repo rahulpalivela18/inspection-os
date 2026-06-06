@@ -52,6 +52,7 @@ import { Link, useRoute, useLocation } from "wouter";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { buildChecklistWithPreservedResponses } from "@/lib/checklist";
+import { pick } from "@shared/cleanData";
 import NotFound from "./not-found";
 
 
@@ -102,9 +103,9 @@ export default function ProjectDetails() {
   });
 
   const { data: checklistTemplates = [] } = useQuery({
-    queryKey: ["checklistTemplates"],
+    queryKey: ["checklist-templates"],
     queryFn: () => api.getChecklistTemplates(),
-    staleTime: 0,
+    staleTime: Infinity,
   });
 
   const { data: reports = [], isLoading: loadingReports } = useQuery({
@@ -275,7 +276,7 @@ export default function ProjectDetails() {
     updateReportMutation.mutate({
       id: editingReport.id,
       data: {
-        ...editingReport,
+        ...pick(editingReport, ["title", "author", "status", "date"]),
         inspectionType: Array.isArray(editingReport.inspectionType)
           ? editingReport.inspectionType
           : [editingReport.inspectionType || "Home Inspection"],
