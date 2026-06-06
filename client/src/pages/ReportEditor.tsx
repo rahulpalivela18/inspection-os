@@ -1110,14 +1110,24 @@ function DimensionsView({
                     <div className="mt-1 flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 focus-within:border-indigo-400 focus-within:ring-1 focus-within:ring-indigo-400 transition-all">
                       <input
                         className="flex-1 text-xl font-semibold text-slate-900 bg-transparent outline-none"
-                        value={dimension.spaceName ?? dimension.space}
-                        onChange={(e) =>
-                          updateDimensionField(
-                            dimension.id,
-                            "spaceName",
-                            e.target.value,
-                          )
-                        }
+                        defaultValue={dimension.spaceName ?? dimension.space}
+                        onBlur={(e) => {
+                          const val = e.target.value.trim();
+                          if (!val) {
+                            e.target.value = dimension.space;
+                            updateDimensionField(
+                              dimension.id,
+                              "spaceName",
+                              dimension.space,
+                            );
+                          } else {
+                            updateDimensionField(
+                              dimension.id,
+                              "spaceName",
+                              val,
+                            );
+                          }
+                        }}
                         data-testid={`text-dimension-space-${dimension.id}`}
                       />
                       <svg
@@ -1147,8 +1157,8 @@ function DimensionsView({
                       placeholder={
                         dimension.unit === "ft" ? "e.g. 12.5" : "e.g. 3.8"
                       }
-                      value={dimension.length}
-                      onChange={(e) =>
+                      defaultValue={dimension.length}
+                      onBlur={(e) =>
                         updateDimensionField(
                           dimension.id,
                           "length",
@@ -1165,8 +1175,8 @@ function DimensionsView({
                       placeholder={
                         dimension.unit === "ft" ? "e.g. 10" : "e.g. 3.2"
                       }
-                      value={dimension.width}
-                      onChange={(e) =>
+                      defaultValue={dimension.width}
+                      onBlur={(e) =>
                         updateDimensionField(
                           dimension.id,
                           "width",
@@ -1184,8 +1194,8 @@ function DimensionsView({
                     <Textarea
                       placeholder="Optional notes about this measurement"
                       className="min-h-22"
-                      value={dimension.notes || ""}
-                      onChange={(e) =>
+                      defaultValue={dimension.notes || ""}
+                      onBlur={(e) =>
                         updateDimensionField(
                           dimension.id,
                           "notes",

@@ -31,7 +31,7 @@ export const buildDimensionsFromChecklist = (
     return {
       id: existing?.id ?? `d${index + 1}`,
       space,
-      spaceName: existing?.spaceName || space,
+      spaceName: existing?.spaceName ?? space,
       length: existing?.length ?? "",
       width: existing?.width ?? "",
       unit: existing?.unit ?? defaultUnit,

@@ -54,14 +54,6 @@ import { useToast } from "@/hooks/use-toast";
 import { buildChecklistWithPreservedResponses } from "@/lib/checklist";
 import NotFound from "./not-found";
 
-const normalizeSpaceCounts = (
-  spaceCounts?: Partial<ReportSpaceCounts>,
-): ReportSpaceCounts => ({
-  bedrooms: Math.max(0, Number(spaceCounts?.bedrooms) || 0),
-  bathrooms: Math.max(0, Number(spaceCounts?.bathrooms) || 0),
-  balconies: Math.max(0, Number(spaceCounts?.balconies) || 0),
-});
-
 
 
 const getStatusColor = (status: string) => {
@@ -211,9 +203,6 @@ export default function ProjectDetails() {
       inspectionType: Array.isArray(report.inspectionType)
         ? report.inspectionType
         : [report.inspectionType || "Home Inspection"],
-      spaceCounts: normalizeSpaceCounts(
-        report.spaceCounts ?? DEFAULT_SPACE_COUNTS,
-      ),
     });
     const reportType = Array.isArray(report.inspectionType)
       ? report.inspectionType[0]
@@ -227,7 +216,16 @@ export default function ProjectDetails() {
 
     const counts: Record<string, number> = {};
     typeCategories.forEach((cat: any) => {
-      counts[cat] = report.spaceCounts?.[cat] ?? 0;
+      const catLower = cat.toLowerCase();
+      const savedKey = Object.keys(report.spaceCounts ?? {}).find((k) => {
+        const lower = k.toLowerCase();
+        return (
+          lower === catLower ||
+          lower === `${catLower}s` ||
+          lower.replace(/ies$/, "y") === catLower
+        );
+      });
+      counts[cat] = savedKey ? report.spaceCounts![savedKey] : 0;
     });
 
     setEditCategoryCounts(counts);
@@ -257,6 +255,23 @@ export default function ProjectDetails() {
       nextDimensionUnit,
     );
 
+    const isHomeInspection = selectedType === "Home Inspection";
+    let spaceCountsToSave: Record<string, number>;
+    if (isHomeInspection) {
+      spaceCountsToSave = { bedrooms: 0, bathrooms: 0, balconies: 0 };
+      Object.entries(editCategoryCounts).forEach(([cat, count]) => {
+        const catLower = cat.toLowerCase();
+        if (catLower.includes("bedroom"))
+          spaceCountsToSave.bedrooms = count;
+        else if (catLower.includes("bathroom"))
+          spaceCountsToSave.bathrooms = count;
+        else if (catLower.includes("balcony"))
+          spaceCountsToSave.balconies = count;
+      });
+    } else {
+      spaceCountsToSave = editCategoryCounts;
+    }
+
     updateReportMutation.mutate({
       id: editingReport.id,
       data: {
@@ -264,7 +279,7 @@ export default function ProjectDetails() {
         inspectionType: Array.isArray(editingReport.inspectionType)
           ? editingReport.inspectionType
           : [editingReport.inspectionType || "Home Inspection"],
-        spaceCounts: editCategoryCounts,
+        spaceCounts: spaceCountsToSave,
         dimensionUnit: nextDimensionUnit,
         dimensions: nextDimensions,
         checklist: nextChecklist,

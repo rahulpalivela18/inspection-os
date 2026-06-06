@@ -28,7 +28,15 @@ export function buildChecklistWithPreservedResponses(
     let isRepeatable = false;
 
     if (isBuiltinRepeatable) {
-      count = spaceCounts[catLower] ?? 1;
+      const normalizedKey = Object.keys(spaceCounts).find((k) => {
+        const lower = k.toLowerCase();
+        return (
+          lower === catLower ||
+          lower === `${catLower}s` ||
+          lower.replace(/ies$/, "y") === catLower
+        );
+      });
+      count = normalizedKey ? spaceCounts[normalizedKey] : 1;
       isRepeatable = true;
     } else if (cat in spaceCounts) {
       count = spaceCounts[cat];
