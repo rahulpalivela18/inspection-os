@@ -1,3 +1,15 @@
+---
+name: "backend"
+description: "Backend expert — Express routes, middleware, server logic, and business layer implementation"
+mode: "subagent"
+permission:
+  read: allow
+  edit:
+    "*": deny
+    "server/**": allow
+  bash: allow
+---
+
 # Backend Skill
 
 ## Stack
@@ -21,13 +33,17 @@ server/
   vite.ts           # Vite dev server integration
 ```
 
-## Middleware Stack (index.ts order)
+## Middleware Stack
+**index.ts (global middleware):**
 1. `express.json({ limit: "10mb" })` — captures `rawBody` on request
-2. Request logger (logs method, path, status, duration)
-3. Session middleware (PostgreSQL-backed session store)
-4. `passport.initialize()` + `passport.session()`
+2. `express.urlencoded({ extended: false, limit: "10mb" })`
+3. Request logger (logs method, path, status, duration)
 
-All routes are registered after this middleware stack.
+**routes.ts (inside registerRoutes):**
+4. Session middleware (PostgreSQL-backed session store via connect-pg-simple)
+5. `passport.initialize()` + `passport.session()`
+
+All API routes are registered after the passport middleware.
 
 ## Route File Conventions (routes.ts)
 - All routes prefixed `/api/`
@@ -71,10 +87,10 @@ res.status(400).json({ message: "Descriptive error here" });
 ```
 
 ## GCP Storage (gcp-storage.ts)
-- `uploadImageToGCS(base64: string, filename: string): Promise<string>` — returns public URL
-- Filenames: `timestamp-random-sanitizedName.ext`
-- Cache-control: `public, max-age=31536000, immutable` for uploaded assets
-- Use `isValidGcpUrl(url)` to validate before saving
+- `uploadImageToGCP(base64: string, filename: string): Promise<string | null>` — returns public URL or null
+- Filenames: `timestamp-random-hex-sanitizedName.ext`
+- Cache-control: `public, max-age=31536000` for uploaded assets
+- Use `isGCPUrl(url)` to validate before saving
 
 ## Session / User on Request
 ```ts

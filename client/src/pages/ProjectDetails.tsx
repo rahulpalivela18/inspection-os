@@ -6,6 +6,8 @@ import {
   buildDimensionsFromChecklist,
   DEFAULT_DIMENSION_UNIT,
   DEFAULT_SPACE_COUNTS,
+  getSpaceCount,
+  pluralize,
   type ReportSpaceCounts,
 } from "@/lib/defaultChecklist";
 import { Button } from "@/components/ui/button";
@@ -52,6 +54,7 @@ import { Link, useRoute, useLocation } from "wouter";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { buildChecklistWithPreservedResponses } from "@/lib/checklist";
+import { pick } from "@shared/cleanData";
 import NotFound from "./not-found";
 
 
@@ -102,9 +105,9 @@ export default function ProjectDetails() {
   });
 
   const { data: checklistTemplates = [] } = useQuery({
-    queryKey: ["checklistTemplates"],
+    queryKey: ["checklist-templates"],
     queryFn: () => api.getChecklistTemplates(),
-    staleTime: 0,
+    staleTime: Infinity,
   });
 
   const { data: reports = [], isLoading: loadingReports } = useQuery({
@@ -216,16 +219,7 @@ export default function ProjectDetails() {
 
     const counts: Record<string, number> = {};
     typeCategories.forEach((cat: any) => {
-      const catLower = cat.toLowerCase();
-      const savedKey = Object.keys(report.spaceCounts ?? {}).find((k) => {
-        const lower = k.toLowerCase();
-        return (
-          lower === catLower ||
-          lower === `${catLower}s` ||
-          lower.replace(/ies$/, "y") === catLower
-        );
-      });
-      counts[cat] = savedKey ? report.spaceCounts![savedKey] : 0;
+      counts[cat] = getSpaceCount(report.spaceCounts ?? {}, cat);
     });
 
     setEditCategoryCounts(counts);
@@ -255,27 +249,12 @@ export default function ProjectDetails() {
       nextDimensionUnit,
     );
 
-    const isHomeInspection = selectedType === "Home Inspection";
-    let spaceCountsToSave: Record<string, number>;
-    if (isHomeInspection) {
-      spaceCountsToSave = { bedrooms: 0, bathrooms: 0, balconies: 0 };
-      Object.entries(editCategoryCounts).forEach(([cat, count]) => {
-        const catLower = cat.toLowerCase();
-        if (catLower.includes("bedroom"))
-          spaceCountsToSave.bedrooms = count;
-        else if (catLower.includes("bathroom"))
-          spaceCountsToSave.bathrooms = count;
-        else if (catLower.includes("balcony"))
-          spaceCountsToSave.balconies = count;
-      });
-    } else {
-      spaceCountsToSave = editCategoryCounts;
-    }
+    const spaceCountsToSave = { ...editCategoryCounts };
 
     updateReportMutation.mutate({
       id: editingReport.id,
       data: {
-        ...editingReport,
+        ...pick(editingReport, ["title", "author", "status", "date"]),
         inspectionType: Array.isArray(editingReport.inspectionType)
           ? editingReport.inspectionType
           : [editingReport.inspectionType || "Home Inspection"],
@@ -299,21 +278,7 @@ export default function ProjectDetails() {
       categoryCounts,
     );
 
-    const isHomeInspection = newReport.inspectionType[0] === "Home Inspection";
-    let spaceCountsToSave: Record<string, number> | null = null;
-    if (isHomeInspection) {
-      spaceCountsToSave = { bedrooms: 0, bathrooms: 0, balconies: 0 };
-      Object.entries(categoryCounts).forEach(([cat, count]) => {
-        const catLower = cat.toLowerCase();
-        if (catLower.includes("bedroom")) spaceCountsToSave!.bedrooms = count;
-        else if (catLower.includes("bathroom"))
-          spaceCountsToSave!.bathrooms = count;
-        else if (catLower.includes("balcony"))
-          spaceCountsToSave!.balconies = count;
-      });
-    } else {
-      spaceCountsToSave = categoryCounts as Record<string, number>;
-    }
+    const spaceCountsToSave = { ...categoryCounts } as Record<string, number>;
 
     const reportData = {
       title: newReport.title,
@@ -654,38 +619,25 @@ export default function ProjectDetails() {
                             {format(new Date(report.createdAt), "MMM d")}
                           </span>
                         </div>
-                        {report.spaceCounts &&
-                          report.inspectionType?.[0] === "Home Inspection" && (
+                        {report.spaceCounts && (
                             <div
                               className="mt-3 flex flex-wrap gap-2"
                               data-testid={`text-space-summary-${report.id}`}
                             >
-                              {report.spaceCounts.bedrooms > 0 && (
-                                <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-semibold text-slate-600">
-                                  {report.spaceCounts.bedrooms} Bedroom
-                                  {report.spaceCounts.bedrooms === 1 ? "" : "s"}
-                                </span>
-                              )}
-                              {report.spaceCounts.bathrooms > 0 && (
-                                <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-semibold text-slate-600">
-                                  {report.spaceCounts.bathrooms} Bathroom
-                                  {report.spaceCounts.bathrooms === 1
-                                    ? ""
-                                    : "s"}
-                                </span>
-                              )}
-                              {report.spaceCounts.balconies > 0 && (
-                                <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-semibold text-slate-600">
-                                  {report.spaceCounts.balconies}{" "}
-                                  {report.spaceCounts.balconies === 1
-                                    ? "Balcony"
-                                    : "Balconies"}
-                                </span>
-                              )}
+                              {Object.entries(report.spaceCounts as Record<string, number>)
+                                .filter(([, count]) => count > 0)
+                                .map(([category, count]) => (
+                                  <span
+                                    key={category}
+                                    className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-semibold text-slate-600"
+                                  >
+                                    {count} {pluralize(category, count)}
+                                  </span>
+                                ))}
                             </div>
                           )}
                       </div>
-                      <div className="flex-shrink-0 flex flex-col md:flex-row items-center md:border-l md:pl-4 mt-2 md:mt-0 pt-2 md:pt-0 border-t md:border-t-0 gap-2">
+                      <div className="shrink-0 flex flex-col md:flex-row items-center md:border-l md:pl-4 mt-2 md:mt-0 pt-2 md:pt-0 border-t md:border-t-0 gap-2">
                         <Button
                           variant="outline"
                           size="sm"

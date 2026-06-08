@@ -39,7 +39,10 @@ export interface IStorage {
   deleteUser(id: string, workspaceId: string): Promise<boolean>;
 
   // Checklist Templates
-  getChecklistTemplates(workspaceId: string): Promise<ChecklistTemplate[]>;
+  getChecklistTemplates(
+    workspaceId: string,
+    type?: string,
+  ): Promise<ChecklistTemplate[]>;
   createChecklistTemplate(
     t: InsertChecklistTemplate,
   ): Promise<ChecklistTemplate>;
@@ -131,11 +134,15 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Checklist Templates
-  async getChecklistTemplates(workspaceId: string) {
+  async getChecklistTemplates(workspaceId: string, type?: string) {
+    const conditions = [eq(checklistTemplates.workspaceId, workspaceId)];
+    if (type) {
+      conditions.push(eq(checklistTemplates.checklistType, type));
+    }
     return db
       .select()
       .from(checklistTemplates)
-      .where(eq(checklistTemplates.workspaceId, workspaceId))
+      .where(and(...conditions))
       .orderBy(desc(checklistTemplates.createdAt));
   }
   async createChecklistTemplate(data: InsertChecklistTemplate) {

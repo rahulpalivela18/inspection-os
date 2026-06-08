@@ -15,6 +15,7 @@ import {
   insertChecklistTemplateSchema,
   insertWorkspaceSchema,
 } from "@shared/schema";
+import { pick } from "@shared/cleanData";
 import { DEFAULT_CHECKLIST_POINTS } from "./defaultChecklist";
 import { uploadImageToGCP, isGCPUrl } from "./gcp-storage";
 
@@ -131,7 +132,16 @@ export async function registerRoutes(
           .status(500)
           .json({ message: "Login failed after registration" });
       const { password: _, ...safe } = user;
-      res.status(201).json({ user: safe, workspace });
+      const safeWs = pick(workspace, [
+        "id",
+        "name",
+        "logoUrl",
+        "address",
+        "email",
+        "plan",
+        "planStatus",
+      ]);
+      res.status(201).json({ user: safe, workspace: safeWs });
     });
   });
 
@@ -150,7 +160,16 @@ export async function registerRoutes(
         if (loginErr) return next(loginErr);
         const workspace = await storage.getWorkspace(user.workspaceId);
         const { password: _, ...safe } = user;
-        res.json({ user: safe, workspace });
+        const safeWs = pick(workspace, [
+          "id",
+          "name",
+          "logoUrl",
+          "address",
+          "email",
+          "plan",
+          "planStatus",
+        ]);
+        res.json({ user: safe, workspace: safeWs });
       });
     })(req, res, next);
   });
@@ -165,7 +184,16 @@ export async function registerRoutes(
     const user = req.user as any;
     const workspace = await storage.getWorkspace(user.workspaceId);
     const { password: _, ...safe } = user;
-    res.json({ user: safe, workspace });
+    const safeWs = pick(workspace, [
+      "id",
+      "name",
+      "logoUrl",
+      "address",
+      "email",
+      "plan",
+      "planStatus",
+    ]);
+    res.json({ user: safe, workspace: safeWs });
   });
 
   // ── Team Routes ───────────────────────────────────────────────────────────────
@@ -301,7 +329,8 @@ export async function registerRoutes(
 
   app.get("/api/checklist-templates", requireAuth, async (req, res) => {
     const user = req.user as any;
-    const items = await storage.getChecklistTemplates(user.workspaceId);
+    const type = req.query.type as string | undefined;
+    const items = await storage.getChecklistTemplates(user.workspaceId, type);
     res.json(items);
   });
 
@@ -398,7 +427,10 @@ export async function registerRoutes(
       req.params.projectId as string,
       user.workspaceId,
     );
-    res.json(items);
+    const summaries = items.map(
+      ({ checklist, dimensions, issues, ...rest }) => rest,
+    );
+    res.json(summaries);
   });
 
   app.post(

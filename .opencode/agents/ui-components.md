@@ -1,3 +1,15 @@
+---
+name: "ui-components"
+description: "UI expert — shadcn/ui components, Tailwind styling, accessibility, and responsive design"
+mode: "subagent"
+permission:
+  read: allow
+  edit:
+    "*": deny
+    "client/src/components/**": allow
+  bash: deny
+---
+
 # UI Components Skill
 
 ## Stack

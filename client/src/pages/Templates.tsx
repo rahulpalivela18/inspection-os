@@ -84,17 +84,22 @@ export default function Templates() {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<any>(null);
 
-  const { data: templates = [], isLoading } = useQuery({
-    queryKey: ["checklist-templates"],
-    queryFn: api.getChecklistTemplates,
+  // Fetch all templates once to discover available types for the dropdown
+  const { data: allTemplates = [] } = useQuery({
+    queryKey: ["checklist-templates", "all"],
+    queryFn: () => api.getChecklistTemplates(),
+    staleTime: Infinity,
   });
 
-  const filteredTemplates = templates.filter(
-    (t: any) => t.checklistType === selectedType,
-  );
+  // Fetch only the selected type for the displayed list
+  const { data: templates = [], isLoading } = useQuery({
+    queryKey: ["checklist-templates", selectedType],
+    queryFn: () => api.getChecklistTemplates(selectedType),
+    staleTime: Infinity,
+  });
 
   const customTypes = Array.from(
-    new Set(templates.map((t: any) => t.checklistType).filter(Boolean)),
+    new Set(allTemplates.map((t: any) => t.checklistType).filter(Boolean)),
   ).filter((t) => !PREDEFINED_TYPES.includes(t));
   const allTypes = [...PREDEFINED_TYPES, ...customTypes].sort((a, b) => {
     const aIdx = PREDEFINED_TYPES.indexOf(a);
@@ -166,8 +171,6 @@ export default function Templates() {
         checklistType: selectedType,
         category: newItem.category,
         point: line,
-        isRepeatable: false,
-        spaceType: null,
         triggerOn: newItem.triggerOn,
         order: order,
       });
@@ -208,7 +211,7 @@ export default function Templates() {
     updateMutation.mutate({ id: item.id, data: { triggerOn: val } });
   };
 
-  const grouped = filteredTemplates.reduce(
+  const grouped = templates.reduce(
     (acc: Record<string, any[]>, item: any) => {
       if (!acc[item.category]) acc[item.category] = [];
       acc[item.category].push(item);
@@ -298,7 +301,7 @@ export default function Templates() {
               Total points
             </p>
             <p className="mt-2 text-3xl font-black text-slate-900">
-              {filteredTemplates.length}
+              {templates.length}
             </p>
           </div>
           <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
@@ -329,7 +332,7 @@ export default function Templates() {
           <div className="text-center py-12 text-muted-foreground">
             Loading checklist...
           </div>
-        ) : filteredTemplates.length === 0 ? (
+        ) : templates.length === 0 ? (
           <div className="text-center py-12 border-2 border-dashed rounded-xl text-muted-foreground">
             No checklist items for {selectedType}. Add your first one above.
           </div>

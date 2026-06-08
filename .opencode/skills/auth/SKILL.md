@@ -1,3 +1,8 @@
+---
+name: auth
+description: Use when working on authentication, login, registration, sessions, Passport.js, RBAC, permissions, security, or authorization flows.
+---
+
 # Auth Skill
 
 ## Overview
@@ -5,14 +10,14 @@ Session-based authentication using Passport.js local strategy. No JWTs. Sessions
 
 ## Server-Side
 
-### Session Setup (index.ts)
+### Session Setup (routes.ts, inside registerRoutes)
 ```ts
 app.use(session({
-  store: new PgSession({ pool }),
-  secret: process.env.SESSION_SECRET!,
+  store: new PgSession({ pool, createTableIfMissing: true }),
+  secret: process.env.SESSION_SECRET || "reportgen-secret-2024",
   resave: false,
   saveUninitialized: false,
-  cookie: { secure: process.env.NODE_ENV === "production", httpOnly: true },
+  cookie: { maxAge: 7 * 24 * 60 * 60 * 1000 },
 }));
 app.use(passport.initialize());
 app.use(passport.session());
@@ -36,9 +41,9 @@ declare global {
 
 ### Auth Middleware
 ```ts
-requireAuth     // req.isAuthenticated() check
-requireAdmin    // role in ["admin", "super_admin"]
-requireSuperAdmin // role === "super_admin"
+requireAuth        // req.isAuthenticated() check
+requireAdmin       // isAuthenticated + role in ["admin", "super_admin"]
+requireSuperAdmin  // isAuthenticated + role === "super_admin"
 ```
 
 ### Registration Flow
@@ -57,7 +62,7 @@ requireSuperAdmin // role === "super_admin"
 ### Logout
 `POST /api/auth/logout`:
 ```ts
-req.logout(() => req.session.destroy(() => res.json({ ok: true })));
+req.logout(() => res.json({ success: true }));
 ```
 
 ## Client-Side (lib/auth.tsx)

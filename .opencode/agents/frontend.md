@@ -1,3 +1,15 @@
+---
+name: "frontend"
+description: "Frontend expert — React components, hooks, data fetching, routing, and state management"
+mode: "subagent"
+permission:
+  read: allow
+  edit:
+    "*": deny
+    "client/src/**": allow
+  bash: deny
+---
+
 # Frontend Skill
 
 ## Stack
@@ -69,6 +81,12 @@ const onSubmit = (data: FormSchema) => mutation.mutate(data);
 | Date formatting | `date-fns` |
 | Toast notifications | `sonner` (via `useToast` from `hooks/use-toast.ts`) |
 | Carousel | `embla-carousel-react` |
+| Theme | `next-themes` |
+| Date picker | `react-day-picker` |
+| Command palette | `cmdk` |
+| Drawer | `vaul` |
+| Resizable panels | `react-resizable-panels` |
+| Print | `react-to-print` |
 
 ## Conventions
 - Tailwind for all styling — use `cn()` from `lib/utils.ts` for conditional classes

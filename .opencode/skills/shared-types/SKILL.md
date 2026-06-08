@@ -1,3 +1,8 @@
+---
+name: shared-types
+description: Use when working on type definitions, Drizzle schemas, Zod validation schemas, TypeScript type safety, or data contracts shared between client and server.
+---
+
 # Shared Types Skill
 
 ## Overview
@@ -23,34 +28,41 @@ import type { Project, Report, User, Workspace } from "@shared/schema";
 ```ts
 // Workspace
 type Workspace = typeof workspaces.$inferSelect;
-type NewWorkspace = typeof workspaces.$inferInsert;
+type InsertWorkspace = z.infer<typeof insertWorkspaceSchema>;
 
 // User (password excluded when sending to client — handle in routes)
 type User = typeof users.$inferSelect;
-type NewUser = typeof users.$inferInsert;
+type InsertUser = z.infer<typeof insertUserSchema>;
 
 // Project
 type Project = typeof projects.$inferSelect;
-type NewProject = typeof projects.$inferInsert;
+type InsertProject = z.infer<typeof insertProjectSchema>;
 
 // Report
 type Report = typeof reports.$inferSelect;
-type NewReport = typeof reports.$inferInsert;
+type InsertReport = z.infer<typeof insertReportSchema>;
 
 // ChecklistTemplate
 type ChecklistTemplate = typeof checklistTemplates.$inferSelect;
+type InsertChecklistTemplate = z.infer<typeof insertChecklistTemplateSchema>;
 
 // Invoice
 type Invoice = typeof invoices.$inferSelect;
+type InsertInvoice = z.infer<typeof insertInvoiceSchema>;
 ```
 
 ## Zod Schemas
 ```ts
 insertProjectSchema       // validates POST /api/projects body
 insertReportSchema        // validates POST /api/projects/:id/reports body
-insertWorkspaceSchema     // validates workspace creation
+insertWorkspaceSchema     // validates workspace creation / PATCH /api/workspace
 insertUserSchema          // validates user creation
 insertChecklistSchema     // validates checklist template creation
+insertInvoiceSchema       // validates invoice creation (admin)
+
+// Auth schemas (standalone, not generated from tables)
+loginSchema               // { email, password }
+registerSchema            // { name, email, password, companyName }
 ```
 
 Use `.partial()` for PATCH endpoints:
@@ -62,7 +74,7 @@ const updateReportSchema = insertReportSchema.partial();
 1. Define in `shared/schema.ts`
 2. Export the type
 3. Import where needed — both client and server can access via `@shared/*` alias
-4. If it's a new table: also see `database.md` for migration steps
+4. If it's a new table: also see database skill for migration steps
 
 ## JSONB Field Types
 The `reports` table has three JSONB columns. Define their TypeScript interfaces in `shared/schema.ts` and export them:
@@ -74,7 +86,7 @@ export interface IssueItem {
   category: string;
   description: string;
   severity: "low" | "medium" | "high";
-  photos: string[];
+  images: string[];
   notes?: string;
 }
 
@@ -82,6 +94,7 @@ export interface ChecklistResponse {
   templateId: number;
   response: "pass" | "fail" | "na";
   notes?: string;
+  image?: string;
 }
 ```
 

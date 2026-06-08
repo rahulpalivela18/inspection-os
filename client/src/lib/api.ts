@@ -53,7 +53,12 @@ export const api = {
   getWorkspaceInvoices: () => request<any[]>("/api/workspace/invoices"),
 
   // Checklist templates
-  getChecklistTemplates: () => request<any[]>("/api/checklist-templates"),
+  getChecklistTemplates: (type?: string) =>
+    request<any[]>(
+      type
+        ? `/api/checklist-templates?type=${encodeURIComponent(type)}`
+        : "/api/checklist-templates",
+    ),
   createChecklistTemplate: (data: any) =>
     request<any>("/api/checklist-templates", {
       method: "POST",
