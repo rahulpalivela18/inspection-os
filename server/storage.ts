@@ -7,6 +7,8 @@ import {
   reports,
   checklistTemplates,
   invoices,
+  floorPlans,
+  floorPlanPins,
   type User,
   type InsertUser,
   type Workspace,
@@ -19,6 +21,10 @@ import {
   type InsertChecklistTemplate,
   type Invoice,
   type InsertInvoice,
+  type FloorPlan,
+  type InsertFloorPlan,
+  type FloorPlanPin,
+  type InsertFloorPlanPin,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -277,4 +283,124 @@ export class DatabaseStorage implements IStorage {
   }
 }
 
+export class SpatialStorage {
+  // Floor Plans
+  async getFloorPlansByProject(projectId: string, workspaceId: string) {
+    return db
+      .select()
+      .from(floorPlans)
+      .where(
+        and(
+          eq(floorPlans.projectId, projectId),
+          eq(floorPlans.workspaceId, workspaceId),
+        ),
+      )
+      .orderBy(desc(floorPlans.createdAt));
+  }
+
+  async getFloorPlan(id: string, workspaceId: string) {
+    const [row] = await db
+      .select()
+      .from(floorPlans)
+      .where(
+        and(eq(floorPlans.id, id), eq(floorPlans.workspaceId, workspaceId)),
+      );
+    return row;
+  }
+
+  async createFloorPlan(data: InsertFloorPlan) {
+    const [row] = await db.insert(floorPlans).values(data).returning();
+    return row;
+  }
+
+  async updateFloorPlan(
+    id: string,
+    workspaceId: string,
+    data: Partial<InsertFloorPlan>,
+  ) {
+    const [row] = await db
+      .update(floorPlans)
+      .set(data)
+      .where(
+        and(eq(floorPlans.id, id), eq(floorPlans.workspaceId, workspaceId)),
+      )
+      .returning();
+    return row;
+  }
+
+  async deleteFloorPlan(id: string, workspaceId: string) {
+    const result = await db
+      .delete(floorPlans)
+      .where(
+        and(eq(floorPlans.id, id), eq(floorPlans.workspaceId, workspaceId)),
+      )
+      .returning();
+    return result.length > 0;
+  }
+
+  // Pins
+  async getPinsByFloorPlan(floorPlanId: string, workspaceId: string) {
+    return db
+      .select()
+      .from(floorPlanPins)
+      .where(
+        and(
+          eq(floorPlanPins.floorPlanId, floorPlanId),
+          eq(floorPlanPins.workspaceId, workspaceId),
+        ),
+      )
+      .orderBy(desc(floorPlanPins.createdAt));
+  }
+
+  async getPin(id: string, workspaceId: string) {
+    const [row] = await db
+      .select()
+      .from(floorPlanPins)
+      .where(
+        and(
+          eq(floorPlanPins.id, id),
+          eq(floorPlanPins.workspaceId, workspaceId),
+        ),
+      );
+    return row;
+  }
+
+  async createPin(data: InsertFloorPlanPin) {
+    const [row] = await db.insert(floorPlanPins).values(data).returning();
+    return row;
+  }
+
+  async updatePin(
+    id: string,
+    workspaceId: string,
+    data: Partial<InsertFloorPlanPin>,
+  ) {
+    const [row] = await db
+      .update(floorPlanPins)
+      .set(data)
+      .where(
+        and(
+          eq(floorPlanPins.id, id),
+          eq(floorPlanPins.workspaceId, workspaceId),
+        ),
+      )
+      .returning();
+    return row;
+  }
+
+  async deletePin(id: string, workspaceId: string) {
+    const result = await db
+      .delete(floorPlanPins)
+      .where(
+        and(
+          eq(floorPlanPins.id, id),
+          eq(floorPlanPins.workspaceId, workspaceId),
+        ),
+      )
+      .returning();
+    return result.length > 0;
+  }
+}
+
 export const storage = new DatabaseStorage();
+export const spatialStorage = new SpatialStorage();

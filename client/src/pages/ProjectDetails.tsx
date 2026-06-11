@@ -49,6 +49,7 @@ import {
   User,
   Settings,
   Trash2,
+  Map,
 } from "lucide-react";
 import { Link, useRoute, useLocation } from "wouter";
 import { format } from "date-fns";
@@ -363,6 +364,15 @@ export default function ProjectDetails() {
                 </Button>
               </div>
               <div className="flex flex-col gap-3 shrink-0">
+                <Link href={`/project/${params?.id}/floor-plans`}>
+                  <Button
+                    variant="outline"
+                    size="lg"
+                    className="w-full sm:w-auto"
+                  >
+                    <Map className="mr-2 h-4 w-4" /> Floor Plans
+                  </Button>
+                </Link>
                 <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                   <DialogTrigger asChild>
                     <Button

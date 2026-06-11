@@ -1,12 +1,14 @@
 import { sql } from "drizzle-orm";
 import {
   pgTable,
+  pgSchema,
   text,
   varchar,
   boolean,
   timestamp,
   jsonb,
   integer,
+  numeric,
 } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
@@ -175,3 +177,61 @@ export const registerSchema = z.object({
   password: z.string().min(6),
   companyName: z.string().min(1),
 });
+
+// ─── Spatial Schema (360 Capture) ─────────────────────────────────────────────
+const spatial = pgSchema("spatial");
+
+export const floorPlans = spatial.table("floor_plans", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  workspaceId: varchar("workspace_id")
+    .notNull()
+    .references(() => workspaces.id, { onDelete: "cascade" }),
+  projectId: varchar("project_id")
+    .notNull()
+    .references(() => projects.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  imageUrl: text("image_url").notNull(),
+  thumbnailUrl: text("thumbnail_url"),
+  width: integer("width").notNull(),
+  height: integer("height").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertFloorPlanSchema = createInsertSchema(floorPlans).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertFloorPlan = z.infer<typeof insertFloorPlanSchema>;
+export type FloorPlan = typeof floorPlans.$inferSelect;
+
+export const floorPlanPins = spatial.table("floor_plan_pins", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  workspaceId: varchar("workspace_id")
+    .notNull()
+    .references(() => workspaces.id, { onDelete: "cascade" }),
+  floorPlanId: varchar("floor_plan_id")
+    .notNull()
+    .references(() => floorPlans.id, { onDelete: "cascade" }),
+  x: numeric("x", { precision: 5, scale: 4 }).notNull(),
+  y: numeric("y", { precision: 5, scale: 4 }).notNull(),
+  label: text("label").notNull(),
+  panoUrl: text("pano_url"),
+  thumbnailUrl: text("thumbnail_url"),
+  issueId: text("issue_id"),
+  issueTitle: text("issue_title"),
+  issueStatus: text("issue_status"),
+  issueSeverity: text("issue_severity"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertFloorPlanPinSchema = createInsertSchema(floorPlanPins).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertFloorPlanPin = z.infer<typeof insertFloorPlanPinSchema>;
+export type FloorPlanPin = typeof floorPlanPins.$inferSelect;

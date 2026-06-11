@@ -8,6 +8,8 @@ import Dashboard from "@/pages/Dashboard";
 import ProjectDetails from "@/pages/ProjectDetails";
 import ReportEditor from "@/pages/ReportEditor";
 import Templates from "@/pages/Templates";
+import FloorPlanManager from "@/pages/FloorPlanManager";
+import FloorPlanCanvas from "@/pages/FloorPlanCanvas";
 import LandingPage from "@/pages/LandingPage";
 import Settings from "@/pages/Settings";
 import Admin from "@/pages/Admin";
@@ -88,6 +90,12 @@ function Router() {
       </Route>
       <Route path="/project/:id">
         <ProtectedRoute component={ProjectDetails} />
+      </Route>
+      <Route path="/project/:id/floor-plans">
+        <ProtectedRoute component={FloorPlanManager} />
+      </Route>
+      <Route path="/project/:projectId/floor-plans/:floorPlanId">
+        <ProtectedRoute component={FloorPlanCanvas} />
       </Route>
       <Route path="/report/:id">
         <ProtectedRoute component={ReportEditor} />

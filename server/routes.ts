@@ -6,7 +6,7 @@ import { Strategy as LocalStrategy } from "passport-local";
 import connectPgSimple from "connect-pg-simple";
 import { Pool } from "pg";
 import bcrypt from "bcryptjs";
-import { storage } from "./storage";
+import { storage, spatialStorage } from "./storage";
 import {
   loginSchema,
   registerSchema,
@@ -14,6 +14,8 @@ import {
   insertReportSchema,
   insertChecklistTemplateSchema,
   insertWorkspaceSchema,
+  insertFloorPlanSchema,
+  insertFloorPlanPinSchema,
 } from "@shared/schema";
 import { pick } from "@shared/cleanData";
 import { DEFAULT_CHECKLIST_POINTS } from "./defaultChecklist";
@@ -532,6 +534,196 @@ export async function registerRoutes(
   app.delete("/api/reports/:id", requireAuth, async (req, res) => {
     const user = req.user as any;
     const ok = await storage.deleteReport(
+      req.params.id as string,
+      user.workspaceId,
+    );
+    if (!ok) return res.status(404).json({ message: "Not found" });
+    res.json({ success: true });
+  });
+
+  // ── Floor Plan Routes ─────────────────────────────────────────────────────────
+
+  app.get(
+    "/api/projects/:projectId/floor-plans",
+    requireAuth,
+    async (req, res) => {
+      const user = req.user as any;
+      const items = await spatialStorage.getFloorPlansByProject(
+        req.params.projectId as string,
+        user.workspaceId,
+      );
+      res.json(items);
+    },
+  );
+
+  app.post(
+    "/api/projects/:projectId/floor-plans",
+    requireAuth,
+    async (req, res) => {
+      const user = req.user as any;
+      const parsed = insertFloorPlanSchema.safeParse({
+        ...req.body,
+        projectId: req.params.projectId as string,
+        workspaceId: user.workspaceId,
+      });
+      if (!parsed.success)
+        return res
+          .status(400)
+          .json({ message: parsed.error.errors[0].message });
+
+      if (
+        parsed.data.imageUrl &&
+        !isGCPUrl(parsed.data.imageUrl) &&
+        parsed.data.imageUrl.startsWith("data:")
+      ) {
+        try {
+          const gcpUrl = await uploadImageToGCP(
+            parsed.data.imageUrl,
+            `floorplan-${Date.now()}.png`,
+          );
+          if (gcpUrl) parsed.data.imageUrl = gcpUrl;
+        } catch (err) {
+          console.error("Floor plan image upload error:", err);
+        }
+      }
+
+      const item = await spatialStorage.createFloorPlan(parsed.data);
+      res.status(201).json(item);
+    },
+  );
+
+  app.get("/api/floor-plans/:id", requireAuth, async (req, res) => {
+    const user = req.user as any;
+    const item = await spatialStorage.getFloorPlan(
+      req.params.id as string,
+      user.workspaceId,
+    );
+    if (!item) return res.status(404).json({ message: "Not found" });
+    res.json(item);
+  });
+
+  app.patch("/api/floor-plans/:id", requireAuth, async (req, res) => {
+    const user = req.user as any;
+    let { id, createdAt, workspaceId, projectId, ...updates } = req.body;
+
+    if (
+      updates.imageUrl &&
+      !isGCPUrl(updates.imageUrl) &&
+      updates.imageUrl.startsWith("data:")
+    ) {
+      try {
+        const gcpUrl = await uploadImageToGCP(
+          updates.imageUrl,
+          `floorplan-${Date.now()}.png`,
+        );
+        if (gcpUrl) updates.imageUrl = gcpUrl;
+      } catch (err) {
+        console.error("Floor plan image upload error:", err);
+      }
+    }
+
+    const item = await spatialStorage.updateFloorPlan(
+      req.params.id as string,
+      user.workspaceId,
+      updates,
+    );
+    if (!item) return res.status(404).json({ message: "Not found" });
+    res.json(item);
+  });
+
+  app.delete("/api/floor-plans/:id", requireAuth, async (req, res) => {
+    const user = req.user as any;
+    const ok = await spatialStorage.deleteFloorPlan(
+      req.params.id as string,
+      user.workspaceId,
+    );
+    if (!ok) return res.status(404).json({ message: "Not found" });
+    res.json({ success: true });
+  });
+
+  // ── Pin Routes ────────────────────────────────────────────────────────────────
+
+  app.get(
+    "/api/floor-plans/:floorPlanId/pins",
+    requireAuth,
+    async (req, res) => {
+      const user = req.user as any;
+      const items = await spatialStorage.getPinsByFloorPlan(
+        req.params.floorPlanId as string,
+        user.workspaceId,
+      );
+      res.json(items);
+    },
+  );
+
+  app.post(
+    "/api/floor-plans/:floorPlanId/pins",
+    requireAuth,
+    async (req, res) => {
+      const user = req.user as any;
+      const parsed = insertFloorPlanPinSchema.safeParse({
+        ...req.body,
+        floorPlanId: req.params.floorPlanId as string,
+        workspaceId: user.workspaceId,
+      });
+      if (!parsed.success)
+        return res
+          .status(400)
+          .json({ message: parsed.error.errors[0].message });
+
+      if (
+        parsed.data.panoUrl &&
+        !isGCPUrl(parsed.data.panoUrl) &&
+        parsed.data.panoUrl.startsWith("data:")
+      ) {
+        try {
+          const gcpUrl = await uploadImageToGCP(
+            parsed.data.panoUrl,
+            `pano-${Date.now()}.jpg`,
+          );
+          if (gcpUrl) parsed.data.panoUrl = gcpUrl;
+        } catch (err) {
+          console.error("Pano image upload error:", err);
+        }
+      }
+
+      const item = await spatialStorage.createPin(parsed.data);
+      res.status(201).json(item);
+    },
+  );
+
+  app.patch("/api/pins/:id", requireAuth, async (req, res) => {
+    const user = req.user as any;
+    let { id, createdAt, workspaceId, floorPlanId, ...updates } = req.body;
+
+    if (
+      updates.panoUrl &&
+      !isGCPUrl(updates.panoUrl) &&
+      updates.panoUrl.startsWith("data:")
+    ) {
+      try {
+        const gcpUrl = await uploadImageToGCP(
+          updates.panoUrl,
+          `pano-${Date.now()}.jpg`,
+        );
+        if (gcpUrl) updates.panoUrl = gcpUrl;
+      } catch (err) {
+        console.error("Pano image upload error:", err);
+      }
+    }
+
+    const item = await spatialStorage.updatePin(
+      req.params.id as string,
+      user.workspaceId,
+      updates,
+    );
+    if (!item) return res.status(404).json({ message: "Not found" });
+    res.json(item);
+  });
+
+  app.delete("/api/pins/:id", requireAuth, async (req, res) => {
+    const user = req.user as any;
+    const ok = await spatialStorage.deletePin(
       req.params.id as string,
       user.workspaceId,
     );

@@ -116,4 +116,36 @@ export const api = {
     }),
   deleteReport: (id: string) =>
     request(`/api/reports/${id}`, { method: "DELETE" }),
+
+  // Floor Plans
+  getFloorPlans: (projectId: string) =>
+    request<any[]>(`/api/projects/${projectId}/floor-plans`),
+  getFloorPlan: (id: string) => request<any>(`/api/floor-plans/${id}`),
+  createFloorPlan: (projectId: string, data: any) =>
+    request<any>(`/api/projects/${projectId}/floor-plans`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  updateFloorPlan: (id: string, data: any) =>
+    request<any>(`/api/floor-plans/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
+  deleteFloorPlan: (id: string) =>
+    request(`/api/floor-plans/${id}`, { method: "DELETE" }),
+
+  // Pins
+  getPins: (floorPlanId: string) =>
+    request<any[]>(`/api/floor-plans/${floorPlanId}/pins`),
+  createPin: (floorPlanId: string, data: any) =>
+    request<any>(`/api/floor-plans/${floorPlanId}/pins`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  updatePin: (id: string, data: any) =>
+    request<any>(`/api/pins/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
+  deletePin: (id: string) => request(`/api/pins/${id}`, { method: "DELETE" }),
 };
