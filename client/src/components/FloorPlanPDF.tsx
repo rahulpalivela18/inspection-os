@@ -1,8 +1,27 @@
 import { Document, Page, Text, View, Image, StyleSheet } from "@react-pdf/renderer";
 
+const PAGE_PADDING = 36;
+const PAGE_W = 595.28;
+const IMAGE_W = PAGE_W - PAGE_PADDING * 2;
+const IMAGE_H = 280;
+const DOT_SIZE = 10;
+
+function severityColor(severity?: string) {
+  switch (severity) {
+    case "Critical": return "#dc2626";
+    case "Major": return "#f97316";
+    case "Minor": return "#eab308";
+    default: return "#3b82f6";
+  }
+}
+
+function severityLabel(severity?: string) {
+  return severity || "Info";
+}
+
 const styles = StyleSheet.create({
   page: {
-    padding: 36,
+    padding: PAGE_PADDING,
     fontSize: 10,
     fontFamily: "Helvetica",
   },
@@ -48,11 +67,39 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     marginTop: 16,
   },
-  floorPlanImage: {
-    width: "100%",
-    height: 280,
-    objectFit: "contain",
+  imageWrapper: {
+    width: IMAGE_W,
+    height: IMAGE_H,
+    position: "relative",
     marginBottom: 4,
+  },
+  floorPlanImage: {
+    width: IMAGE_W,
+    height: IMAGE_H,
+    objectFit: "contain",
+  },
+  dot: {
+    position: "absolute",
+    width: DOT_SIZE,
+    height: DOT_SIZE,
+    borderRadius: DOT_SIZE / 2,
+    borderWidth: 1.5,
+    borderColor: "#ffffff",
+  },
+  dotNumber: {
+    position: "absolute",
+    width: DOT_SIZE,
+    height: DOT_SIZE,
+    borderRadius: DOT_SIZE / 2,
+    borderWidth: 1.5,
+    borderColor: "#ffffff",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  dotNumberText: {
+    fontSize: 6,
+    fontWeight: 700,
+    color: "#ffffff",
   },
   imageCaption: {
     fontSize: 7,
@@ -81,7 +128,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     borderBottomWidth: 1,
     borderBottomColor: "#f1f5f9",
-    paddingVertical: 8,
+    paddingVertical: 6,
     alignItems: "center",
   },
   tableCell: {
@@ -92,158 +139,219 @@ const styles = StyleSheet.create({
     fontSize: 7,
     color: "#64748b",
   },
+  sevDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+    marginRight: 3,
+  },
   badge: {
     fontSize: 6,
     paddingHorizontal: 4,
     paddingVertical: 2,
     borderRadius: 2,
-    marginLeft: 2,
   },
-  qrCell: {
+  legend: {
+    flexDirection: "row",
+    gap: 12,
+    flexWrap: "wrap",
+    marginTop: 4,
+  },
+  legendItem: {
+    flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
+    gap: 4,
   },
-  qrImage: {
-    width: 36,
-    height: 36,
+  legendDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+  },
+  legendText: {
+    fontSize: 7,
+    color: "#64748b",
+  },
+  footer: {
+    borderTopWidth: 1,
+    borderTopColor: "#e2e8f0",
+    paddingTop: 12,
+    marginTop: 24,
+  },
+  footerText: {
+    fontSize: 7,
+    color: "#94a3b8",
+    textAlign: "center",
   },
 });
 
 interface PinPDF {
   id: string;
+  number: number;
   label: string;
   x: number;
   y: number;
-  panoUrl?: string;
-  qrDataUrl?: string;
-  issueTitle?: string;
-  issueStatus?: string;
-  issueSeverity?: string;
+  severity?: string;
+  status?: string;
   notes?: string;
+  hasPhoto?: boolean;
 }
 
-interface FloorPlanPDFProps {
+interface CapturePDF {
   projectTitle: string;
-  floorPlanTitle: string;
-  floorPlanImageUrl: string;
+  title: string;
+  imageUrl: string;
   pins: PinPDF[];
 }
 
-function getStatusBadgeColor(status?: string) {
-  switch (status) {
-    case "Open": return { bg: "#fef2f2", color: "#991b1b" };
-    case "Resolved": return { bg: "#f0fdf4", color: "#166534" };
-    case "In Progress": return { bg: "#fffbeb", color: "#92400e" };
-    default: return { bg: "#f1f5f9", color: "#475569" };
-  }
+interface FloorPlanPDFProps {
+  captures: CapturePDF[];
 }
 
-function getSeverityColor(severity?: string) {
-  switch (severity) {
-    case "Critical": return "#dc2626";
-    case "Major": return "#ea580c";
-    case "Minor": return "#ca8a04";
-    default: return "#64748b";
-  }
-}
-
-export default function FloorPlanPDF({
-  projectTitle,
-  floorPlanTitle,
-  floorPlanImageUrl,
-  pins,
-}: FloorPlanPDFProps) {
+function CapturePage({ capture }: { capture: CapturePDF }) {
   const date = new Date().toLocaleDateString("en-US", {
     year: "numeric", month: "long", day: "numeric",
   });
 
-  const numberedPins = pins.map((pin, i) => ({ ...pin, number: i + 1 }));
+  const pins = capture.pins.map((p, i) => ({ ...p, number: i + 1 }));
 
   return (
-    <Document>
-      <Page size="A4" style={styles.page}>
-        <View style={styles.header}>
-          <View>
-            <Text style={styles.brandName}>ReportGen</Text>
-            <Text style={styles.brandSub}>Inspection Report Platform</Text>
-          </View>
-          <View style={styles.meta}>
-            <Text style={styles.metaLabel}>Floor Plan Report</Text>
-            <Text style={styles.metaValue}>{date}</Text>
-          </View>
-        </View>
-
+    <Page size="A4" style={styles.page}>
+      <View style={styles.header}>
         <View>
-          <Text style={{ fontSize: 14, fontWeight: 700, color: "#1e293b" }}>
-            {floorPlanTitle}
-          </Text>
-          <Text style={{ fontSize: 8, color: "#64748b", marginTop: 2, marginBottom: 4 }}>
-            Project: {projectTitle} &middot; {pins.length} pin{pins.length !== 1 ? "s" : ""}
-          </Text>
+          <Text style={styles.brandName}>ReportGen</Text>
+          <Text style={styles.brandSub}>Inspection Report Platform</Text>
         </View>
+        <View style={styles.meta}>
+          <Text style={styles.metaLabel}>Capture Report</Text>
+          <Text style={styles.metaValue}>{date}</Text>
+        </View>
+      </View>
 
-        <Text style={styles.sectionTitle}>Reference Map</Text>
-        <Image style={styles.floorPlanImage} src={floorPlanImageUrl} />
-        <Text style={styles.imageCaption}>
-          Floor plan with {pins.length} inspection pin{pins.length !== 1 ? "s" : ""}
+      <View>
+        <Text style={{ fontSize: 14, fontWeight: 700, color: "#1e293b" }}>
+          {capture.title}
         </Text>
+        <Text style={{ fontSize: 8, color: "#64748b", marginTop: 2, marginBottom: 4 }}>
+          Project: {capture.projectTitle} &middot; {pins.length} hotspot{pins.length !== 1 ? "s" : ""}
+        </Text>
+      </View>
 
-        {numberedPins.length > 0 && (
-          <>
-            <Text style={styles.sectionTitle}>Pin Details</Text>
-            <View style={styles.pinTable}>
-              <View style={styles.tableHeader}>
-                <Text style={[{ width: "8%" }, styles.tableHeaderCell]}>#</Text>
-                <Text style={[{ width: "22%" }, styles.tableHeaderCell]}>Label</Text>
-                <Text style={[{ width: "13%" }, styles.tableHeaderCell]}>Position</Text>
-                <Text style={[{ width: "23%" }, styles.tableHeaderCell]}>Linked Issue</Text>
-                <Text style={[{ width: "20%" }, styles.tableHeaderCell]}>Notes</Text>
-                <Text style={[{ width: "14%", textAlign: "center" }, styles.tableHeaderCell]}>360 View</Text>
-              </View>
-              {numberedPins.map((pin) => (
-                <View key={pin.id} style={styles.tableRow}>
-                  <Text style={[{ width: "8%" }, styles.tableCell]}>{pin.number}</Text>
-                  <Text style={[{ width: "22%" }, styles.tableCell]}>{pin.label}</Text>
-                  <Text style={[{ width: "13%" }, styles.tableCellSmall]}>
-                    {(pin.x * 100).toFixed(1)}% × {(pin.y * 100).toFixed(1)}%
-                  </Text>
-                  <View style={{ width: "23%", flexDirection: "row", flexWrap: "wrap", alignItems: "center" }}>
-                    {pin.issueTitle ? (
-                      <>
-                        <Text style={{ fontSize: 8, color: "#1e293b" }}>{pin.issueTitle}</Text>
-                        <Text style={[styles.badge, { backgroundColor: getStatusBadgeColor(pin.issueStatus).bg, color: getStatusBadgeColor(pin.issueStatus).color }]}>
-                          {pin.issueStatus || "Open"}
-                        </Text>
-                        <Text style={{ fontSize: 6, color: getSeverityColor(pin.issueSeverity), marginLeft: 2 }}>
-                          {pin.issueSeverity}
-                        </Text>
-                      </>
-                    ) : (
-                      <Text style={{ fontSize: 7, color: "#94a3b8" }}>—</Text>
-                    )}
-                  </View>
-                  <Text style={[{ width: "20%" }, styles.tableCellSmall]}>
-                    {pin.notes
-                      ? (pin.notes.length > 35 ? pin.notes.slice(0, 35) + "..." : pin.notes)
-                      : "—"}
-                  </Text>
-                  <View style={[{ width: "14%" }, styles.qrCell]}>
-                    {pin.qrDataUrl && pin.panoUrl && (
-                      <Image style={styles.qrImage} src={pin.qrDataUrl} />
-                    )}
-                  </View>
-                </View>
-              ))}
+      <Text style={styles.sectionTitle}>Reference Map</Text>
+      <View style={styles.imageWrapper}>
+        <Image style={styles.floorPlanImage} src={capture.imageUrl} />
+        {pins.map((pin) => (
+          <View
+            key={pin.id}
+            style={[
+              styles.dotNumber,
+              {
+                left: pin.x * IMAGE_W - DOT_SIZE / 2,
+                top: pin.y * IMAGE_H - DOT_SIZE / 2,
+                backgroundColor: severityColor(pin.severity),
+              },
+            ]}
+          >
+            <Text style={styles.dotNumberText}>{pin.number}</Text>
+          </View>
+        ))}
+      </View>
+      <Text style={styles.imageCaption}>
+        {pins.length} hotspot{pins.length !== 1 ? "s" : ""} marked on the image
+      </Text>
+
+      {pins.length > 0 && (
+        <>
+          <Text style={styles.sectionTitle}>Hotspot Details</Text>
+          <View style={styles.pinTable}>
+            <View style={styles.tableHeader}>
+              <Text style={[{ width: "8%" }, styles.tableHeaderCell]}>#</Text>
+              <Text style={[{ width: "26%" }, styles.tableHeaderCell]}>Label</Text>
+              <Text style={[{ width: "18%" }, styles.tableHeaderCell]}>Severity</Text>
+              <Text style={[{ width: "18%" }, styles.tableHeaderCell]}>Status</Text>
+              <Text style={[{ width: "30%" }, styles.tableHeaderCell]}>Notes</Text>
             </View>
-          </>
-        )}
+            {pins.map((pin) => (
+              <View key={pin.id} style={styles.tableRow}>
+                <Text style={[{ width: "8%" }, styles.tableCell]}>{pin.number}</Text>
+                <Text style={[{ width: "26%" }, styles.tableCell]}>
+                  {pin.label}{pin.hasPhoto ? " 📷" : ""}
+                </Text>
+                <View style={{ width: "18%", flexDirection: "row", alignItems: "center" }}>
+                  <View style={[styles.sevDot, { backgroundColor: severityColor(pin.severity) }]} />
+                  <Text style={{ fontSize: 8, color: "#1e293b" }}>
+                    {severityLabel(pin.severity)}
+                  </Text>
+                </View>
+                <View style={{ width: "18%" }}>
+                  {pin.status ? (
+                    <Text style={[
+                      styles.badge,
+                      {
+                        backgroundColor:
+                          pin.status === "Open" ? "#fef2f2" :
+                          pin.status === "Resolved" ? "#f0fdf4" :
+                          "#fffbeb",
+                        color:
+                          pin.status === "Open" ? "#991b1b" :
+                          pin.status === "Resolved" ? "#166534" :
+                          "#92400e",
+                      },
+                    ]}>
+                      {pin.status}
+                    </Text>
+                  ) : (
+                    <Text style={{ fontSize: 7, color: "#94a3b8" }}>—</Text>
+                  )}
+                </View>
+                <Text style={[{ width: "30%" }, styles.tableCellSmall]}>
+                  {pin.notes
+                    ? (pin.notes.length > 40 ? pin.notes.slice(0, 40) + "..." : pin.notes)
+                    : "—"}
+                </Text>
+              </View>
+            ))}
+          </View>
+        </>
+      )}
 
-        <View style={{ borderTopWidth: 1, borderTopColor: "#e2e8f0", paddingTop: 12, marginTop: 24 }}>
-          <Text style={{ fontSize: 7, color: "#94a3b8", textAlign: "center" }}>
-            ReportGen — Inspection Report Platform &middot; PINs are percentage-based coordinates (0–100%)
-          </Text>
+      <Text style={[styles.sectionTitle, { marginTop: 20 }]}>Severity Legend</Text>
+      <View style={styles.legend}>
+        <View style={styles.legendItem}>
+          <View style={[styles.legendDot, { backgroundColor: "#dc2626" }]} />
+          <Text style={styles.legendText}>Critical</Text>
         </View>
-      </Page>
+        <View style={styles.legendItem}>
+          <View style={[styles.legendDot, { backgroundColor: "#f97316" }]} />
+          <Text style={styles.legendText}>Major</Text>
+        </View>
+        <View style={styles.legendItem}>
+          <View style={[styles.legendDot, { backgroundColor: "#eab308" }]} />
+          <Text style={styles.legendText}>Minor</Text>
+        </View>
+        <View style={styles.legendItem}>
+          <View style={[styles.legendDot, { backgroundColor: "#3b82f6" }]} />
+          <Text style={styles.legendText}>Info</Text>
+        </View>
+        <Text style={{ fontSize: 7, color: "#94a3b8", marginLeft: 4 }}>
+          📷 = Evidence photo attached
+        </Text>
+      </View>
+
+      <View style={styles.footer}>
+        <Text style={styles.footerText}>
+          ReportGen — Inspection Report Platform
+        </Text>
+      </View>
+    </Page>
+  );
+}
+
+export default function FloorPlanPDF({ captures }: FloorPlanPDFProps) {
+  return (
+    <Document>
+      {captures.map((capture) => (
+        <CapturePage key={capture.title} capture={capture} />
+      ))}
     </Document>
   );
 }

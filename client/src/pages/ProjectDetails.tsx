@@ -364,7 +364,7 @@ export default function ProjectDetails() {
                 </Button>
               </div>
               <div className="flex flex-col gap-3 shrink-0">
-                <Link href={`/project/${params?.id}/floor-plans`}>
+                <Link href={`/project/${params?.id}/captures`}>
                   <Button
                     variant="outline"
                     size="lg"

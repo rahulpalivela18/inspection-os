@@ -36,12 +36,16 @@ import {
   Eye,
   Loader2,
   ImageUp,
+  FileDown,
 } from "lucide-react";
 import { Link, useRoute, useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
+import { ensureJpeg } from "@/lib/utils";
+import FloorPlanPDF from "@/components/FloorPlanPDF";
+import { pdf } from "@react-pdf/renderer";
 
 export default function FloorPlanManager() {
-  const [, params] = useRoute("/project/:id/floor-plans");
+  const [, params] = useRoute("/project/:id/captures");
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -52,6 +56,7 @@ export default function FloorPlanManager() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [exportingAll, setExportingAll] = useState(false);
 
   const projectId = params?.id;
 
@@ -108,6 +113,49 @@ export default function FloorPlanManager() {
       toast({ title: "Error", description: err.message, variant: "destructive" }),
   });
 
+  async function handleExportAllPDF() {
+    if (!projectId) return;
+    setExportingAll(true);
+    try {
+      const project = await api.getProject(projectId);
+      const captures = await Promise.all(
+        floorPlans.map(async (fp: any) => {
+          const pins = await api.getPins(fp.id);
+          const imageUrl = await ensureJpeg(fp.imageUrl);
+          return {
+            projectTitle: project.title,
+            title: fp.title,
+            imageUrl,
+            pins: pins.map((p: any) => ({
+              id: p.id,
+              number: 0,
+              label: p.label,
+              x: parseFloat(p.x),
+              y: parseFloat(p.y),
+              severity: p.issueSeverity,
+              status: p.issueStatus,
+              notes: p.notes,
+              hasPhoto: !!p.panoUrl,
+            })),
+          };
+        }),
+      );
+      const blob = await pdf(
+        <FloorPlanPDF captures={captures} />,
+      ).toBlob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${project.title.replace(/\s+/g, "_")}_captures.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err: any) {
+      toast({ title: "Export failed", description: err.message, variant: "destructive" });
+    } finally {
+      setExportingAll(false);
+    }
+  }
+
   function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -131,10 +179,18 @@ export default function FloorPlanManager() {
               Captures
             </h1>
           </div>
-          <Button onClick={() => setIsUploadOpen(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            Upload Capture
-          </Button>
+          <div className="flex items-center gap-2">
+            {floorPlans.length > 0 && (
+              <Button variant="outline" size="sm" onClick={handleExportAllPDF} disabled={exportingAll}>
+                <FileDown className="h-4 w-4 mr-1.5" />
+                {exportingAll ? "Exporting..." : "Export All PDF"}
+              </Button>
+            )}
+            <Button onClick={() => setIsUploadOpen(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Upload Capture
+            </Button>
+          </div>
         </div>
 
         {isLoading ? (
@@ -173,7 +229,7 @@ export default function FloorPlanManager() {
                     size="sm"
                     className="flex-1"
                     onClick={() =>
-                      setLocation(`/project/${projectId}/floor-plans/${fp.id}`)
+                      setLocation(`/project/${projectId}/captures/${fp.id}`)
                     }
                   >
                     <Eye className="h-3.5 w-3.5 mr-1.5" />

@@ -91,8 +91,11 @@ function Router() {
       <Route path="/project/:id">
         <ProtectedRoute component={ProjectDetails} />
       </Route>
-      <Route path="/project/:id/floor-plans">
-        <ProtectedRoute component={FloorPlanManager} />
+      <Route path="/project/:id/captures">
+        <FloorPlanManager />
+      </Route>
+      <Route path="/project/:projectId/captures/:floorPlanId">
+        <FloorPlanCanvas />
       </Route>
       <Route path="/project/:projectId/floor-plans/:floorPlanId">
         <ProtectedRoute component={FloorPlanCanvas} />

@@ -44,9 +44,9 @@ import {
 } from "lucide-react";
 import { useRoute, Link } from "wouter";
 import { useToast } from "@/hooks/use-toast";
+import { ensureJpeg } from "@/lib/utils";
 import FloorPlanPDF from "@/components/FloorPlanPDF";
 import { pdf } from "@react-pdf/renderer";
-import QRCode from "qrcode";
 
 // ─── Severity / status helpers ────────────────────────────────────────────────
 const SEV_COLOR: Record<string, string> = {
@@ -115,7 +115,7 @@ const emptyDraft = (): PinDraft => ({
 
 // ─── Component ────────────────────────────────────────────────────────────────
 export default function FloorPlanCanvas() {
-  const [, params] = useRoute("/project/:projectId/floor-plans/:floorPlanId");
+  const [, params] = useRoute("/project/:projectId/captures/:floorPlanId");
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -343,13 +343,24 @@ export default function FloorPlanCanvas() {
     setIsPanning(false);
     dragStart.current = null;
     if (wasPanning) return;
-    // Don't open dialog when clicking an existing pin
     if ((e.target as HTMLElement).closest("[data-pin]")) return;
+    if (!containerRef.current || !floorPlan) return;
 
-    const rect = containerRef.current?.getBoundingClientRect();
-    if (!rect || !floorPlan) return;
-    const x = (e.clientX - rect.left) / rect.width;
-    const y = (e.clientY - rect.top) / rect.height;
+    const rect = containerRef.current.getBoundingClientRect();
+    const rx = e.clientX - rect.left;
+    const ry = e.clientY - rect.top;
+    const cx = rect.width / 2;
+    const cy = rect.height / 2;
+
+    const ox = (rx - cx - panX) / scale;
+    const oy = (ry - cy - panY) / scale;
+
+    const imgX = ox + floorPlan.width / 2;
+    const imgY = oy + floorPlan.height / 2;
+
+    const x = imgX / floorPlan.width;
+    const y = imgY / floorPlan.height;
+
     if (x < 0 || x > 1 || y < 0 || y > 1) return;
     setDraft({ ...emptyDraft(), x, y });
     setViewingPinId(null);
@@ -373,32 +384,27 @@ export default function FloorPlanCanvas() {
     if (!floorPlan || !projectId) return;
     setExporting(true);
     try {
-      const pinsWithQR = await Promise.all(
-        pins.map(async (pin: any) => ({
-          id: pin.id,
-          label: pin.label,
-          x: parseFloat(pin.x),
-          y: parseFloat(pin.y),
-          panoUrl: pin.panoUrl,
-          issueTitle: pin.label,
-          issueStatus: pin.issueStatus,
-          issueSeverity: pin.issueSeverity,
-          notes: pin.notes,
-          qrDataUrl: pin.panoUrl
-            ? await QRCode.toDataURL(`${window.location.origin}/pano/${pin.id}`, {
-                width: 120, margin: 1,
-                color: { dark: "#1e293b", light: "#ffffff" },
-              })
-            : undefined,
-        })),
-      );
       const project = await api.getProject(projectId);
+      const pinsData = pins.map((pin: any) => ({
+        id: pin.id,
+        number: 0,
+        label: pin.label,
+        x: parseFloat(pin.x),
+        y: parseFloat(pin.y),
+        severity: pin.issueSeverity,
+        status: pin.issueStatus,
+        notes: pin.notes,
+        hasPhoto: !!pin.panoUrl,
+      }));
+      const imageUrl = await ensureJpeg(floorPlan.imageUrl);
       const blob = await pdf(
         <FloorPlanPDF
-          projectTitle={project.title}
-          floorPlanTitle={floorPlan.title}
-          floorPlanImageUrl={floorPlan.imageUrl}
-          pins={pinsWithQR}
+          captures={[{
+            projectTitle: project.title,
+            title: floorPlan.title,
+            imageUrl,
+            pins: pinsData,
+          }]}
         />,
       ).toBlob();
       const url = URL.createObjectURL(blob);
@@ -434,7 +440,7 @@ export default function FloorPlanCanvas() {
         <div className="flex items-center justify-between px-6 py-3 border-b bg-white shrink-0">
           <div>
             <Link
-              href={`/project/${projectId}/floor-plans`}
+              href={`/project/${projectId}/captures`}
               className="text-sm text-slate-500 hover:text-slate-700"
             >
               ← All Captures
