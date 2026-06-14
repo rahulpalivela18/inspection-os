@@ -200,10 +200,12 @@ interface CapturePDF {
   projectTitle: string;
   title: string;
   imageUrl: string;
+  imageWidth: number;
+  imageHeight: number;
   pins: PinPDF[];
 }
 
-interface FloorPlanPDFProps {
+interface CapturePDFProps {
   captures: CapturePDF[];
 }
 
@@ -213,6 +215,19 @@ function CapturePage({ capture }: { capture: CapturePDF }) {
   });
 
   const pins = capture.pins.map((p, i) => ({ ...p, number: i + 1 }));
+
+  const imageAspect = capture.imageWidth / capture.imageHeight;
+  const boxAspect = IMAGE_W / IMAGE_H;
+  let renderW: number, renderH: number;
+  if (imageAspect > boxAspect) {
+    renderW = IMAGE_W;
+    renderH = IMAGE_W / imageAspect;
+  } else {
+    renderH = IMAGE_H;
+    renderW = IMAGE_H * imageAspect;
+  }
+  const offsetX = (IMAGE_W - renderW) / 2;
+  const offsetY = (IMAGE_H - renderH) / 2;
 
   return (
     <Page size="A4" style={styles.page}>
@@ -245,8 +260,8 @@ function CapturePage({ capture }: { capture: CapturePDF }) {
             style={[
               styles.dotNumber,
               {
-                left: pin.x * IMAGE_W - DOT_SIZE / 2,
-                top: pin.y * IMAGE_H - DOT_SIZE / 2,
+                left: offsetX + pin.x * renderW - DOT_SIZE / 2,
+                top: offsetY + pin.y * renderH - DOT_SIZE / 2,
                 backgroundColor: severityColor(pin.severity),
               },
             ]}
@@ -346,7 +361,7 @@ function CapturePage({ capture }: { capture: CapturePDF }) {
   );
 }
 
-export default function FloorPlanPDF({ captures }: FloorPlanPDFProps) {
+export default function CapturePDF({ captures }: CapturePDFProps) {
   return (
     <Document>
       {captures.map((capture) => (

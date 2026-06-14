@@ -41,10 +41,10 @@ import {
 import { Link, useRoute, useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { ensureJpeg } from "@/lib/utils";
-import FloorPlanPDF from "@/components/FloorPlanPDF";
+import CapturePDF from "@/components/CapturePDF";
 import { pdf } from "@react-pdf/renderer";
 
-export default function FloorPlanManager() {
+export default function CaptureManager() {
   const [, params] = useRoute("/project/:id/captures");
   const [, setLocation] = useLocation();
   const { toast } = useToast();
@@ -60,9 +60,9 @@ export default function FloorPlanManager() {
 
   const projectId = params?.id;
 
-  const { data: floorPlans = [], isLoading } = useQuery({
-    queryKey: ["floor-plans", projectId],
-    queryFn: () => api.getFloorPlans(projectId!),
+  const { data: captures = [], isLoading } = useQuery({
+    queryKey: ["captures", projectId],
+    queryFn: () => api.getCaptures(projectId!),
     enabled: !!projectId,
   });
 
@@ -85,7 +85,7 @@ export default function FloorPlanManager() {
           img.src = dataUrl;
         },
       );
-      return api.createFloorPlan(projectId, {
+      return api.createCapture(projectId, {
         title: newTitle,
         imageUrl: dataUrl,
         width: dimensions.width,
@@ -93,7 +93,7 @@ export default function FloorPlanManager() {
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["floor-plans", projectId] });
+      queryClient.invalidateQueries({ queryKey: ["captures", projectId] });
       setIsUploadOpen(false);
       setNewTitle("");
       setSelectedFile(null);
@@ -104,9 +104,9 @@ export default function FloorPlanManager() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => api.deleteFloorPlan(id),
+    mutationFn: (id: string) => api.deleteCapture(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["floor-plans", projectId] });
+      queryClient.invalidateQueries({ queryKey: ["captures", projectId] });
       setDeleteId(null);
     },
     onError: (err: any) =>
@@ -118,14 +118,16 @@ export default function FloorPlanManager() {
     setExportingAll(true);
     try {
       const project = await api.getProject(projectId);
-      const captures = await Promise.all(
-        floorPlans.map(async (fp: any) => {
-          const pins = await api.getPins(fp.id);
+      const captureData = await Promise.all(
+        captures.map(async (fp: any) => {
+          const pins = await api.getHotspots(fp.id);
           const imageUrl = await ensureJpeg(fp.imageUrl);
           return {
             projectTitle: project.title,
             title: fp.title,
             imageUrl,
+            imageWidth: fp.width,
+            imageHeight: fp.height,
             pins: pins.map((p: any) => ({
               id: p.id,
               number: 0,
@@ -141,7 +143,7 @@ export default function FloorPlanManager() {
         }),
       );
       const blob = await pdf(
-        <FloorPlanPDF captures={captures} />,
+        <CapturePDF captures={captureData} />,
       ).toBlob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -180,7 +182,7 @@ export default function FloorPlanManager() {
             </h1>
           </div>
           <div className="flex items-center gap-2">
-            {floorPlans.length > 0 && (
+            {captures.length > 0 && (
               <Button variant="outline" size="sm" onClick={handleExportAllPDF} disabled={exportingAll}>
                 <FileDown className="h-4 w-4 mr-1.5" />
                 {exportingAll ? "Exporting..." : "Export All PDF"}
@@ -197,7 +199,7 @@ export default function FloorPlanManager() {
           <div className="flex justify-center py-20">
             <Loader2 className="h-8 w-8 animate-spin text-indigo-500" />
           </div>
-        ) : floorPlans.length === 0 ? (
+        ) : captures.length === 0 ? (
           <div className="text-center py-20 text-slate-400">
             <Map className="h-12 w-12 mx-auto mb-3 opacity-50" />
             <p className="text-lg font-medium">No captures yet</p>
@@ -207,7 +209,7 @@ export default function FloorPlanManager() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {floorPlans.map((fp: any) => (
+            {captures.map((fp: any) => (
               <Card key={fp.id} className="overflow-hidden">
                 <div className="aspect-[4/3] bg-slate-100 relative overflow-hidden">
                   <img

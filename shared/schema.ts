@@ -178,10 +178,10 @@ export const registerSchema = z.object({
   companyName: z.string().min(1),
 });
 
-// ─── Spatial Schema (360 Capture) ─────────────────────────────────────────────
+// ─── Spatial Schema (Captures + Hotspots) ──────────────────────────────────────
 const spatial = pgSchema("spatial");
 
-export const floorPlans = spatial.table("floor_plans", {
+export const captures = spatial.table("captures", {
   id: varchar("id")
     .primaryKey()
     .default(sql`gen_random_uuid()`),
@@ -199,23 +199,23 @@ export const floorPlans = spatial.table("floor_plans", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-export const insertFloorPlanSchema = createInsertSchema(floorPlans).omit({
+export const insertCaptureSchema = createInsertSchema(captures).omit({
   id: true,
   createdAt: true,
 });
-export type InsertFloorPlan = z.infer<typeof insertFloorPlanSchema>;
-export type FloorPlan = typeof floorPlans.$inferSelect;
+export type InsertCapture = z.infer<typeof insertCaptureSchema>;
+export type Capture = typeof captures.$inferSelect;
 
-export const floorPlanPins = spatial.table("floor_plan_pins", {
+export const hotspots = spatial.table("hotspots", {
   id: varchar("id")
     .primaryKey()
     .default(sql`gen_random_uuid()`),
   workspaceId: varchar("workspace_id")
     .notNull()
     .references(() => workspaces.id, { onDelete: "cascade" }),
-  floorPlanId: varchar("floor_plan_id")
+  captureId: varchar("capture_id")
     .notNull()
-    .references(() => floorPlans.id, { onDelete: "cascade" }),
+    .references(() => captures.id, { onDelete: "cascade" }),
   x: numeric("x", { precision: 5, scale: 4 }).notNull(),
   y: numeric("y", { precision: 5, scale: 4 }).notNull(),
   label: text("label").notNull(),
@@ -229,9 +229,9 @@ export const floorPlanPins = spatial.table("floor_plan_pins", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-export const insertFloorPlanPinSchema = createInsertSchema(floorPlanPins).omit({
+export const insertHotspotSchema = createInsertSchema(hotspots).omit({
   id: true,
   createdAt: true,
 });
-export type InsertFloorPlanPin = z.infer<typeof insertFloorPlanPinSchema>;
-export type FloorPlanPin = typeof floorPlanPins.$inferSelect;
+export type InsertHotspot = z.infer<typeof insertHotspotSchema>;
+export type Hotspot = typeof hotspots.$inferSelect;

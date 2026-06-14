@@ -14,8 +14,8 @@ import {
   insertReportSchema,
   insertChecklistTemplateSchema,
   insertWorkspaceSchema,
-  insertFloorPlanSchema,
-  insertFloorPlanPinSchema,
+  insertCaptureSchema,
+  insertHotspotSchema,
 } from "@shared/schema";
 import { pick } from "@shared/cleanData";
 import { DEFAULT_CHECKLIST_POINTS } from "./defaultChecklist";
@@ -541,14 +541,14 @@ export async function registerRoutes(
     res.json({ success: true });
   });
 
-  // ── Floor Plan Routes ─────────────────────────────────────────────────────────
+  // ── Capture Routes ───────────────────────────────────────────────────────────
 
   app.get(
-    "/api/projects/:projectId/floor-plans",
+    "/api/projects/:projectId/captures",
     requireAuth,
     async (req, res) => {
       const user = req.user as any;
-      const items = await spatialStorage.getFloorPlansByProject(
+      const items = await spatialStorage.getCapturesByProject(
         req.params.projectId as string,
         user.workspaceId,
       );
@@ -557,11 +557,11 @@ export async function registerRoutes(
   );
 
   app.post(
-    "/api/projects/:projectId/floor-plans",
+    "/api/projects/:projectId/captures",
     requireAuth,
     async (req, res) => {
       const user = req.user as any;
-      const parsed = insertFloorPlanSchema.safeParse({
+      const parsed = insertCaptureSchema.safeParse({
         ...req.body,
         projectId: req.params.projectId as string,
         workspaceId: user.workspaceId,
@@ -579,22 +579,22 @@ export async function registerRoutes(
         try {
           const gcpUrl = await uploadImageToGCP(
             parsed.data.imageUrl,
-            `floorplan-${Date.now()}.png`,
+            `capture-${Date.now()}.png`,
           );
           if (gcpUrl) parsed.data.imageUrl = gcpUrl;
         } catch (err) {
-          console.error("Floor plan image upload error:", err);
+          console.error("Capture image upload error:", err);
         }
       }
 
-      const item = await spatialStorage.createFloorPlan(parsed.data);
+      const item = await spatialStorage.createCapture(parsed.data);
       res.status(201).json(item);
     },
   );
 
-  app.get("/api/floor-plans/:id", requireAuth, async (req, res) => {
+  app.get("/api/captures/:id", requireAuth, async (req, res) => {
     const user = req.user as any;
-    const item = await spatialStorage.getFloorPlan(
+    const item = await spatialStorage.getCapture(
       req.params.id as string,
       user.workspaceId,
     );
@@ -602,7 +602,7 @@ export async function registerRoutes(
     res.json(item);
   });
 
-  app.patch("/api/floor-plans/:id", requireAuth, async (req, res) => {
+  app.patch("/api/captures/:id", requireAuth, async (req, res) => {
     const user = req.user as any;
     let { id, createdAt, workspaceId, projectId, ...updates } = req.body;
 
@@ -614,15 +614,15 @@ export async function registerRoutes(
       try {
         const gcpUrl = await uploadImageToGCP(
           updates.imageUrl,
-          `floorplan-${Date.now()}.png`,
+          `capture-${Date.now()}.png`,
         );
         if (gcpUrl) updates.imageUrl = gcpUrl;
       } catch (err) {
-        console.error("Floor plan image upload error:", err);
+        console.error("Capture image upload error:", err);
       }
     }
 
-    const item = await spatialStorage.updateFloorPlan(
+    const item = await spatialStorage.updateCapture(
       req.params.id as string,
       user.workspaceId,
       updates,
@@ -631,9 +631,9 @@ export async function registerRoutes(
     res.json(item);
   });
 
-  app.delete("/api/floor-plans/:id", requireAuth, async (req, res) => {
+  app.delete("/api/captures/:id", requireAuth, async (req, res) => {
     const user = req.user as any;
-    const ok = await spatialStorage.deleteFloorPlan(
+    const ok = await spatialStorage.deleteCapture(
       req.params.id as string,
       user.workspaceId,
     );
@@ -641,15 +641,15 @@ export async function registerRoutes(
     res.json({ success: true });
   });
 
-  // ── Pin Routes ────────────────────────────────────────────────────────────────
+  // ── Hotspot Routes ───────────────────────────────────────────────────────────
 
   app.get(
-    "/api/floor-plans/:floorPlanId/pins",
+    "/api/captures/:captureId/hotspots",
     requireAuth,
     async (req, res) => {
       const user = req.user as any;
-      const items = await spatialStorage.getPinsByFloorPlan(
-        req.params.floorPlanId as string,
+      const items = await spatialStorage.getHotspotsByCapture(
+        req.params.captureId as string,
         user.workspaceId,
       );
       res.json(items);
@@ -657,13 +657,13 @@ export async function registerRoutes(
   );
 
   app.post(
-    "/api/floor-plans/:floorPlanId/pins",
+    "/api/captures/:captureId/hotspots",
     requireAuth,
     async (req, res) => {
       const user = req.user as any;
-      const parsed = insertFloorPlanPinSchema.safeParse({
+      const parsed = insertHotspotSchema.safeParse({
         ...req.body,
-        floorPlanId: req.params.floorPlanId as string,
+        captureId: req.params.captureId as string,
         workspaceId: user.workspaceId,
       });
       if (!parsed.success)
@@ -687,14 +687,14 @@ export async function registerRoutes(
         }
       }
 
-      const item = await spatialStorage.createPin(parsed.data);
+      const item = await spatialStorage.createHotspot(parsed.data);
       res.status(201).json(item);
     },
   );
 
-  app.patch("/api/pins/:id", requireAuth, async (req, res) => {
+  app.patch("/api/hotspots/:id", requireAuth, async (req, res) => {
     const user = req.user as any;
-    let { id, createdAt, workspaceId, floorPlanId, ...updates } = req.body;
+    let { id, createdAt, workspaceId, captureId, ...updates } = req.body;
 
     if (
       updates.panoUrl &&
@@ -712,7 +712,7 @@ export async function registerRoutes(
       }
     }
 
-    const item = await spatialStorage.updatePin(
+    const item = await spatialStorage.updateHotspot(
       req.params.id as string,
       user.workspaceId,
       updates,
@@ -721,9 +721,9 @@ export async function registerRoutes(
     res.json(item);
   });
 
-  app.delete("/api/pins/:id", requireAuth, async (req, res) => {
+  app.delete("/api/hotspots/:id", requireAuth, async (req, res) => {
     const user = req.user as any;
-    const ok = await spatialStorage.deletePin(
+    const ok = await spatialStorage.deleteHotspot(
       req.params.id as string,
       user.workspaceId,
     );

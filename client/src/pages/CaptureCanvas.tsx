@@ -45,7 +45,7 @@ import {
 import { useRoute, Link } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { ensureJpeg } from "@/lib/utils";
-import FloorPlanPDF from "@/components/FloorPlanPDF";
+import CapturePDF from "@/components/CapturePDF";
 import { pdf } from "@react-pdf/renderer";
 
 // ─── Severity / status helpers ────────────────────────────────────────────────
@@ -114,13 +114,13 @@ const emptyDraft = (): PinDraft => ({
 });
 
 // ─── Component ────────────────────────────────────────────────────────────────
-export default function FloorPlanCanvas() {
-  const [, params] = useRoute("/project/:projectId/captures/:floorPlanId");
+export default function CaptureCanvas() {
+  const [, params] = useRoute("/project/:projectId/captures/:captureId");
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
   const projectId = params?.projectId;
-  const floorPlanId = params?.floorPlanId;
+  const captureId = params?.captureId;
 
   // Flat canvas
   const containerRef = useRef<HTMLDivElement>(null);
@@ -152,16 +152,16 @@ export default function FloorPlanCanvas() {
   const [exporting, setExporting] = useState(false);
 
   // ── Queries ─────────────────────────────────────────────────────────────────
-  const { data: floorPlan, isLoading: loadingPlan } = useQuery({
-    queryKey: ["floor-plan", floorPlanId],
-    queryFn: () => api.getFloorPlan(floorPlanId!),
-    enabled: !!floorPlanId,
+  const { data: capture, isLoading: loadingPlan } = useQuery({
+    queryKey: ["capture", captureId],
+    queryFn: () => api.getCapture(captureId!),
+    enabled: !!captureId,
   });
 
-  const { data: pins = [] } = useQuery({
-    queryKey: ["pins", floorPlanId],
-    queryFn: () => api.getPins(floorPlanId!),
-    enabled: !!floorPlanId,
+  const { data: hotspots = [] } = useQuery({
+    queryKey: ["hotspots", captureId],
+    queryFn: () => api.getHotspots(captureId!),
+    enabled: !!captureId,
   });
 
   // Keep viewPinRef current
@@ -169,11 +169,11 @@ export default function FloorPlanCanvas() {
 
   // ── 360° detection ──────────────────────────────────────────────────────────
   useEffect(() => {
-    if (floorPlan?.width && floorPlan?.height) {
-      const ratio = floorPlan.width / floorPlan.height;
+    if (capture?.width && capture?.height) {
+      const ratio = capture.width / capture.height;
       setIs360(ratio >= 1.8 && ratio <= 2.2);
     }
-  }, [floorPlan]);
+  }, [capture]);
 
   // ── Inject hotspot CSS once ─────────────────────────────────────────────────
   useEffect(() => {
@@ -186,7 +186,7 @@ export default function FloorPlanCanvas() {
 
   // ── Init Pannellum ──────────────────────────────────────────────────────────
   useEffect(() => {
-    if (!is360 || !panoContainerRef.current || !floorPlan?.imageUrl) return;
+    if (!is360 || !panoContainerRef.current || !capture?.imageUrl) return;
     let destroyed = false;
 
     function initViewer() {
@@ -195,7 +195,7 @@ export default function FloorPlanCanvas() {
 
       viewerRef.current = window.pannellum.viewer(panoContainerRef.current, {
         type: "equirectangular",
-        panorama: floorPlan!.imageUrl,
+        panorama: capture!.imageUrl,
         autoLoad: true,
         showZoomCtrl: false,
         showFullscreenCtrl: false,
@@ -233,7 +233,7 @@ export default function FloorPlanCanvas() {
       destroyed = true;
       if (viewerRef.current) { try { viewerRef.current.destroy(); } catch {} viewerRef.current = null; }
     };
-  }, [is360, floorPlan?.imageUrl]);
+  }, [is360, capture?.imageUrl]);
 
   // ── Sync Pannellum hotspots when pins change ────────────────────────────────
   useEffect(() => {
@@ -242,7 +242,7 @@ export default function FloorPlanCanvas() {
       if (!viewerRef.current) return;
       const existing: any[] = viewerRef.current.getConfig()?.hotSpots ?? [];
       existing.forEach((hs) => { try { viewerRef.current.removeHotSpot(hs.id); } catch {} });
-      pins.forEach((pin: any) => {
+      hotspots.forEach((pin: any) => {
         const { pitch, yaw } = toPitchYaw(parseFloat(pin.x), parseFloat(pin.y));
         try {
           viewerRef.current.addHotSpot({
@@ -258,13 +258,13 @@ export default function FloorPlanCanvas() {
       });
     }
     if (viewerRef.current) { sync(); } else { const t = setTimeout(sync, 1200); return () => clearTimeout(t); }
-  }, [pins, is360]);
+  }, [hotspots, is360]);
 
   // ── Mutations ────────────────────────────────────────────────────────────────
   const createPinMutation = useMutation({
     mutationFn: async () => {
-      if (!floorPlanId) return;
-      return api.createPin(floorPlanId, {
+      if (!captureId) return;
+      return api.createHotspot(captureId, {
         x: draft.x.toString(),
         y: draft.y.toString(),
         label: draft.label,
@@ -274,7 +274,8 @@ export default function FloorPlanCanvas() {
         panoUrl: draft.photoDataUrl || undefined,
       });
     },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["pins", floorPlanId] }); closePinDialog(); },
+
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["hotspots", captureId] }); closePinDialog(); },
     onError: (err: any) => toast({ title: "Error", description: err.message, variant: "destructive" }),
   });
 
@@ -288,15 +289,15 @@ export default function FloorPlanCanvas() {
         issueSeverity: draft.severity,
       };
       if (draft.photoDataUrl) body.panoUrl = draft.photoDataUrl;
-      return api.updatePin(editingPinId, body);
+      return api.updateHotspot(editingPinId, body);
     },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["pins", floorPlanId] }); closePinDialog(); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["hotspots", captureId] }); closePinDialog(); },
     onError: (err: any) => toast({ title: "Error", description: err.message, variant: "destructive" }),
   });
 
   const deletePinMutation = useMutation({
-    mutationFn: (id: string) => api.deletePin(id),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["pins", floorPlanId] }); setDeletePinId(null); setViewingPinId(null); },
+    mutationFn: (id: string) => api.deleteHotspot(id),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["hotspots", captureId] }); setDeletePinId(null); setViewingPinId(null); },
     onError: (err: any) => toast({ title: "Error", description: err.message, variant: "destructive" }),
   });
 
@@ -344,7 +345,7 @@ export default function FloorPlanCanvas() {
     dragStart.current = null;
     if (wasPanning) return;
     if ((e.target as HTMLElement).closest("[data-pin]")) return;
-    if (!containerRef.current || !floorPlan) return;
+    if (!containerRef.current || !capture) return;
 
     const rect = containerRef.current.getBoundingClientRect();
     const rx = e.clientX - rect.left;
@@ -355,11 +356,11 @@ export default function FloorPlanCanvas() {
     const ox = (rx - cx - panX) / scale;
     const oy = (ry - cy - panY) / scale;
 
-    const imgX = ox + floorPlan.width / 2;
-    const imgY = oy + floorPlan.height / 2;
+    const imgX = ox + capture.width / 2;
+    const imgY = oy + capture.height / 2;
 
-    const x = imgX / floorPlan.width;
-    const y = imgY / floorPlan.height;
+    const x = imgX / capture.width;
+    const y = imgY / capture.height;
 
     if (x < 0 || x > 1 || y < 0 || y > 1) return;
     setDraft({ ...emptyDraft(), x, y });
@@ -381,11 +382,11 @@ export default function FloorPlanCanvas() {
 
   // ── PDF export ───────────────────────────────────────────────────────────────
   async function handleExportPDF() {
-    if (!floorPlan || !projectId) return;
+    if (!capture || !projectId) return;
     setExporting(true);
     try {
       const project = await api.getProject(projectId);
-      const pinsData = pins.map((pin: any) => ({
+      const pinsData = hotspots.map((pin: any) => ({
         id: pin.id,
         number: 0,
         label: pin.label,
@@ -396,13 +397,15 @@ export default function FloorPlanCanvas() {
         notes: pin.notes,
         hasPhoto: !!pin.panoUrl,
       }));
-      const imageUrl = await ensureJpeg(floorPlan.imageUrl);
+      const imageUrl = await ensureJpeg(capture.imageUrl);
       const blob = await pdf(
-        <FloorPlanPDF
+        <CapturePDF
           captures={[{
             projectTitle: project.title,
-            title: floorPlan.title,
+            title: capture.title,
             imageUrl,
+            imageWidth: capture.width,
+            imageHeight: capture.height,
             pins: pinsData,
           }]}
         />,
@@ -410,7 +413,7 @@ export default function FloorPlanCanvas() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `${floorPlan.title.replace(/\s+/g, "_")}_capture.pdf`;
+      a.download = `${capture.title.replace(/\s+/g, "_")}_capture.pdf`;
       a.click();
       URL.revokeObjectURL(url);
     } catch (err: any) {
@@ -420,7 +423,7 @@ export default function FloorPlanCanvas() {
     }
   }
 
-  const viewingPin = viewingPinId ? pins.find((p: any) => p.id === viewingPinId) : null;
+  const viewingPin = viewingPinId ? hotspots.find((p: any) => p.id === viewingPinId) : null;
 
   if (loadingPlan) {
     return (
@@ -446,12 +449,12 @@ export default function FloorPlanCanvas() {
               ← All Captures
             </Link>
             <h1 className="text-lg font-bold text-slate-800">
-              {floorPlan?.title || "Capture"}
+              {capture?.title || "Capture"}
             </h1>
           </div>
           <div className="flex items-center gap-2">
             <span className="text-xs text-slate-400">
-              {pins.length} hotspot{pins.length !== 1 ? "s" : ""}
+              {hotspots.length} hotspot{hotspots.length !== 1 ? "s" : ""}
             </span>
             {is360 ? (
               <Button
@@ -522,15 +525,15 @@ export default function FloorPlanCanvas() {
                   transformOrigin: "center center",
                 }}
               >
-                {floorPlan && (
+                {capture && (
                   <div className="relative">
                     <img
-                      src={floorPlan.imageUrl}
-                      alt={floorPlan.title}
-                      style={{ width: floorPlan.width, height: floorPlan.height, maxWidth: "none" }}
+                      src={capture.imageUrl}
+                      alt={capture.title}
+                      style={{ width: capture.width, height: capture.height, maxWidth: "none" }}
                       draggable={false}
                     />
-                    {pins.map((pin: any) => {
+                    {hotspots.map((pin: any) => {
                       const col = severityColor(pin.issueSeverity);
                       const isViewing = pin.id === viewingPinId;
                       return (
@@ -752,10 +755,10 @@ export default function FloorPlanCanvas() {
                       <X className="h-3 w-3 text-white" />
                     </button>
                   </div>
-                ) : editingPinId && pins.find((p: any) => p.id === editingPinId)?.panoUrl ? (
+                ) : editingPinId && hotspots.find((p: any) => p.id === editingPinId)?.panoUrl ? (
                   <div className="relative rounded-lg overflow-hidden border mb-2">
                     <img
-                      src={pins.find((p: any) => p.id === editingPinId).panoUrl}
+                      src={hotspots.find((p: any) => p.id === editingPinId).panoUrl}
                       alt="Current"
                       className="w-full h-32 object-cover"
                     />

@@ -7,8 +7,8 @@ import {
   reports,
   checklistTemplates,
   invoices,
-  floorPlans,
-  floorPlanPins,
+  captures,
+  hotspots,
   type User,
   type InsertUser,
   type Workspace,
@@ -21,10 +21,10 @@ import {
   type InsertChecklistTemplate,
   type Invoice,
   type InsertInvoice,
-  type FloorPlan,
-  type InsertFloorPlan,
-  type FloorPlanPin,
-  type InsertFloorPlanPin,
+  type Capture,
+  type InsertCapture,
+  type Hotspot,
+  type InsertHotspot,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -284,119 +284,98 @@ export class DatabaseStorage implements IStorage {
 }
 
 export class SpatialStorage {
-  // Floor Plans
-  async getFloorPlansByProject(projectId: string, workspaceId: string) {
+  // Captures
+  async getCapturesByProject(projectId: string, workspaceId: string) {
     return db
       .select()
-      .from(floorPlans)
+      .from(captures)
       .where(
         and(
-          eq(floorPlans.projectId, projectId),
-          eq(floorPlans.workspaceId, workspaceId),
+          eq(captures.projectId, projectId),
+          eq(captures.workspaceId, workspaceId),
         ),
       )
-      .orderBy(desc(floorPlans.createdAt));
+      .orderBy(desc(captures.createdAt));
   }
 
-  async getFloorPlan(id: string, workspaceId: string) {
+  async getCapture(id: string, workspaceId: string) {
     const [row] = await db
       .select()
-      .from(floorPlans)
-      .where(
-        and(eq(floorPlans.id, id), eq(floorPlans.workspaceId, workspaceId)),
-      );
+      .from(captures)
+      .where(and(eq(captures.id, id), eq(captures.workspaceId, workspaceId)));
     return row;
   }
 
-  async createFloorPlan(data: InsertFloorPlan) {
-    const [row] = await db.insert(floorPlans).values(data).returning();
+  async createCapture(data: InsertCapture) {
+    const [row] = await db.insert(captures).values(data).returning();
     return row;
   }
 
-  async updateFloorPlan(
+  async updateCapture(
     id: string,
     workspaceId: string,
-    data: Partial<InsertFloorPlan>,
+    data: Partial<InsertCapture>,
   ) {
     const [row] = await db
-      .update(floorPlans)
+      .update(captures)
       .set(data)
-      .where(
-        and(eq(floorPlans.id, id), eq(floorPlans.workspaceId, workspaceId)),
-      )
+      .where(and(eq(captures.id, id), eq(captures.workspaceId, workspaceId)))
       .returning();
     return row;
   }
 
-  async deleteFloorPlan(id: string, workspaceId: string) {
+  async deleteCapture(id: string, workspaceId: string) {
     const result = await db
-      .delete(floorPlans)
-      .where(
-        and(eq(floorPlans.id, id), eq(floorPlans.workspaceId, workspaceId)),
-      )
+      .delete(captures)
+      .where(and(eq(captures.id, id), eq(captures.workspaceId, workspaceId)))
       .returning();
     return result.length > 0;
   }
 
-  // Pins
-  async getPinsByFloorPlan(floorPlanId: string, workspaceId: string) {
+  // Hotspots
+  async getHotspotsByCapture(captureId: string, workspaceId: string) {
     return db
       .select()
-      .from(floorPlanPins)
+      .from(hotspots)
       .where(
         and(
-          eq(floorPlanPins.floorPlanId, floorPlanId),
-          eq(floorPlanPins.workspaceId, workspaceId),
+          eq(hotspots.captureId, captureId),
+          eq(hotspots.workspaceId, workspaceId),
         ),
       )
-      .orderBy(desc(floorPlanPins.createdAt));
+      .orderBy(desc(hotspots.createdAt));
   }
 
-  async getPin(id: string, workspaceId: string) {
+  async getHotspot(id: string, workspaceId: string) {
     const [row] = await db
       .select()
-      .from(floorPlanPins)
-      .where(
-        and(
-          eq(floorPlanPins.id, id),
-          eq(floorPlanPins.workspaceId, workspaceId),
-        ),
-      );
+      .from(hotspots)
+      .where(and(eq(hotspots.id, id), eq(hotspots.workspaceId, workspaceId)));
     return row;
   }
 
-  async createPin(data: InsertFloorPlanPin) {
-    const [row] = await db.insert(floorPlanPins).values(data).returning();
+  async createHotspot(data: InsertHotspot) {
+    const [row] = await db.insert(hotspots).values(data).returning();
     return row;
   }
 
-  async updatePin(
+  async updateHotspot(
     id: string,
     workspaceId: string,
-    data: Partial<InsertFloorPlanPin>,
+    data: Partial<InsertHotspot>,
   ) {
     const [row] = await db
-      .update(floorPlanPins)
+      .update(hotspots)
       .set(data)
-      .where(
-        and(
-          eq(floorPlanPins.id, id),
-          eq(floorPlanPins.workspaceId, workspaceId),
-        ),
-      )
+      .where(and(eq(hotspots.id, id), eq(hotspots.workspaceId, workspaceId)))
       .returning();
     return row;
   }
 
-  async deletePin(id: string, workspaceId: string) {
+  async deleteHotspot(id: string, workspaceId: string) {
     const result = await db
-      .delete(floorPlanPins)
-      .where(
-        and(
-          eq(floorPlanPins.id, id),
-          eq(floorPlanPins.workspaceId, workspaceId),
-        ),
-      )
+      .delete(hotspots)
+      .where(and(eq(hotspots.id, id), eq(hotspots.workspaceId, workspaceId)))
       .returning();
     return result.length > 0;
   }

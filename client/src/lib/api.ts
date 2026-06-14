@@ -117,35 +117,36 @@ export const api = {
   deleteReport: (id: string) =>
     request(`/api/reports/${id}`, { method: "DELETE" }),
 
-  // Floor Plans
-  getFloorPlans: (projectId: string) =>
-    request<any[]>(`/api/projects/${projectId}/floor-plans`),
-  getFloorPlan: (id: string) => request<any>(`/api/floor-plans/${id}`),
-  createFloorPlan: (projectId: string, data: any) =>
-    request<any>(`/api/projects/${projectId}/floor-plans`, {
+  // Captures
+  getCaptures: (projectId: string) =>
+    request<any[]>(`/api/projects/${projectId}/captures`),
+  getCapture: (id: string) => request<any>(`/api/captures/${id}`),
+  createCapture: (projectId: string, data: any) =>
+    request<any>(`/api/projects/${projectId}/captures`, {
       method: "POST",
       body: JSON.stringify(data),
     }),
-  updateFloorPlan: (id: string, data: any) =>
-    request<any>(`/api/floor-plans/${id}`, {
+  updateCapture: (id: string, data: any) =>
+    request<any>(`/api/captures/${id}`, {
       method: "PATCH",
       body: JSON.stringify(data),
     }),
-  deleteFloorPlan: (id: string) =>
-    request(`/api/floor-plans/${id}`, { method: "DELETE" }),
+  deleteCapture: (id: string) =>
+    request(`/api/captures/${id}`, { method: "DELETE" }),
 
-  // Pins
-  getPins: (floorPlanId: string) =>
-    request<any[]>(`/api/floor-plans/${floorPlanId}/pins`),
-  createPin: (floorPlanId: string, data: any) =>
-    request<any>(`/api/floor-plans/${floorPlanId}/pins`, {
+  // Hotspots
+  getHotspots: (captureId: string) =>
+    request<any[]>(`/api/captures/${captureId}/hotspots`),
+  createHotspot: (captureId: string, data: any) =>
+    request<any>(`/api/captures/${captureId}/hotspots`, {
       method: "POST",
       body: JSON.stringify(data),
     }),
-  updatePin: (id: string, data: any) =>
-    request<any>(`/api/pins/${id}`, {
+  updateHotspot: (id: string, data: any) =>
+    request<any>(`/api/hotspots/${id}`, {
       method: "PATCH",
       body: JSON.stringify(data),
     }),
-  deletePin: (id: string) => request(`/api/pins/${id}`, { method: "DELETE" }),
+  deleteHotspot: (id: string) =>
+    request(`/api/hotspots/${id}`, { method: "DELETE" }),
 };
