@@ -128,12 +128,12 @@ export default function FloorPlanManager() {
               &larr; Back to Project
             </Link>
             <h1 className="text-2xl font-bold text-slate-800 mt-1">
-              Floor Plans
+              Captures
             </h1>
           </div>
           <Button onClick={() => setIsUploadOpen(true)}>
             <Plus className="h-4 w-4 mr-2" />
-            Upload Floor Plan
+            Upload Capture
           </Button>
         </div>
 
@@ -144,9 +144,9 @@ export default function FloorPlanManager() {
         ) : floorPlans.length === 0 ? (
           <div className="text-center py-20 text-slate-400">
             <Map className="h-12 w-12 mx-auto mb-3 opacity-50" />
-            <p className="text-lg font-medium">No floor plans yet</p>
+            <p className="text-lg font-medium">No captures yet</p>
             <p className="text-sm mt-1">
-              Upload a blueprint or site map to get started
+              Upload any photo or 360° image to get started
             </p>
           </div>
         ) : (
@@ -197,7 +197,7 @@ export default function FloorPlanManager() {
       <Dialog open={isUploadOpen} onOpenChange={setIsUploadOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Upload Floor Plan</DialogTitle>
+            <DialogTitle>Upload Capture</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div>
@@ -262,9 +262,9 @@ export default function FloorPlanManager() {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Floor Plan?</AlertDialogTitle>
+            <AlertDialogTitle>Delete Capture?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently delete this floor plan and all its pins.
+              This will permanently delete this capture and all its hotspots.
               This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>

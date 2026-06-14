@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import Layout from "@/components/Layout";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
@@ -20,134 +20,262 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  MapPin,
   Trash2,
-  Eye,
+  Edit2,
   Camera,
-  Link2,
   Move,
   ZoomIn,
   ZoomOut,
   Loader2,
   X,
   FileDown,
+  Plus,
 } from "lucide-react";
 import { useRoute, Link } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import FloorPlanPDF from "@/components/FloorPlanPDF";
 import { pdf } from "@react-pdf/renderer";
 import QRCode from "qrcode";
-import PanoViewer from "@/components/PanoViewer";
 
+// ─── Severity / status helpers ────────────────────────────────────────────────
+const SEV_COLOR: Record<string, string> = {
+  Critical: "#dc2626",
+  Major: "#f97316",
+  Minor: "#eab308",
+};
+const severityColor = (s?: string) => SEV_COLOR[s ?? ""] ?? "#3b82f6";
+
+const STATUS_STYLE: Record<string, { bg: string; text: string }> = {
+  Open: { bg: "#fee2e2", text: "#991b1b" },
+  "In Progress": { bg: "#ffedd5", text: "#9a3412" },
+  Resolved: { bg: "#dcfce7", text: "#166534" },
+};
+const statusStyle = (s?: string) =>
+  STATUS_STYLE[s ?? ""] ?? { bg: "#f1f5f9", text: "#475569" };
+
+// ─── 360° coordinate conversion (x/y 0-1 ↔ pitch/yaw) ───────────────────────
+function toPitchYaw(x: number, y: number) {
+  return { yaw: (x - 0.5) * 360, pitch: (0.5 - y) * 180 };
+}
+function toXY(pitch: number, yaw: number) {
+  return { x: yaw / 360 + 0.5, y: 0.5 - pitch / 180 };
+}
+
+declare global {
+  interface Window {
+    pannellum: any;
+  }
+}
+
+// ─── Pannellum hotspot CSS injected once ─────────────────────────────────────
+const HOTSPOT_STYLE = `
+.cap-hs {
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: #3b82f6;
+  border: 2.5px solid #fff;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0,0,0,.35);
+  transform: translate(-50%,-50%);
+  transition: transform .15s;
+}
+.cap-hs:hover { transform: translate(-50%,-50%) scale(1.25); }
+.cap-hs.sev-Critical { background: #dc2626; }
+.cap-hs.sev-Major    { background: #f97316; }
+.cap-hs.sev-Minor    { background: #eab308; }
+`;
+
+// ─── Types ────────────────────────────────────────────────────────────────────
 interface PinDraft {
   x: number;
   y: number;
   label: string;
   notes: string;
-  panoDataUrl: string | null;
-  panoFile: File | null;
-  issueId: string;
-  issueTitle: string;
-  issueStatus: string;
-  issueSeverity: string;
+  severity: string;
+  status: string;
+  photoDataUrl: string | null;
+  photoFile: File | null;
 }
-
 const emptyDraft = (): PinDraft => ({
-  x: 0,
-  y: 0,
-  label: "",
-  notes: "",
-  panoDataUrl: null,
-  panoFile: null,
-  issueId: "",
-  issueTitle: "",
-  issueStatus: "",
-  issueSeverity: "",
+  x: 0, y: 0, label: "", notes: "",
+  severity: "Minor", status: "Open",
+  photoDataUrl: null, photoFile: null,
 });
 
+// ─── Component ────────────────────────────────────────────────────────────────
 export default function FloorPlanCanvas() {
   const [, params] = useRoute("/project/:projectId/floor-plans/:floorPlanId");
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const containerRef = useRef<HTMLDivElement>(null);
-  const panoInputRef = useRef<HTMLInputElement>(null);
 
   const projectId = params?.projectId;
   const floorPlanId = params?.floorPlanId;
 
+  // Flat canvas
+  const containerRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
   const [panX, setPanX] = useState(0);
   const [panY, setPanY] = useState(0);
   const [isPanning, setIsPanning] = useState(false);
-  const [panStart, setPanStart] = useState({ x: 0, y: 0 });
   const dragStart = useRef<{ x: number; y: number } | null>(null);
+  const DRAG_THRESHOLD = 5;
+
+  // 360° mode
+  const panoContainerRef = useRef<HTMLDivElement>(null);
+  const viewerRef = useRef<any>(null);
+  const adding360Ref = useRef(false);
+  const [is360, setIs360] = useState(false);
+  const [adding360, setAdding360] = useState(false);
+  useEffect(() => { adding360Ref.current = adding360; }, [adding360]);
+
+  // Stable callback ref so Pannellum hotspot handlers always have the latest setter
+  const viewPinRef = useRef<(id: string) => void>(() => {});
+
+  // Pin / dialog
+  const photoInputRef = useRef<HTMLInputElement>(null);
   const [pinDialogOpen, setPinDialogOpen] = useState(false);
   const [editingPinId, setEditingPinId] = useState<string | null>(null);
+  const [viewingPinId, setViewingPinId] = useState<string | null>(null);
   const [draft, setDraft] = useState<PinDraft>(emptyDraft());
   const [deletePinId, setDeletePinId] = useState<string | null>(null);
-  const [viewingPanoId, setViewingPanoId] = useState<string | null>(null);
-  const [showIssueSearch, setShowIssueSearch] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
+  // ── Queries ─────────────────────────────────────────────────────────────────
   const { data: floorPlan, isLoading: loadingPlan } = useQuery({
     queryKey: ["floor-plan", floorPlanId],
     queryFn: () => api.getFloorPlan(floorPlanId!),
     enabled: !!floorPlanId,
   });
 
-  const { data: pins = [], isLoading: loadingPins } = useQuery({
+  const { data: pins = [] } = useQuery({
     queryKey: ["pins", floorPlanId],
     queryFn: () => api.getPins(floorPlanId!),
     enabled: !!floorPlanId,
   });
 
-  const { data: allIssues = [], isLoading: loadingIssues } = useQuery({
-    queryKey: ["project-issues", projectId],
-    queryFn: async () => {
-      const summaries: any[] = await api.getReports(projectId!);
-      const full = await Promise.all(
-        summaries.map((r: any) => api.getReport(r.id)),
-      );
-      return full.flatMap((r: any) =>
-        (r.issues || []).map((i: any) => ({
-          ...i,
-          reportTitle: r.title,
-          reportId: r.id,
-        })),
-      );
-    },
-    enabled: showIssueSearch && !!projectId,
-  });
+  // Keep viewPinRef current
+  viewPinRef.current = (id: string) => setViewingPinId(id);
 
+  // ── 360° detection ──────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (floorPlan?.width && floorPlan?.height) {
+      const ratio = floorPlan.width / floorPlan.height;
+      setIs360(ratio >= 1.8 && ratio <= 2.2);
+    }
+  }, [floorPlan]);
+
+  // ── Inject hotspot CSS once ─────────────────────────────────────────────────
+  useEffect(() => {
+    if (document.getElementById("cap-hs-style")) return;
+    const tag = document.createElement("style");
+    tag.id = "cap-hs-style";
+    tag.textContent = HOTSPOT_STYLE;
+    document.head.appendChild(tag);
+  }, []);
+
+  // ── Init Pannellum ──────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!is360 || !panoContainerRef.current || !floorPlan?.imageUrl) return;
+    let destroyed = false;
+
+    function initViewer() {
+      if (destroyed || !panoContainerRef.current) return;
+      if (viewerRef.current) { try { viewerRef.current.destroy(); } catch {} }
+
+      viewerRef.current = window.pannellum.viewer(panoContainerRef.current, {
+        type: "equirectangular",
+        panorama: floorPlan!.imageUrl,
+        autoLoad: true,
+        showZoomCtrl: false,
+        showFullscreenCtrl: false,
+        showControls: false,
+        mouseZoom: true,
+        compass: false,
+      });
+
+      panoContainerRef.current!.addEventListener("click", (e) => {
+        if (!adding360Ref.current || !viewerRef.current) return;
+        const coords = viewerRef.current.mouseEventToCoords(e as MouseEvent);
+        if (!coords) return;
+        const { x, y } = toXY(coords[0], coords[1]);
+        setDraft({ ...emptyDraft(), x, y });
+        setPinDialogOpen(true);
+        setAdding360(false);
+      });
+    }
+
+    if (window.pannellum) {
+      initViewer();
+    } else {
+      const link = document.createElement("link");
+      link.rel = "stylesheet";
+      link.href = "https://cdn.jsdelivr.net/npm/pannellum@2.5.6/build/pannellum.css";
+      const script = document.createElement("script");
+      script.src = "https://cdn.jsdelivr.net/npm/pannellum@2.5.6/build/pannellum.js";
+      script.async = true;
+      script.onload = initViewer;
+      document.head.appendChild(link);
+      document.head.appendChild(script);
+    }
+
+    return () => {
+      destroyed = true;
+      if (viewerRef.current) { try { viewerRef.current.destroy(); } catch {} viewerRef.current = null; }
+    };
+  }, [is360, floorPlan?.imageUrl]);
+
+  // ── Sync Pannellum hotspots when pins change ────────────────────────────────
+  useEffect(() => {
+    if (!is360) return;
+    function sync() {
+      if (!viewerRef.current) return;
+      const existing: any[] = viewerRef.current.getConfig()?.hotSpots ?? [];
+      existing.forEach((hs) => { try { viewerRef.current.removeHotSpot(hs.id); } catch {} });
+      pins.forEach((pin: any) => {
+        const { pitch, yaw } = toPitchYaw(parseFloat(pin.x), parseFloat(pin.y));
+        try {
+          viewerRef.current.addHotSpot({
+            id: pin.id,
+            pitch,
+            yaw,
+            type: "custom",
+            cssClass: `cap-hs sev-${pin.issueSeverity || ""}`,
+            clickHandlerFunc: (_e: any, id: string) => viewPinRef.current(id),
+            clickHandlerArgs: pin.id,
+          });
+        } catch {}
+      });
+    }
+    if (viewerRef.current) { sync(); } else { const t = setTimeout(sync, 1200); return () => clearTimeout(t); }
+  }, [pins, is360]);
+
+  // ── Mutations ────────────────────────────────────────────────────────────────
   const createPinMutation = useMutation({
     mutationFn: async () => {
       if (!floorPlanId) return;
-      const body: any = {
+      return api.createPin(floorPlanId, {
         x: draft.x.toString(),
         y: draft.y.toString(),
         label: draft.label,
         notes: draft.notes || undefined,
-      };
-      if (draft.issueId) {
-        body.issueId = draft.issueId;
-        body.issueTitle = draft.issueTitle || undefined;
-        body.issueStatus = draft.issueStatus || undefined;
-        body.issueSeverity = draft.issueSeverity || undefined;
-      }
-      if (draft.panoDataUrl) {
-        body.panoUrl = draft.panoDataUrl;
-      }
-      return api.createPin(floorPlanId, body);
+        issueStatus: draft.status,
+        issueSeverity: draft.severity,
+        panoUrl: draft.photoDataUrl || undefined,
+      });
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["pins", floorPlanId] });
-      closePinDialog();
-    },
-    onError: (err: any) =>
-      toast({ title: "Error", description: err.message, variant: "destructive" }),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["pins", floorPlanId] }); closePinDialog(); },
+    onError: (err: any) => toast({ title: "Error", description: err.message, variant: "destructive" }),
   });
 
   const updatePinMutation = useMutation({
@@ -156,54 +284,49 @@ export default function FloorPlanCanvas() {
       const body: any = {
         label: draft.label,
         notes: draft.notes || undefined,
+        issueStatus: draft.status,
+        issueSeverity: draft.severity,
       };
-      if (draft.panoDataUrl) {
-        body.panoUrl = draft.panoDataUrl;
-      }
-      if (draft.issueId) {
-        body.issueId = draft.issueId;
-        body.issueTitle = draft.issueTitle || undefined;
-        body.issueStatus = draft.issueStatus || undefined;
-        body.issueSeverity = draft.issueSeverity || undefined;
-      } else {
-        body.issueId = null;
-        body.issueTitle = null;
-        body.issueStatus = null;
-        body.issueSeverity = null;
-      }
+      if (draft.photoDataUrl) body.panoUrl = draft.photoDataUrl;
       return api.updatePin(editingPinId, body);
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["pins", floorPlanId] });
-      closePinDialog();
-    },
-    onError: (err: any) =>
-      toast({ title: "Error", description: err.message, variant: "destructive" }),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["pins", floorPlanId] }); closePinDialog(); },
+    onError: (err: any) => toast({ title: "Error", description: err.message, variant: "destructive" }),
   });
 
   const deletePinMutation = useMutation({
     mutationFn: (id: string) => api.deletePin(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["pins", floorPlanId] });
-      setDeletePinId(null);
-    },
-    onError: (err: any) =>
-      toast({ title: "Error", description: err.message, variant: "destructive" }),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["pins", floorPlanId] }); setDeletePinId(null); setViewingPinId(null); },
+    onError: (err: any) => toast({ title: "Error", description: err.message, variant: "destructive" }),
   });
 
+  // ── Dialog helpers ───────────────────────────────────────────────────────────
   function closePinDialog() {
     setPinDialogOpen(false);
     setEditingPinId(null);
     setDraft(emptyDraft());
-    setShowIssueSearch(false);
   }
 
-  const DRAG_THRESHOLD = 5;
+  function openEditForPin(pin: any) {
+    setEditingPinId(pin.id);
+    setDraft({
+      x: parseFloat(pin.x),
+      y: parseFloat(pin.y),
+      label: pin.label,
+      notes: pin.notes || "",
+      severity: pin.issueSeverity || "Minor",
+      status: pin.issueStatus || "Open",
+      photoDataUrl: null,
+      photoFile: null,
+    });
+    setViewingPinId(null);
+    setPinDialogOpen(true);
+  }
 
+  // ── Flat canvas handlers ─────────────────────────────────────────────────────
   function handleCanvasPointerDown(e: React.PointerEvent<HTMLDivElement>) {
     dragStart.current = { x: e.clientX, y: e.clientY };
   }
-
   function handleCanvasPointerMove(e: React.PointerEvent<HTMLDivElement>) {
     if (!dragStart.current) return;
     const dx = e.clientX - dragStart.current.x;
@@ -215,13 +338,13 @@ export default function FloorPlanCanvas() {
       dragStart.current = { x: e.clientX, y: e.clientY };
     }
   }
-
   function handleCanvasPointerUp(e: React.PointerEvent<HTMLDivElement>) {
     const wasPanning = isPanning;
     setIsPanning(false);
     dragStart.current = null;
-
     if (wasPanning) return;
+    // Don't open dialog when clicking an existing pin
+    if ((e.target as HTMLElement).closest("[data-pin]")) return;
 
     const rect = containerRef.current?.getBoundingClientRect();
     if (!rect || !floorPlan) return;
@@ -229,62 +352,23 @@ export default function FloorPlanCanvas() {
     const y = (e.clientY - rect.top) / rect.height;
     if (x < 0 || x > 1 || y < 0 || y > 1) return;
     setDraft({ ...emptyDraft(), x, y });
+    setViewingPinId(null);
     setPinDialogOpen(true);
   }
 
-  function handlePinClick(e: React.MouseEvent, pin: any) {
-    e.stopPropagation();
-    setEditingPinId(pin.id);
-    setDraft({
-      x: parseFloat(pin.x),
-      y: parseFloat(pin.y),
-      label: pin.label,
-      notes: pin.notes || "",
-      panoDataUrl: null,
-      panoFile: null,
-      issueId: pin.issueId || "",
-      issueTitle: pin.issueTitle || "",
-      issueStatus: pin.issueStatus || "",
-      issueSeverity: pin.issueSeverity || "",
-    });
-    setPinDialogOpen(true);
-  }
-
-  const handlePanoSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePhotoSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = () => {
-      setDraft((prev) => ({ ...prev, panoDataUrl: reader.result as string, panoFile: file }));
-    };
+    reader.onload = () => setDraft((p) => ({ ...p, photoDataUrl: reader.result as string, photoFile: file }));
     reader.readAsDataURL(file);
   }, []);
 
-  function zoomIn() {
-    setScale((s) => Math.min(s * 1.3, 5));
-  }
-  function zoomOut() {
-    setScale((s) => Math.max(s / 1.3, 0.3));
-  }
-  function resetView() {
-    setScale(1);
-    setPanX(0);
-    setPanY(0);
-  }
+  function zoomIn() { setScale((s) => Math.min(s * 1.3, 5)); }
+  function zoomOut() { setScale((s) => Math.max(s / 1.3, 0.3)); }
+  function resetView() { setScale(1); setPanX(0); setPanY(0); }
 
-  function selectIssue(issue: any) {
-    setDraft((prev) => ({
-      ...prev,
-      issueId: issue.id,
-      issueTitle: issue.title || "",
-      issueStatus: issue.status || "",
-      issueSeverity: issue.severity || "",
-    }));
-    setShowIssueSearch(false);
-  }
-
-  const [exporting, setExporting] = useState(false);
-
+  // ── PDF export ───────────────────────────────────────────────────────────────
   async function handleExportPDF() {
     if (!floorPlan || !projectId) return;
     setExporting(true);
@@ -296,21 +380,19 @@ export default function FloorPlanCanvas() {
           x: parseFloat(pin.x),
           y: parseFloat(pin.y),
           panoUrl: pin.panoUrl,
-          issueTitle: pin.issueTitle,
+          issueTitle: pin.label,
           issueStatus: pin.issueStatus,
           issueSeverity: pin.issueSeverity,
           notes: pin.notes,
           qrDataUrl: pin.panoUrl
-            ? await QRCode.toDataURL(
-                `${window.location.origin}/pano/${pin.id}`,
-                { width: 120, margin: 1, color: { dark: "#1e293b", light: "#ffffff" } },
-              )
+            ? await QRCode.toDataURL(`${window.location.origin}/pano/${pin.id}`, {
+                width: 120, margin: 1,
+                color: { dark: "#1e293b", light: "#ffffff" },
+              })
             : undefined,
         })),
       );
-
       const project = await api.getProject(projectId);
-
       const blob = await pdf(
         <FloorPlanPDF
           projectTitle={project.title}
@@ -319,11 +401,10 @@ export default function FloorPlanCanvas() {
           pins={pinsWithQR}
         />,
       ).toBlob();
-
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `${floorPlan.title.replace(/\s+/g, "_")}_report.pdf`;
+      a.download = `${floorPlan.title.replace(/\s+/g, "_")}_capture.pdf`;
       a.click();
       URL.revokeObjectURL(url);
     } catch (err: any) {
@@ -333,9 +414,7 @@ export default function FloorPlanCanvas() {
     }
   }
 
-  const viewingPin = viewingPanoId
-    ? pins.find((p: any) => p.id === viewingPanoId)
-    : null;
+  const viewingPin = viewingPinId ? pins.find((p: any) => p.id === viewingPinId) : null;
 
   if (loadingPlan) {
     return (
@@ -350,120 +429,291 @@ export default function FloorPlanCanvas() {
   return (
     <Layout>
       <div className="flex flex-col h-[calc(100vh-4rem)]">
+
+        {/* ── Header ── */}
         <div className="flex items-center justify-between px-6 py-3 border-b bg-white shrink-0">
           <div>
             <Link
               href={`/project/${projectId}/floor-plans`}
               className="text-sm text-slate-500 hover:text-slate-700"
             >
-              &larr; All Floor Plans
+              ← All Captures
             </Link>
             <h1 className="text-lg font-bold text-slate-800">
-              {floorPlan?.title || "Floor Plan"}
+              {floorPlan?.title || "Capture"}
             </h1>
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-xs text-slate-400">{pins.length} pins</span>
-            <Button variant="outline" size="sm" onClick={resetView}>
-              <Move className="h-3.5 w-3.5 mr-1" />
-              Reset
-            </Button>
-            <Button variant="outline" size="sm" onClick={zoomOut}>
-              <ZoomOut className="h-3.5 w-3.5" />
-            </Button>
-            <span className="text-xs text-slate-500 w-10 text-center">
-              {Math.round(scale * 100)}%
+            <span className="text-xs text-slate-400">
+              {pins.length} hotspot{pins.length !== 1 ? "s" : ""}
             </span>
-            <Button variant="outline" size="sm" onClick={zoomIn}>
-              <ZoomIn className="h-3.5 w-3.5" />
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleExportPDF}
-              disabled={exporting}
-            >
+            {is360 ? (
+              <Button
+                variant={adding360 ? "default" : "outline"}
+                size="sm"
+                onClick={() => setAdding360((v) => !v)}
+              >
+                <Plus className="h-3.5 w-3.5 mr-1" />
+                {adding360 ? "Click image to place…" : "Add Hotspot"}
+              </Button>
+            ) : (
+              <>
+                <Button variant="outline" size="sm" onClick={resetView}>
+                  <Move className="h-3.5 w-3.5 mr-1" /> Reset
+                </Button>
+                <Button variant="outline" size="sm" onClick={zoomOut}>
+                  <ZoomOut className="h-3.5 w-3.5" />
+                </Button>
+                <span className="text-xs text-slate-500 w-10 text-center">
+                  {Math.round(scale * 100)}%
+                </span>
+                <Button variant="outline" size="sm" onClick={zoomIn}>
+                  <ZoomIn className="h-3.5 w-3.5" />
+                </Button>
+              </>
+            )}
+            <Button variant="outline" size="sm" onClick={handleExportPDF} disabled={exporting}>
               <FileDown className="h-3.5 w-3.5 mr-1" />
-              {exporting ? "Exporting..." : "Export PDF"}
+              {exporting ? "Exporting…" : "Export PDF"}
             </Button>
           </div>
         </div>
 
+        {/* ── Canvas area ── */}
         <div className="flex-1 overflow-hidden bg-slate-200 relative">
-          <div
-            ref={containerRef}
-            className="w-full h-full relative overflow-hidden touch-none"
-            style={{ cursor: isPanning ? "grabbing" : "crosshair" }}
-            onPointerDown={handleCanvasPointerDown}
-            onPointerMove={handleCanvasPointerMove}
-            onPointerUp={handleCanvasPointerUp}
-            onPointerLeave={() => { setIsPanning(false); dragStart.current = null; }}
-          >
-            <div
-              className="absolute inset-0 flex items-center justify-center"
-              style={{
-                transform: `translate(${panX}px, ${panY}px) scale(${scale})`,
-                transformOrigin: "center center",
-              }}
-            >
-              {floorPlan && (
-                <img
-                  src={floorPlan.imageUrl}
-                  alt={floorPlan.title}
-                  className="max-w-none"
-                  style={{
-                    width: floorPlan.width,
-                    height: floorPlan.height,
-                    maxWidth: "none",
-                  }}
-                  draggable={false}
-                />
-              )}
 
-              {pins.map((pin: any) => (
-                <button
-                  key={pin.id}
-                  className="absolute -translate-x-1/2 -translate-y-1/2 group cursor-pointer bg-transparent border-none p-0"
-                  style={{ left: `${parseFloat(pin.x) * 100}%`, top: `${parseFloat(pin.y) * 100}%` }}
-                  onClick={(e) => handlePinClick(e, pin)}
-                  type="button"
-                >
-                  <div className="flex flex-col items-center">
-                    <div className="w-8 h-8 bg-indigo-600 rounded-full flex items-center justify-center shadow-lg border-2 border-white transition-transform group-hover:scale-110">
-                      <MapPin className="h-4 w-4 text-white fill-white" />
-                    </div>
-                    <span className="mt-0.5 px-1.5 py-0.5 bg-white/90 rounded text-[10px] font-medium text-slate-700 shadow whitespace-nowrap">
-                      {pin.label}
-                    </span>
+          {/* 360° Pannellum viewer */}
+          {is360 && (
+            <>
+              <div
+                ref={panoContainerRef}
+                className="absolute inset-0"
+                style={{ cursor: adding360 ? "crosshair" : undefined }}
+              />
+              {adding360 && (
+                <div className="absolute top-3 left-1/2 -translate-x-1/2 bg-indigo-600 text-white text-xs px-4 py-1.5 rounded-full shadow pointer-events-none z-10">
+                  Click anywhere on the image to place a hotspot
+                </div>
+              )}
+            </>
+          )}
+
+          {/* Flat image with hotspot markers */}
+          {!is360 && (
+            <div
+              ref={containerRef}
+              className="w-full h-full relative overflow-hidden touch-none"
+              style={{ cursor: isPanning ? "grabbing" : "crosshair" }}
+              onPointerDown={handleCanvasPointerDown}
+              onPointerMove={handleCanvasPointerMove}
+              onPointerUp={handleCanvasPointerUp}
+              onPointerLeave={() => { setIsPanning(false); dragStart.current = null; }}
+            >
+              <div
+                className="absolute inset-0 flex items-center justify-center"
+                style={{
+                  transform: `translate(${panX}px, ${panY}px) scale(${scale})`,
+                  transformOrigin: "center center",
+                }}
+              >
+                {floorPlan && (
+                  <div className="relative">
+                    <img
+                      src={floorPlan.imageUrl}
+                      alt={floorPlan.title}
+                      style={{ width: floorPlan.width, height: floorPlan.height, maxWidth: "none" }}
+                      draggable={false}
+                    />
+                    {pins.map((pin: any) => {
+                      const col = severityColor(pin.issueSeverity);
+                      const isViewing = pin.id === viewingPinId;
+                      return (
+                        <button
+                          key={pin.id}
+                          data-pin={pin.id}
+                          type="button"
+                          className="absolute -translate-x-1/2 -translate-y-1/2 group"
+                          style={{ left: `${parseFloat(pin.x) * 100}%`, top: `${parseFloat(pin.y) * 100}%` }}
+                          onPointerDown={(e) => e.stopPropagation()}
+                          onPointerUp={(e) => e.stopPropagation()}
+                          onClick={() => setViewingPinId(isViewing ? null : pin.id)}
+                        >
+                          <div
+                            className="w-6 h-6 rounded-full border-2 border-white shadow-lg flex items-center justify-center transition-transform group-hover:scale-125"
+                            style={{
+                              backgroundColor: col,
+                              transform: isViewing ? "scale(1.3)" : undefined,
+                              boxShadow: isViewing ? `0 0 0 3px ${col}40` : undefined,
+                            }}
+                          >
+                            <div className="w-2.5 h-2.5 rounded-full bg-white/90" />
+                          </div>
+                        </button>
+                      );
+                    })}
                   </div>
-                </button>
-              ))}
+                )}
+              </div>
             </div>
-          </div>
+          )}
+
+          {/* ── Detail panel ── */}
+          {viewingPin && (
+            <div className="absolute right-4 top-4 bottom-4 w-72 bg-white rounded-2xl shadow-2xl flex flex-col overflow-hidden z-20 border border-slate-100">
+              {/* Panel header */}
+              <div className="flex items-center justify-between px-4 py-3 shrink-0 border-b border-slate-100">
+                <div className="flex items-center gap-2 min-w-0">
+                  <div
+                    className="w-2.5 h-2.5 rounded-full shrink-0"
+                    style={{ backgroundColor: severityColor(viewingPin.issueSeverity) }}
+                  />
+                  <span
+                    className="text-[11px] font-bold uppercase tracking-widest truncate"
+                    style={{ color: severityColor(viewingPin.issueSeverity) }}
+                  >
+                    {viewingPin.issueSeverity || "Hotspot"}
+                  </span>
+                </div>
+                <div className="flex items-center gap-0.5 shrink-0">
+                  <button
+                    type="button"
+                    className="p-1.5 rounded-lg hover:bg-slate-100 transition-colors"
+                    title="Edit"
+                    onClick={() => openEditForPin(viewingPin)}
+                  >
+                    <Edit2 className="h-3.5 w-3.5 text-slate-500" />
+                  </button>
+                  <button
+                    type="button"
+                    className="p-1.5 rounded-lg hover:bg-red-50 transition-colors"
+                    title="Delete"
+                    onClick={() => setDeletePinId(viewingPin.id)}
+                  >
+                    <Trash2 className="h-3.5 w-3.5 text-red-400" />
+                  </button>
+                  <button
+                    type="button"
+                    className="p-1.5 rounded-lg hover:bg-slate-100 transition-colors"
+                    title="Close"
+                    onClick={() => setViewingPinId(null)}
+                  >
+                    <X className="h-3.5 w-3.5 text-slate-400" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Panel body */}
+              <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                {/* Title + status */}
+                <div>
+                  <h3 className="font-semibold text-slate-800 text-sm leading-snug">
+                    {viewingPin.label}
+                  </h3>
+                  {viewingPin.issueStatus && (
+                    <span
+                      className="inline-block mt-1.5 text-[10px] font-semibold px-2 py-0.5 rounded-full"
+                      style={{
+                        backgroundColor: statusStyle(viewingPin.issueStatus).bg,
+                        color: statusStyle(viewingPin.issueStatus).text,
+                      }}
+                    >
+                      {viewingPin.issueStatus}
+                    </span>
+                  )}
+                </div>
+
+                {/* Evidence photo */}
+                {viewingPin.panoUrl && (
+                  <div className="rounded-xl overflow-hidden border border-slate-100">
+                    <img
+                      src={viewingPin.panoUrl}
+                      alt="Evidence"
+                      className="w-full object-cover max-h-44"
+                    />
+                  </div>
+                )}
+
+                {/* Notes */}
+                {viewingPin.notes && (
+                  <p className="text-xs text-slate-600 leading-relaxed">
+                    {viewingPin.notes}
+                  </p>
+                )}
+
+                {!viewingPin.notes && !viewingPin.panoUrl && (
+                  <p className="text-xs text-slate-400 italic">No additional details</p>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
+      {/* ── Add / Edit dialog ── */}
       <Dialog open={pinDialogOpen} onOpenChange={(open) => !open && closePinDialog()}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>
-              {editingPinId ? "Edit Pin" : "New Pin"}
-            </DialogTitle>
+            <DialogTitle>{editingPinId ? "Edit Hotspot" : "New Hotspot"}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            <div className="flex items-center gap-3 text-xs text-slate-500 bg-slate-50 rounded-md px-3 py-2">
-              <MapPin className="h-3.5 w-3.5" />
-              Position: {(draft.x * 100).toFixed(1)}% &times;{" "}
-              {(draft.y * 100).toFixed(1)}%
-            </div>
             <div>
-              <Label htmlFor="pin-label">Label</Label>
+              <Label htmlFor="pin-label">Title</Label>
               <Input
                 id="pin-label"
                 value={draft.label}
                 onChange={(e) => setDraft((p) => ({ ...p, label: e.target.value }))}
                 placeholder="e.g. Crack in SW corner wall"
+                autoFocus
               />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Severity</Label>
+                <Select
+                  value={draft.severity}
+                  onValueChange={(v) => setDraft((p) => ({ ...p, severity: v }))}
+                >
+                  <SelectTrigger className="mt-1">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Critical">
+                      <span className="flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-red-600 inline-block" />
+                        Critical
+                      </span>
+                    </SelectItem>
+                    <SelectItem value="Major">
+                      <span className="flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-orange-500 inline-block" />
+                        Major
+                      </span>
+                    </SelectItem>
+                    <SelectItem value="Minor">
+                      <span className="flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-yellow-500 inline-block" />
+                        Minor
+                      </span>
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Status</Label>
+                <Select
+                  value={draft.status}
+                  onValueChange={(v) => setDraft((p) => ({ ...p, status: v }))}
+                >
+                  <SelectTrigger className="mt-1">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Open">Open</SelectItem>
+                    <SelectItem value="In Progress">In Progress</SelectItem>
+                    <SelectItem value="Resolved">Resolved</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             <div>
               <Label htmlFor="pin-notes">Notes (optional)</Label>
@@ -472,115 +722,52 @@ export default function FloorPlanCanvas() {
                 value={draft.notes}
                 onChange={(e) => setDraft((p) => ({ ...p, notes: e.target.value }))}
                 rows={2}
+                placeholder="Describe the issue…"
               />
             </div>
             <div>
-              <Label>360 Photo (optional)</Label>
+              <Label>Evidence Photo (optional)</Label>
               <div className="mt-1">
                 <input
-                  ref={panoInputRef}
+                  ref={photoInputRef}
                   type="file"
-                  accept="image/jpeg,image/png"
+                  accept="image/jpeg,image/png,image/webp"
                   className="hidden"
-                  onChange={handlePanoSelect}
+                  onChange={handlePhotoSelect}
                 />
-                {draft.panoDataUrl ? (
-                  <div className="relative aspect-[2/1] bg-slate-100 rounded-md overflow-hidden">
-                    <img
-                      src={draft.panoDataUrl}
-                      alt="360 preview"
-                      className="w-full h-full object-cover"
-                    />
+                {draft.photoDataUrl ? (
+                  <div className="relative rounded-lg overflow-hidden border mb-2">
+                    <img src={draft.photoDataUrl} alt="Preview" className="w-full h-32 object-cover" />
                     <button
                       type="button"
                       className="absolute top-1 right-1 bg-black/50 rounded-full p-1"
-                      onClick={() =>
-                        setDraft((p) => ({ ...p, panoDataUrl: null, panoFile: null }))
-                      }
+                      onClick={() => setDraft((p) => ({ ...p, photoDataUrl: null, photoFile: null }))}
                     >
-                      <X className="h-3.5 w-3.5 text-white" />
+                      <X className="h-3 w-3 text-white" />
                     </button>
                   </div>
-                ) : editingPinId && !draft.panoDataUrl ? (
-                  <p className="text-xs text-slate-400 mb-1">
-                    {pins.find((p: any) => p.id === editingPinId)?.panoUrl
-                      ? "360 photo already attached"
-                      : "No 360 photo attached"}
-                  </p>
+                ) : editingPinId && pins.find((p: any) => p.id === editingPinId)?.panoUrl ? (
+                  <div className="relative rounded-lg overflow-hidden border mb-2">
+                    <img
+                      src={pins.find((p: any) => p.id === editingPinId).panoUrl}
+                      alt="Current"
+                      className="w-full h-32 object-cover"
+                    />
+                    <span className="absolute bottom-1 left-1 text-[10px] bg-black/40 text-white px-1.5 py-0.5 rounded">
+                      Current photo
+                    </span>
+                  </div>
                 ) : null}
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
-                  className="mt-1"
-                  onClick={() => panoInputRef.current?.click()}
+                  onClick={() => photoInputRef.current?.click()}
                 >
                   <Camera className="h-3.5 w-3.5 mr-1.5" />
-                  {draft.panoDataUrl ? "Replace Photo" : "Select 360 Photo"}
+                  {draft.photoDataUrl ? "Replace Photo" : "Add Photo"}
                 </Button>
               </div>
-            </div>
-            <div>
-              <Label>Link Issue (optional)</Label>
-              {draft.issueId ? (
-                <div className="flex items-center justify-between mt-1 bg-slate-50 rounded-md px-3 py-2">
-                  <div className="text-sm">
-                    <span className="font-medium">{draft.issueTitle}</span>
-                    <span className="text-xs text-slate-400 ml-2">
-                      {draft.issueStatus} &middot; {draft.issueSeverity}
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    className="text-red-400 hover:text-red-600"
-                    onClick={() =>
-                      setDraft((p) => ({
-                        ...p,
-                        issueId: "",
-                        issueTitle: "",
-                        issueStatus: "",
-                        issueSeverity: "",
-                      }))
-                    }
-                  >
-                    <X className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-              ) : (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="mt-1"
-                  onClick={() => setShowIssueSearch(!showIssueSearch)}
-                >
-                  <Link2 className="h-3.5 w-3.5 mr-1.5" />
-                  Link to Issue
-                </Button>
-              )}
-              {showIssueSearch && (
-                <div className="mt-2 max-h-32 overflow-y-auto border rounded-md divide-y">
-                  {loadingIssues && (
-                    <p className="text-xs text-slate-400 p-2">Loading issues...</p>
-                  )}
-                  {!loadingIssues && allIssues.length === 0 && (
-                    <p className="text-xs text-slate-400 p-2">No issues found in this project</p>
-                  )}
-                  {allIssues.map((issue: any) => (
-                    <button
-                      key={issue.id}
-                      type="button"
-                      className="w-full text-left px-3 py-2 text-sm hover:bg-slate-50"
-                      onClick={() => selectIssue(issue)}
-                    >
-                      <span className="font-medium">{issue.title}</span>
-                      <span className="text-xs text-slate-400 ml-2">
-                        {issue.status} &middot; {issue.severity}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              )}
             </div>
           </div>
           <DialogFooter className="gap-2">
@@ -589,59 +776,32 @@ export default function FloorPlanCanvas() {
                 variant="ghost"
                 size="sm"
                 className="text-red-500 hover:text-red-700 mr-auto"
-                onClick={() => {
-                  closePinDialog();
-                  setDeletePinId(editingPinId);
-                }}
+                onClick={() => { closePinDialog(); setDeletePinId(editingPinId); }}
               >
-                <Trash2 className="h-3.5 w-3.5 mr-1" />
-                Delete
+                <Trash2 className="h-3.5 w-3.5 mr-1" /> Delete
               </Button>
             )}
-            <div className="flex gap-2">
-              {editingPinId &&
-                pins.find((p: any) => p.id === editingPinId)?.panoUrl && (
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      setViewingPanoId(editingPinId);
-                      closePinDialog();
-                    }}
-                  >
-                    <Eye className="h-3.5 w-3.5 mr-1.5" />
-                    View 360
-                  </Button>
-                )}
-              <Button variant="outline" onClick={closePinDialog}>
-                Cancel
-              </Button>
-              <Button
-                onClick={() =>
-                  editingPinId
-                    ? updatePinMutation.mutate()
-                    : createPinMutation.mutate()
-                }
-                disabled={
-                  !draft.label ||
-                  (editingPinId ? updatePinMutation.isPending : createPinMutation.isPending)
-                }
-              >
-                {editingPinId ? "Save" : "Add Pin"}
-              </Button>
-            </div>
+            <Button variant="outline" onClick={closePinDialog}>Cancel</Button>
+            <Button
+              onClick={() => editingPinId ? updatePinMutation.mutate() : createPinMutation.mutate()}
+              disabled={
+                !draft.label ||
+                (editingPinId ? updatePinMutation.isPending : createPinMutation.isPending)
+              }
+            >
+              {editingPinId ? "Save" : "Add Hotspot"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      <AlertDialog
-        open={!!deletePinId}
-        onOpenChange={() => setDeletePinId(null)}
-      >
+      {/* ── Delete confirm ── */}
+      <AlertDialog open={!!deletePinId} onOpenChange={() => setDeletePinId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Pin?</AlertDialogTitle>
+            <AlertDialogTitle>Delete Hotspot?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently remove this pin from the floor plan.
+              This will permanently remove this hotspot from the capture.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -655,14 +815,6 @@ export default function FloorPlanCanvas() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-      {viewingPin && viewingPin.panoUrl && (
-        <PanoViewer
-          pin={viewingPin}
-          onClose={() => setViewingPanoId(null)}
-          open={!!viewingPanoId}
-        />
-      )}
     </Layout>
   );
 }

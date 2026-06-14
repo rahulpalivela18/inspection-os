@@ -370,7 +370,7 @@ export default function ProjectDetails() {
                     size="lg"
                     className="w-full sm:w-auto"
                   >
-                    <Map className="mr-2 h-4 w-4" /> Floor Plans
+                    <Map className="mr-2 h-4 w-4" /> Captures
                   </Button>
                 </Link>
                 <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
