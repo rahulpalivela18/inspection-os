@@ -1,9 +1,97 @@
 {
-  "id": "bbac3e53-42b6-41d0-936e-58bbf2af5a7b",
+  "id": "d8cab041-fcc7-4bb0-859b-1c1e6bcd8656",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
+    "spatial.captures": {
+      "name": "captures",
+      "schema": "spatial",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "varchar",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "workspace_id": {
+          "name": "workspace_id",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "project_id": {
+          "name": "project_id",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "title": {
+          "name": "title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "image_url": {
+          "name": "image_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "thumbnail_url": {
+          "name": "thumbnail_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "width": {
+          "name": "width",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "height": {
+          "name": "height",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "captures_workspace_id_workspaces_id_fk": {
+          "name": "captures_workspace_id_workspaces_id_fk",
+          "tableFrom": "captures",
+          "tableTo": "workspaces",
+          "columnsFrom": ["workspace_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "captures_project_id_projects_id_fk": {
+          "name": "captures_project_id_projects_id_fk",
+          "tableFrom": "captures",
+          "tableTo": "projects",
+          "columnsFrom": ["project_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "public.checklist_templates": {
       "name": "checklist_templates",
       "schema": "",
@@ -80,8 +168,8 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "spatial.floor_plan_pins": {
-      "name": "floor_plan_pins",
+    "spatial.hotspots": {
+      "name": "hotspots",
       "schema": "spatial",
       "columns": {
         "id": {
@@ -97,8 +185,8 @@
           "primaryKey": false,
           "notNull": true
         },
-        "floor_plan_id": {
-          "name": "floor_plan_id",
+        "capture_id": {
+          "name": "capture_id",
           "type": "varchar",
           "primaryKey": false,
           "notNull": true
@@ -173,109 +261,21 @@
       },
       "indexes": {},
       "foreignKeys": {
-        "floor_plan_pins_workspace_id_workspaces_id_fk": {
-          "name": "floor_plan_pins_workspace_id_workspaces_id_fk",
-          "tableFrom": "floor_plan_pins",
+        "hotspots_workspace_id_workspaces_id_fk": {
+          "name": "hotspots_workspace_id_workspaces_id_fk",
+          "tableFrom": "hotspots",
           "tableTo": "workspaces",
           "columnsFrom": ["workspace_id"],
           "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "floor_plan_pins_floor_plan_id_floor_plans_id_fk": {
-          "name": "floor_plan_pins_floor_plan_id_floor_plans_id_fk",
-          "tableFrom": "floor_plan_pins",
-          "tableTo": "floor_plans",
+        "hotspots_capture_id_captures_id_fk": {
+          "name": "hotspots_capture_id_captures_id_fk",
+          "tableFrom": "hotspots",
+          "tableTo": "captures",
           "schemaTo": "spatial",
-          "columnsFrom": ["floor_plan_id"],
-          "columnsTo": ["id"],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "spatial.floor_plans": {
-      "name": "floor_plans",
-      "schema": "spatial",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "varchar",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "workspace_id": {
-          "name": "workspace_id",
-          "type": "varchar",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "project_id": {
-          "name": "project_id",
-          "type": "varchar",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "title": {
-          "name": "title",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "image_url": {
-          "name": "image_url",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "thumbnail_url": {
-          "name": "thumbnail_url",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "width": {
-          "name": "width",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "height": {
-          "name": "height",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "floor_plans_workspace_id_workspaces_id_fk": {
-          "name": "floor_plans_workspace_id_workspaces_id_fk",
-          "tableFrom": "floor_plans",
-          "tableTo": "workspaces",
-          "columnsFrom": ["workspace_id"],
-          "columnsTo": ["id"],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "floor_plans_project_id_projects_id_fk": {
-          "name": "floor_plans_project_id_projects_id_fk",
-          "tableFrom": "floor_plans",
-          "tableTo": "projects",
-          "columnsFrom": ["project_id"],
+          "columnsFrom": ["capture_id"],
           "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"

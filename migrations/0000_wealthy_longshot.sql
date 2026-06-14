@@ -1,3 +1,17 @@
+CREATE SCHEMA IF NOT EXISTS "spatial";
+--> statement-breakpoint
+CREATE TABLE "spatial"."captures" (
+	"id" varchar PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"workspace_id" varchar NOT NULL,
+	"project_id" varchar NOT NULL,
+	"title" text NOT NULL,
+	"image_url" text NOT NULL,
+	"thumbnail_url" text,
+	"width" integer NOT NULL,
+	"height" integer NOT NULL,
+	"created_at" timestamp DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
 CREATE TABLE "checklist_templates" (
 	"id" varchar PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"workspace_id" varchar NOT NULL,
@@ -9,10 +23,10 @@ CREATE TABLE "checklist_templates" (
 	"created_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "spatial"."floor_plan_pins" (
+CREATE TABLE "spatial"."hotspots" (
 	"id" varchar PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"workspace_id" varchar NOT NULL,
-	"floor_plan_id" varchar NOT NULL,
+	"capture_id" varchar NOT NULL,
 	"x" numeric(5, 4) NOT NULL,
 	"y" numeric(5, 4) NOT NULL,
 	"label" text NOT NULL,
@@ -23,18 +37,6 @@ CREATE TABLE "spatial"."floor_plan_pins" (
 	"issue_status" text,
 	"issue_severity" text,
 	"notes" text,
-	"created_at" timestamp DEFAULT now() NOT NULL
-);
---> statement-breakpoint
-CREATE TABLE "spatial"."floor_plans" (
-	"id" varchar PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"workspace_id" varchar NOT NULL,
-	"project_id" varchar NOT NULL,
-	"title" text NOT NULL,
-	"image_url" text NOT NULL,
-	"thumbnail_url" text,
-	"width" integer NOT NULL,
-	"height" integer NOT NULL,
 	"created_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
@@ -98,11 +100,11 @@ CREATE TABLE "workspaces" (
 	"created_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
+ALTER TABLE "spatial"."captures" ADD CONSTRAINT "captures_workspace_id_workspaces_id_fk" FOREIGN KEY ("workspace_id") REFERENCES "public"."workspaces"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "spatial"."captures" ADD CONSTRAINT "captures_project_id_projects_id_fk" FOREIGN KEY ("project_id") REFERENCES "public"."projects"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "checklist_templates" ADD CONSTRAINT "checklist_templates_workspace_id_workspaces_id_fk" FOREIGN KEY ("workspace_id") REFERENCES "public"."workspaces"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "spatial"."floor_plan_pins" ADD CONSTRAINT "floor_plan_pins_workspace_id_workspaces_id_fk" FOREIGN KEY ("workspace_id") REFERENCES "public"."workspaces"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "spatial"."floor_plan_pins" ADD CONSTRAINT "floor_plan_pins_floor_plan_id_floor_plans_id_fk" FOREIGN KEY ("floor_plan_id") REFERENCES "spatial"."floor_plans"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "spatial"."floor_plans" ADD CONSTRAINT "floor_plans_workspace_id_workspaces_id_fk" FOREIGN KEY ("workspace_id") REFERENCES "public"."workspaces"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "spatial"."floor_plans" ADD CONSTRAINT "floor_plans_project_id_projects_id_fk" FOREIGN KEY ("project_id") REFERENCES "public"."projects"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "spatial"."hotspots" ADD CONSTRAINT "hotspots_workspace_id_workspaces_id_fk" FOREIGN KEY ("workspace_id") REFERENCES "public"."workspaces"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "spatial"."hotspots" ADD CONSTRAINT "hotspots_capture_id_captures_id_fk" FOREIGN KEY ("capture_id") REFERENCES "spatial"."captures"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "invoices" ADD CONSTRAINT "invoices_workspace_id_workspaces_id_fk" FOREIGN KEY ("workspace_id") REFERENCES "public"."workspaces"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "projects" ADD CONSTRAINT "projects_workspace_id_workspaces_id_fk" FOREIGN KEY ("workspace_id") REFERENCES "public"."workspaces"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "reports" ADD CONSTRAINT "reports_project_id_projects_id_fk" FOREIGN KEY ("project_id") REFERENCES "public"."projects"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
