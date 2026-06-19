@@ -731,5 +731,30 @@ export async function registerRoutes(
     res.json({ success: true });
   });
 
+  // ── Image proxy ────────────────────────────────────────────────────────────
+
+  app.get("/api/image-proxy", async (req, res) => {
+    const url = req.query.url as string;
+    if (!url) return res.status(400).json({ message: "Missing url param" });
+
+    try {
+      const response = await fetch(url);
+      if (!response.ok)
+        return res
+          .status(response.status)
+          .json({ message: "Failed to fetch image" });
+
+      const contentType = response.headers.get("content-type") || "image/jpeg";
+      const buffer = Buffer.from(await response.arrayBuffer());
+
+      res.set("Content-Type", contentType);
+      res.set("Access-Control-Allow-Origin", "*");
+      res.set("Cache-Control", "public, max-age=86400");
+      res.send(buffer);
+    } catch (err) {
+      res.status(502).json({ message: "Image proxy failed" });
+    }
+  });
+
   return httpServer;
 }

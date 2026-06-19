@@ -19,6 +19,9 @@ export function ensureJpeg(src: string): Promise<string> {
     };
     img.onerror = () =>
       reject(new Error("Failed to load image for PDF export"));
-    img.src = src;
+    img.src =
+      src.startsWith("http") && !src.startsWith(location.origin)
+        ? `/api/image-proxy?url=${encodeURIComponent(src)}`
+        : src;
   });
 }
