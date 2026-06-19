@@ -181,6 +181,38 @@ export default function CaptureCanvas() {
     document.head.appendChild(tag);
   }, []);
 
+  // ── Ref so hotspot sync can be called from both effects without deps ─────
+  const syncHotspotsRef = useRef<() => void>(() => {});
+
+  // ── Sync Pannellum hotspots ──────────────────────────────────────────────
+  useEffect(() => {
+    if (!is360) return;
+    syncHotspotsRef.current = () => {
+      if (!viewerRef.current) return;
+      try {
+        const cfg = viewerRef.current.getConfig();
+        if (!cfg) return;
+        const existing: any[] = cfg.hotSpots ?? [];
+        existing.forEach((hs: any) => { try { viewerRef.current.removeHotSpot(hs.id); } catch {} });
+        hotspots.forEach((pin: any) => {
+          const { pitch, yaw } = toPitchYaw(parseFloat(pin.x), parseFloat(pin.y));
+          try {
+            viewerRef.current.addHotSpot({
+              id: pin.id,
+              pitch,
+              yaw,
+              type: "custom",
+              cssClass: `cap-hs sev-${pin.issueSeverity || ""}`,
+              clickHandlerFunc: (_e: any, id: string) => viewPinRef.current(id),
+              clickHandlerArgs: pin.id,
+            });
+          } catch {}
+        });
+      } catch {}
+    };
+    if (viewerRef.current) syncHotspotsRef.current();
+  }, [hotspots, is360]);
+
   // ── Init Pannellum ──────────────────────────────────────────────────────────
   useEffect(() => {
     if (!is360 || !panoContainerRef.current || !capture?.imageUrl) return;
@@ -204,6 +236,9 @@ export default function CaptureCanvas() {
         mouseZoom: true,
         compass: false,
       });
+
+      // Sync hotspots after viewer is fully initialized
+      setTimeout(() => syncHotspotsRef.current(), 300);
 
       panoContainerRef.current!.addEventListener("click", (e) => {
         if (!adding360Ref.current || !viewerRef.current) return;
@@ -236,30 +271,7 @@ export default function CaptureCanvas() {
     };
   }, [is360, capture?.imageUrl]);
 
-  // ── Sync Pannellum hotspots when pins change ────────────────────────────────
-  useEffect(() => {
-    if (!is360) return;
-    function sync() {
-      if (!viewerRef.current) return;
-      const existing: any[] = viewerRef.current.getConfig()?.hotSpots ?? [];
-      existing.forEach((hs) => { try { viewerRef.current.removeHotSpot(hs.id); } catch {} });
-      hotspots.forEach((pin: any) => {
-        const { pitch, yaw } = toPitchYaw(parseFloat(pin.x), parseFloat(pin.y));
-        try {
-          viewerRef.current.addHotSpot({
-            id: pin.id,
-            pitch,
-            yaw,
-            type: "custom",
-            cssClass: `cap-hs sev-${pin.issueSeverity || ""}`,
-            clickHandlerFunc: (_e: any, id: string) => viewPinRef.current(id),
-            clickHandlerArgs: pin.id,
-          });
-        } catch {}
-      });
-    }
-    if (viewerRef.current) { sync(); } else { const t = setTimeout(sync, 1200); return () => clearTimeout(t); }
-  }, [hotspots, is360]);
+
 
   // ── Mutations ────────────────────────────────────────────────────────────────
   const createPinMutation = useMutation({
@@ -505,6 +517,7 @@ export default function CaptureCanvas() {
                   Click anywhere on the image to place a hotspot
                 </div>
               )}
+
             </>
           )}
 
