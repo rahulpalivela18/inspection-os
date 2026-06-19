@@ -171,7 +171,7 @@ export default function CaptureCanvas() {
   useEffect(() => {
     if (capture?.width && capture?.height) {
       const ratio = capture.width / capture.height;
-      setIs360(ratio >= 1.8 && ratio <= 2.2);
+      setIs360(ratio >= 1.7 && ratio <= 2.5);
     }
   }, [capture]);
 
@@ -189,13 +189,17 @@ export default function CaptureCanvas() {
     if (!is360 || !panoContainerRef.current || !capture?.imageUrl) return;
     let destroyed = false;
 
+    const panoSrc = capture.imageUrl.startsWith("http") && !capture.imageUrl.startsWith(location.origin)
+      ? `/api/image-proxy?url=${encodeURIComponent(capture.imageUrl)}`
+      : capture.imageUrl;
+
     function initViewer() {
       if (destroyed || !panoContainerRef.current) return;
       if (viewerRef.current) { try { viewerRef.current.destroy(); } catch {} }
 
       viewerRef.current = window.pannellum.viewer(panoContainerRef.current, {
         type: "equirectangular",
-        panorama: capture!.imageUrl,
+        panorama: panoSrc,
         autoLoad: true,
         showZoomCtrl: false,
         showFullscreenCtrl: false,
