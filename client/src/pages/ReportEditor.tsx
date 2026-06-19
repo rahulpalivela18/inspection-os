@@ -106,6 +106,8 @@ export default function ReportEditor() {
     images: [],
   });
   const componentRef = useRef<HTMLDivElement>(null);
+  const checklistRef = useRef<ChecklistItem[]>([]);
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const {
     data: report,
@@ -131,17 +133,39 @@ export default function ReportEditor() {
     },
   );
 
+  // Keep a mutable ref in sync with server data so rapid clicks never read stale state
+  useEffect(() => {
+    checklistRef.current = report?.checklist ?? [];
+  }, [report?.checklist]);
+
   const saveMutation = useMutation({
     mutationFn: (data: any) => api.updateReport(params!.id, data),
+    onMutate: async (data) => {
+      await queryClient.cancelQueries({ queryKey: ["report", params?.id] });
+      const previous = queryClient.getQueryData(["report", params?.id]);
+      queryClient.setQueryData(["report", params?.id], (old: any) => ({
+        ...old,
+        ...data,
+      }));
+      return { previous };
+    },
+    onError: (_err, _data, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(["report", params?.id], context.previous);
+      }
+    },
     onSuccess: (updated: any) => {
       queryClient.setQueryData(["report", params?.id], updated);
     },
   });
 
-  // Debounced save for frequent updates
+  // Debounced save: only fires the PATCH after the user stops clicking for 300ms
   const saveReport = useCallback(
     (data: any) => {
-      saveMutation.mutate(data);
+      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+      debounceTimerRef.current = setTimeout(() => {
+        saveMutation.mutate(data);
+      }, 300);
     },
     [saveMutation],
   );
@@ -318,9 +342,10 @@ export default function ReportEditor() {
     itemId: string,
     updates: Partial<ChecklistItem>,
   ) => {
-    const next = report.checklist?.map((c: ChecklistItem) =>
+    const next = checklistRef.current.map((c: ChecklistItem) =>
       c.id === itemId ? { ...c, ...updates } : c,
     );
+    checklistRef.current = next;
     saveReport({ checklist: next });
   };
 
