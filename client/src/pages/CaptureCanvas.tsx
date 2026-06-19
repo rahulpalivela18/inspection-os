@@ -167,12 +167,9 @@ export default function CaptureCanvas() {
   // Keep viewPinRef current
   viewPinRef.current = (id: string) => setViewingPinId(id);
 
-  // ── 360° detection ──────────────────────────────────────────────────────────
+  // ── 360° detection from stored field ──────────────────────────────────────
   useEffect(() => {
-    if (capture?.width && capture?.height) {
-      const ratio = capture.width / capture.height;
-      setIs360(ratio >= 1.7 && ratio <= 2.5);
-    }
+    if (capture) setIs360(!!capture.is360);
   }, [capture]);
 
   // ── Inject hotspot CSS once ─────────────────────────────────────────────────

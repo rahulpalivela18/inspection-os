@@ -55,6 +55,7 @@ export default function CaptureManager() {
   const [newTitle, setNewTitle] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [is360Upload, setIs360Upload] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [exportingAll, setExportingAll] = useState(false);
 
@@ -90,6 +91,7 @@ export default function CaptureManager() {
         imageUrl: dataUrl,
         width: dimensions.width,
         height: dimensions.height,
+        is360: is360Upload,
       });
     },
     onSuccess: () => {
@@ -98,6 +100,7 @@ export default function CaptureManager() {
       setNewTitle("");
       setSelectedFile(null);
       setPreviewUrl(null);
+      setIs360Upload(false);
     },
     onError: (err: any) =>
       toast({ title: "Error", description: err.message, variant: "destructive" }),
@@ -273,19 +276,28 @@ export default function CaptureManager() {
                 id="file"
                 type="file"
                 ref={fileInputRef}
-                accept="image/png,image/jpeg,image/webp"
-                onChange={handleFileSelect}
+              accept="image/png,image/jpeg,image/webp"
+              onChange={handleFileSelect}
+            />
+          </div>
+          {previewUrl && (
+            <div className="aspect-4/3 bg-slate-100 rounded-md overflow-hidden">
+              <img
+                src={previewUrl}
+                alt="Preview"
+                className="w-full h-full object-contain"
               />
             </div>
-            {previewUrl && (
-              <div className="aspect-[4/3] bg-slate-100 rounded-md overflow-hidden">
-                <img
-                  src={previewUrl}
-                  alt="Preview"
-                  className="w-full h-full object-contain"
-                />
-              </div>
-            )}
+          )}
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={is360Upload}
+              onChange={(e) => setIs360Upload(e.target.checked)}
+              className="rounded border-slate-300"
+            />
+            <span className="text-sm text-slate-700">This is a 360° panorama image</span>
+          </label>
           </div>
           <DialogFooter>
             <Button
@@ -295,6 +307,7 @@ export default function CaptureManager() {
                 setNewTitle("");
                 setSelectedFile(null);
                 setPreviewUrl(null);
+                setIs360Upload(false);
               }}
             >
               Cancel

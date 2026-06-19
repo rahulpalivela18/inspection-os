@@ -196,6 +196,7 @@ export const captures = spatial.table("captures", {
   thumbnailUrl: text("thumbnail_url"),
   width: integer("width").notNull(),
   height: integer("height").notNull(),
+  is360: boolean("is_360").notNull().default(false),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
