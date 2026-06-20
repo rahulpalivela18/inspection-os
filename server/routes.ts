@@ -469,28 +469,30 @@ export async function registerRoutes(
     // Strip read-only / auto-generated fields before passing to Drizzle
     let { id, createdAt, workspaceId, projectId, ...updates } = req.body;
 
-    // Upload images to GCP if present in checklist
+    // Upload images to GCP if present in checklist (parallel)
     if (updates.checklist) {
-      for (const item of updates.checklist) {
-        if (
-          item.image &&
-          !isGCPUrl(item.image) &&
-          item.image.startsWith("data:")
-        ) {
-          try {
-            const gcpUrl = await uploadImageToGCP(
-              item.image,
-              `checklist-${item.id}.jpg`,
-            );
-            if (gcpUrl) {
-              item.image = gcpUrl;
+      await Promise.all(
+        updates.checklist.map(async (item: any) => {
+          if (
+            item.image &&
+            !isGCPUrl(item.image) &&
+            item.image.startsWith("data:")
+          ) {
+            try {
+              const gcpUrl = await uploadImageToGCP(
+                item.image,
+                `checklist-${item.id}.jpg`,
+              );
+              if (gcpUrl) {
+                item.image = gcpUrl;
+              }
+            } catch (err) {
+              console.error("Image upload error:", err);
+              // Keep base64 if GCP fails
             }
-          } catch (err) {
-            console.error("Image upload error:", err);
-            // Keep base64 if GCP fails
           }
-        }
-      }
+        }),
+      );
     }
 
     // Upload images to GCP if present in issues

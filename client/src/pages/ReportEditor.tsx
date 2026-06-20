@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback } from "react";
 import { Download } from "lucide-react";
 import Layout from "@/components/Layout";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -108,6 +108,7 @@ export default function ReportEditor() {
   const componentRef = useRef<HTMLDivElement>(null);
   const checklistRef = useRef<ChecklistItem[]>([]);
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const checklistInitialized = useRef(false);
 
   const {
     data: report,
@@ -133,10 +134,12 @@ export default function ReportEditor() {
     },
   );
 
-  // Keep a mutable ref in sync with server data so rapid clicks never read stale state
-  useEffect(() => {
-    checklistRef.current = report?.checklist ?? [];
-  }, [report?.checklist]);
+  // Initialize ref once on report load; never overwrite from server after that
+  // (updateChecklistItem is the sole writer once editing begins)
+  if (report?.checklist && !checklistInitialized.current) {
+    checklistRef.current = report.checklist;
+    checklistInitialized.current = true;
+  }
 
   const saveMutation = useMutation({
     mutationFn: (data: any) => api.updateReport(params!.id, data),
@@ -187,6 +190,7 @@ export default function ReportEditor() {
       updatedReport.spaceCounts ?? { bedrooms: 1, bathrooms: 1, balconies: 1 },
     );
 
+    checklistRef.current = syncedChecklist;
     saveReport({ checklist: syncedChecklist });
     setIsSyncConfirmOpen(false);
   };
