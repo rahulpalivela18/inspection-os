@@ -133,6 +133,7 @@ export default function CaptureManager() {
             imageUrl,
             imageWidth: fp.width,
             imageHeight: fp.height,
+            totalCaptures: captures.length,
             companyName: workspace?.name,
             companyLogoUrl: workspace?.logoUrl,
             companyAddress: workspace?.address,

@@ -437,6 +437,7 @@ export default function CaptureCanvas() {
             imageUrl,
             imageWidth: capture.width,
             imageHeight: capture.height,
+            totalCaptures: 1,
             companyName: workspace?.name,
             companyLogoUrl: workspace?.logoUrl,
             companyAddress: workspace?.address,
