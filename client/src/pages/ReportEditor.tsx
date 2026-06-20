@@ -61,6 +61,7 @@ import {
   SquareStack,
   Calculator,
   RefreshCw,
+  Loader2,
 } from "lucide-react";
 import { Link, useRoute } from "wouter";
 import NotFound from "./not-found";
@@ -108,6 +109,7 @@ export default function ReportEditor() {
   const componentRef = useRef<HTMLDivElement>(null);
   const checklistRef = useRef<ChecklistItem[]>([]);
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const pendingDataRef = useRef<any>(null);
   const checklistInitialized = useRef(false);
 
   const {
@@ -160,17 +162,34 @@ export default function ReportEditor() {
     onSuccess: (updated: any) => {
       queryClient.setQueryData(["report", params?.id], updated);
     },
+    onSettled: () => {
+      // After mutation completes, send any pending data that accumulated during the save
+      if (pendingDataRef.current) {
+        debounceTimerRef.current = setTimeout(flushSave, 300);
+      }
+    },
   });
 
-  // Debounced save: only fires the PATCH after the user stops clicking for 300ms
+  const flushSave = useCallback(() => {
+    const data = pendingDataRef.current;
+    if (!data) return;
+    if (saveMutation.isPending) {
+      // Still saving from another trigger, try again later
+      debounceTimerRef.current = setTimeout(flushSave, 300);
+      return;
+    }
+    pendingDataRef.current = null;
+    saveMutation.mutate(data);
+  }, [saveMutation]);
+
+  // Debounced save: coalesces rapid changes, then sends (never while another save is in flight)
   const saveReport = useCallback(
     (data: any) => {
+      pendingDataRef.current = data;
       if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
-      debounceTimerRef.current = setTimeout(() => {
-        saveMutation.mutate(data);
-      }, 300);
+      debounceTimerRef.current = setTimeout(flushSave, 300);
     },
-    [saveMutation],
+    [flushSave],
   );
 
   const handleSync = async () => {
@@ -848,6 +867,8 @@ function ChecklistItemRow({
   index: number;
   update: (id: string, updates: Partial<ChecklistItem>) => void;
 }) {
+  const [isReadingFile, setIsReadingFile] = useState(false);
+
   const handleYes = () => {
     if (item.status === "Y")
       update(item.id, { status: null, severity: null, image: undefined });
@@ -884,10 +905,13 @@ function ChecklistItemRow({
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    setIsReadingFile(true);
     const reader = new FileReader();
     reader.onload = (ev) => {
       update(item.id, { image: ev.target?.result as string });
+      setIsReadingFile(false);
     };
+    reader.onerror = () => setIsReadingFile(false);
     reader.readAsDataURL(file);
   };
 
@@ -991,9 +1015,19 @@ function ChecklistItemRow({
                 />
                 <label
                   htmlFor={`check-img-${item.id}`}
-                  className="flex items-center justify-center gap-1 bg-orange-50 hover:bg-orange-100 border border-orange-200 text-orange-700 px-3 py-1.5 rounded-lg text-xs font-medium cursor-pointer transition-colors w-full sm:w-auto"
+                  className={cn(
+                    "flex items-center justify-center gap-1 bg-orange-50 hover:bg-orange-100 border border-orange-200 text-orange-700 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors w-full sm:w-auto",
+                    isReadingFile
+                      ? "cursor-not-allowed opacity-70"
+                      : "cursor-pointer",
+                  )}
                 >
-                  <ImageIcon className="h-3.5 w-3.5" /> Add Photo
+                  {isReadingFile ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <ImageIcon className="h-3.5 w-3.5" />
+                  )}{" "}
+                  {isReadingFile ? "Reading..." : "Add Photo"}
                 </label>
               </>
             )}
