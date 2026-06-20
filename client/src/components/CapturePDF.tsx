@@ -383,8 +383,6 @@ function CaptureCoverPage({ cover }: { cover: CapturePDFCover }) {
 
   return (
     <Page size="A4" style={styles.page}>
-      <View style={{ flex: 1 }}>
-      {/* Header */}
       <View style={styles.header}>
         {(cover.companyName || cover.companyLogoUrl) && (
           <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
@@ -497,8 +495,6 @@ function CaptureCoverPage({ cover }: { cover: CapturePDFCover }) {
           </View>
         </>
       )}
-
-      </View>
     </Page>
   );
 }
@@ -525,7 +521,6 @@ function CapturePage({ capture }: { capture: CapturePDF }) {
 
   return (
     <Page size="A4" style={styles.page}>
-      <View style={{ flex: 1 }}>
       <View style={styles.header}>
         {(capture.companyName || capture.companyLogoUrl) && (
           <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
@@ -673,8 +668,7 @@ function CapturePage({ capture }: { capture: CapturePDF }) {
         </Text>
       </View>
 
-      </View>
-      <View style={{ borderTopWidth: 1, borderTopColor: "#e2e8f0", paddingTop: 8, marginTop: 24, flexDirection: "row", justifyContent: "space-between" }}>
+      <View style={{ borderTopWidth: 1, borderTopColor: "#e2e8f0", paddingTop: 8, marginTop: 16, flexDirection: "row", justifyContent: "space-between" }}>
         <Text style={{ fontSize: 7, color: "#94a3b8" }}>
           {capture.totalCaptures} capture{capture.totalCaptures !== 1 ? "s" : ""} included
         </Text>
