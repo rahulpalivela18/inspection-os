@@ -47,6 +47,7 @@ import { useToast } from "@/hooks/use-toast";
 import { ensureJpeg } from "@/lib/utils";
 import CapturePDF from "@/components/CapturePDF";
 import { pdf } from "@react-pdf/renderer";
+import { useAuth } from "@/lib/auth";
 
 // ─── Severity / status helpers ────────────────────────────────────────────────
 const SEV_COLOR: Record<string, string> = {
@@ -150,6 +151,7 @@ export default function CaptureCanvas() {
   const [draft, setDraft] = useState<PinDraft>(emptyDraft());
   const [deletePinId, setDeletePinId] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
+  const { workspace } = useAuth();
 
   // ── Queries ─────────────────────────────────────────────────────────────────
   const { data: capture, isLoading: loadingPlan } = useQuery({
@@ -410,6 +412,22 @@ export default function CaptureCanvas() {
         notes: pin.notes,
         hasPhoto: !!pin.panoUrl,
       }));
+
+      const allPins = pinsData;
+      const totalHotspots = allPins.length;
+      const severityBreakdown = ["Critical", "Major", "Minor", "Info"].map(
+        (sev) => ({
+          severity: sev,
+          count: allPins.filter((p) => (p.severity || "Info") === sev).length,
+        }),
+      );
+      const statusBreakdown = ["Open", "In Progress", "Resolved"].map(
+        (st) => ({
+          status: st,
+          count: allPins.filter((p) => p.status === st).length,
+        }),
+      );
+
       const imageUrl = await ensureJpeg(capture.imageUrl);
       const blob = await pdf(
         <CapturePDF
@@ -419,8 +437,26 @@ export default function CaptureCanvas() {
             imageUrl,
             imageWidth: capture.width,
             imageHeight: capture.height,
+            companyName: workspace?.name,
+            companyLogoUrl: workspace?.logoUrl,
+            companyAddress: workspace?.address,
+            companyEmail: workspace?.email,
+            clientName: project.clientName,
+            projectAddress: project.address,
             pins: pinsData,
           }]}
+          cover={{
+            projectTitle: project.title,
+            clientName: project.clientName,
+            projectAddress: project.address,
+            companyName: workspace?.name,
+            companyLogoUrl: workspace?.logoUrl,
+            companyAddress: workspace?.address,
+            totalCaptures: 1,
+            totalHotspots,
+            severityBreakdown,
+            statusBreakdown,
+          }}
         />,
       ).toBlob();
       const url = URL.createObjectURL(blob);

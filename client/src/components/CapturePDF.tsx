@@ -19,6 +19,27 @@ function severityLabel(severity?: string) {
   return severity || "Info";
 }
 
+const SEVERITIES = ["Critical", "Major", "Minor", "Info"] as const;
+const STATUSES = ["Open", "In Progress", "Resolved"] as const;
+
+function statusColor(s?: string) {
+  switch (s) {
+    case "Open": return "#991b1b";
+    case "Resolved": return "#166534";
+    case "In Progress": return "#92400e";
+    default: return "#475569";
+  }
+}
+
+function statusBg(s?: string) {
+  switch (s) {
+    case "Open": return "#fef2f2";
+    case "Resolved": return "#f0fdf4";
+    case "In Progress": return "#fffbeb";
+    default: return "#f1f5f9";
+  }
+}
+
 const styles = StyleSheet.create({
   page: {
     padding: PAGE_PADDING,
@@ -28,7 +49,7 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
-    borderBottomWidth: 1.5,
+    borderBottomWidth: 2,
     borderBottomColor: "#1e293b",
     paddingBottom: 14,
     marginBottom: 20,
@@ -61,11 +82,17 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 9,
     fontWeight: 700,
-    color: "#1e293b",
+    color: "#4f46e5",
     textTransform: "uppercase",
     letterSpacing: 0.8,
     marginBottom: 8,
     marginTop: 16,
+  },
+  sectionTitleLine: {
+    width: 24,
+    height: 2,
+    backgroundColor: "#4f46e5",
+    marginBottom: 10,
   },
   imageWrapper: {
     width: IMAGE_W,
@@ -182,6 +209,138 @@ const styles = StyleSheet.create({
     color: "#94a3b8",
     textAlign: "center",
   },
+
+  // Cover page
+  coverTitle: {
+    fontSize: 26,
+    fontWeight: 700,
+    color: "#4f46e5",
+    marginTop: 40,
+    marginBottom: 4,
+  },
+  coverSubtitle: {
+    fontSize: 14,
+    color: "#64748b",
+    marginBottom: 32,
+  },
+  coverDivider: {
+    width: 40,
+    height: 3,
+    backgroundColor: "#4f46e5",
+    marginBottom: 32,
+  },
+  coverSection: {
+    marginBottom: 24,
+  },
+  coverSectionLabel: {
+    fontSize: 7,
+    fontWeight: 700,
+    color: "#94a3b8",
+    textTransform: "uppercase",
+    letterSpacing: 1,
+    marginBottom: 4,
+  },
+  coverSectionValue: {
+    fontSize: 14,
+    fontWeight: 700,
+    color: "#1e293b",
+  },
+  coverSectionSub: {
+    fontSize: 9,
+    color: "#64748b",
+    marginTop: 2,
+  },
+
+  // Stats cards
+  statsRow: {
+    flexDirection: "row",
+    gap: 12,
+    marginBottom: 24,
+  },
+  statCard: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    borderRadius: 4,
+    padding: 12,
+  },
+  statCardAccent: {
+    borderLeftWidth: 3,
+    borderLeftColor: "#4f46e5",
+  },
+  statValue: {
+    fontSize: 22,
+    fontWeight: 700,
+    color: "#1e293b",
+  },
+  statLabel: {
+    fontSize: 7,
+    fontWeight: 700,
+    color: "#94a3b8",
+    textTransform: "uppercase",
+    letterSpacing: 0.6,
+    marginTop: 2,
+  },
+
+  // Severity bars
+  barRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 6,
+    gap: 8,
+  },
+  barLabel: {
+    width: 48,
+    fontSize: 8,
+    fontWeight: 600,
+    color: "#1e293b",
+  },
+  barTrack: {
+    flex: 1,
+    height: 14,
+    borderRadius: 3,
+    backgroundColor: "#f1f5f9",
+    overflow: "hidden",
+  },
+  barFill: {
+    height: 14,
+    borderRadius: 3,
+  },
+  barCount: {
+    width: 20,
+    fontSize: 8,
+    fontWeight: 700,
+    color: "#1e293b",
+    textAlign: "right",
+  },
+
+  // Status row
+  statusRow: {
+    flexDirection: "row",
+    gap: 8,
+    marginTop: 4,
+  },
+  statusBadge: {
+    fontSize: 7,
+    fontWeight: 700,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 3,
+  },
+
+  // Footer end
+  coverFooter: {
+    marginTop: "auto",
+    borderTopWidth: 1,
+    borderTopColor: "#e2e8f0",
+    paddingTop: 12,
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  coverFooterText: {
+    fontSize: 7,
+    color: "#94a3b8",
+  },
 });
 
 interface PinPDF {
@@ -203,10 +362,176 @@ interface CapturePDF {
   imageWidth: number;
   imageHeight: number;
   pins: PinPDF[];
+  companyName?: string;
+  companyLogoUrl?: string;
+  companyAddress?: string;
+  companyEmail?: string;
+  clientName?: string;
+  projectAddress?: string;
+}
+
+interface SeverityStat {
+  severity: string;
+  count: number;
+}
+
+interface StatusStat {
+  status: string;
+  count: number;
+}
+
+interface CapturePDFCover {
+  projectTitle: string;
+  clientName?: string;
+  projectAddress?: string;
+  companyName?: string;
+  companyLogoUrl?: string;
+  companyAddress?: string;
+  totalCaptures: number;
+  totalHotspots: number;
+  severityBreakdown: SeverityStat[];
+  statusBreakdown: StatusStat[];
 }
 
 interface CapturePDFProps {
   captures: CapturePDF[];
+  cover?: CapturePDFCover;
+}
+
+function CaptureCoverPage({ cover }: { cover: CapturePDFCover }) {
+  const date = new Date().toLocaleDateString("en-US", {
+    year: "numeric", month: "long", day: "numeric",
+  });
+
+  const total = cover.severityBreakdown.reduce((s, b) => s + b.count, 0);
+
+  return (
+    <Page size="A4" style={styles.page}>
+      {/* Header */}
+      <View style={styles.header}>
+        {(cover.companyName || cover.companyLogoUrl) && (
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+            {cover.companyLogoUrl && (
+              <Image
+                src={cover.companyLogoUrl}
+                style={{ width: 32, height: 32, objectFit: "contain" }}
+              />
+            )}
+            {cover.companyName && (
+              <View>
+                <Text style={styles.brandName}>{cover.companyName}</Text>
+                {cover.companyAddress && (
+                  <Text style={styles.brandSub}>{cover.companyAddress}</Text>
+                )}
+              </View>
+            )}
+          </View>
+        )}
+        <View style={styles.meta}>
+          <Text style={styles.metaLabel}>Visual Summary</Text>
+          <Text style={styles.metaValue}>{date}</Text>
+        </View>
+      </View>
+
+      {/* Title */}
+      <Text style={styles.coverTitle}>Visual Inspection Summary</Text>
+      <Text style={styles.coverSubtitle}>{cover.projectTitle}</Text>
+      <View style={styles.coverDivider} />
+
+      {/* Client info */}
+      {cover.clientName && (
+        <View style={styles.coverSection}>
+          <Text style={styles.coverSectionLabel}>Client</Text>
+          <Text style={styles.coverSectionValue}>{cover.clientName}</Text>
+          {cover.projectAddress && (
+            <Text style={styles.coverSectionSub}>{cover.projectAddress}</Text>
+          )}
+        </View>
+      )}
+
+      {/* Stats cards */}
+      <View style={styles.statsRow}>
+        <View style={[styles.statCard, styles.statCardAccent]}>
+          <Text style={styles.statValue}>{cover.totalCaptures}</Text>
+          <Text style={styles.statLabel}>
+            Capture{cover.totalCaptures !== 1 ? "s" : ""}
+          </Text>
+        </View>
+        <View style={[styles.statCard, styles.statCardAccent]}>
+          <Text style={styles.statValue}>{cover.totalHotspots}</Text>
+          <Text style={styles.statLabel}>
+            Hotspot{cover.totalHotspots !== 1 ? "s" : ""}
+          </Text>
+        </View>
+      </View>
+
+      {/* Severity breakdown */}
+      {cover.severityBreakdown.length > 0 && (
+        <>
+          <Text style={styles.sectionTitle}>Severity Breakdown</Text>
+          <View style={styles.sectionTitleLine} />
+          {cover.severityBreakdown.map((b) => (
+            <View key={b.severity} style={styles.barRow}>
+              <Text style={styles.barLabel}>{b.severity}</Text>
+              <View style={styles.barTrack}>
+                <View
+                  style={[
+                    styles.barFill,
+                    {
+                      width: `${total > 0 ? (b.count / total) * 100 : 0}%`,
+                      backgroundColor: severityColor(b.severity),
+                    },
+                  ]}
+                />
+              </View>
+              <Text style={styles.barCount}>{b.count}</Text>
+            </View>
+          ))}
+        </>
+      )}
+
+      {/* Status breakdown */}
+      {cover.statusBreakdown.length > 0 && (
+        <>
+          <Text style={[styles.sectionTitle, { marginTop: 20 }]}>
+            Status Summary
+          </Text>
+          <View style={styles.sectionTitleLine} />
+          <View style={styles.statusRow}>
+            {cover.statusBreakdown.map((b) => (
+              <View
+                key={b.status}
+                style={[
+                  styles.statusBadge,
+                    { backgroundColor: statusBg(b.status) },
+                ]}
+              >
+                <Text
+                  style={{
+                    fontSize: 7,
+                    fontWeight: 700,
+                    color: statusColor(b.status),
+                  }}
+                >
+                  {b.status}: {b.count}
+                </Text>
+              </View>
+            ))}
+          </View>
+        </>
+      )}
+
+      {/* Footer */}
+      <View style={styles.coverFooter}>
+        <Text style={styles.coverFooterText}>
+          {cover.totalCaptures} capture{cover.totalCaptures !== 1 ? "s" : ""} included
+        </Text>
+        <Text style={styles.coverFooterText}>
+          Report generated by ReportGen &copy; {new Date().getFullYear()}
+        </Text>
+      </View>
+    </Page>
+  );
 }
 
 function CapturePage({ capture }: { capture: CapturePDF }) {
@@ -232,10 +557,24 @@ function CapturePage({ capture }: { capture: CapturePDF }) {
   return (
     <Page size="A4" style={styles.page}>
       <View style={styles.header}>
-        <View>
-          <Text style={styles.brandName}>ReportGen</Text>
-          <Text style={styles.brandSub}>Inspection Report Platform</Text>
-        </View>
+        {(capture.companyName || capture.companyLogoUrl) && (
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+            {capture.companyLogoUrl && (
+              <Image
+                src={capture.companyLogoUrl}
+                style={{ width: 32, height: 32, objectFit: "contain" }}
+              />
+            )}
+            {capture.companyName && (
+              <View>
+                <Text style={styles.brandName}>{capture.companyName}</Text>
+                {capture.companyAddress && (
+                  <Text style={styles.brandSub}>{capture.companyAddress}</Text>
+                )}
+              </View>
+            )}
+          </View>
+        )}
         <View style={styles.meta}>
           <Text style={styles.metaLabel}>Capture Report</Text>
           <Text style={styles.metaValue}>{date}</Text>
@@ -243,15 +582,25 @@ function CapturePage({ capture }: { capture: CapturePDF }) {
       </View>
 
       <View>
-        <Text style={{ fontSize: 14, fontWeight: 700, color: "#1e293b" }}>
+        <Text style={{ fontSize: 16, fontWeight: 700, color: "#1e293b" }}>
           {capture.title}
         </Text>
-        <Text style={{ fontSize: 8, color: "#64748b", marginTop: 2, marginBottom: 4 }}>
-          Project: {capture.projectTitle} &middot; {pins.length} hotspot{pins.length !== 1 ? "s" : ""}
+        <Text style={{ fontSize: 9, color: "#64748b", marginTop: 3, marginBottom: 2 }}>
+          Project: {capture.projectTitle}
+        </Text>
+        {capture.clientName && (
+          <Text style={{ fontSize: 8, color: "#94a3b8", marginBottom: 2 }}>
+            Client: {capture.clientName}
+            {capture.projectAddress ? ` · ${capture.projectAddress}` : ""}
+          </Text>
+        )}
+        <Text style={{ fontSize: 8, color: "#64748b", marginBottom: 4 }}>
+          {pins.length} hotspot{pins.length !== 1 ? "s" : ""} marked on image
         </Text>
       </View>
 
       <Text style={styles.sectionTitle}>Reference Map</Text>
+      <View style={styles.sectionTitleLine} />
       <View style={styles.imageWrapper}>
         <Image style={styles.floorPlanImage} src={capture.imageUrl} />
         {pins.map((pin) => (
@@ -271,12 +620,13 @@ function CapturePage({ capture }: { capture: CapturePDF }) {
         ))}
       </View>
       <Text style={styles.imageCaption}>
-        {pins.length} hotspot{pins.length !== 1 ? "s" : ""} marked on the image
+        Reference map with {pins.length} pin{pins.length !== 1 ? "s" : ""}
       </Text>
 
       {pins.length > 0 && (
         <>
           <Text style={styles.sectionTitle}>Hotspot Details</Text>
+          <View style={styles.sectionTitleLine} />
           <View style={styles.pinTable}>
             <View style={styles.tableHeader}>
               <Text style={[{ width: "8%" }, styles.tableHeaderCell]}>#</Text>
@@ -330,6 +680,7 @@ function CapturePage({ capture }: { capture: CapturePDF }) {
       )}
 
       <Text style={[styles.sectionTitle, { marginTop: 20 }]}>Severity Legend</Text>
+      <View style={styles.sectionTitleLine} />
       <View style={styles.legend}>
         <View style={styles.legendItem}>
           <View style={[styles.legendDot, { backgroundColor: "#dc2626" }]} />
@@ -354,16 +705,17 @@ function CapturePage({ capture }: { capture: CapturePDF }) {
 
       <View style={styles.footer}>
         <Text style={styles.footerText}>
-          ReportGen — Inspection Report Platform
+          Report generated by ReportGen &copy; {new Date().getFullYear()}
         </Text>
       </View>
     </Page>
   );
 }
 
-export default function CapturePDF({ captures }: CapturePDFProps) {
+export default function CapturePDF({ captures, cover }: CapturePDFProps) {
   return (
     <Document>
+      {cover && <CaptureCoverPage cover={cover} />}
       {captures.map((capture) => (
         <CapturePage key={capture.title} capture={capture} />
       ))}

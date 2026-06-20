@@ -43,6 +43,7 @@ import { useToast } from "@/hooks/use-toast";
 import { ensureJpeg } from "@/lib/utils";
 import CapturePDF from "@/components/CapturePDF";
 import { pdf } from "@react-pdf/renderer";
+import { useAuth } from "@/lib/auth";
 
 export default function CaptureManager() {
   const [, params] = useRoute("/project/:id/captures");
@@ -58,6 +59,7 @@ export default function CaptureManager() {
   const [is360Upload, setIs360Upload] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [exportingAll, setExportingAll] = useState(false);
+  const { workspace } = useAuth();
 
   const projectId = params?.id;
 
@@ -131,6 +133,12 @@ export default function CaptureManager() {
             imageUrl,
             imageWidth: fp.width,
             imageHeight: fp.height,
+            companyName: workspace?.name,
+            companyLogoUrl: workspace?.logoUrl,
+            companyAddress: workspace?.address,
+            companyEmail: workspace?.email,
+            clientName: project.clientName,
+            projectAddress: project.address,
             pins: pins.map((p: any) => ({
               id: p.id,
               number: 0,
@@ -145,8 +153,38 @@ export default function CaptureManager() {
           };
         }),
       );
+
+      const allPins = captureData.flatMap((c) => c.pins);
+      const totalHotspots = allPins.length;
+      const severityBreakdown = ["Critical", "Major", "Minor", "Info"].map(
+        (sev) => ({
+          severity: sev,
+          count: allPins.filter((p) => (p.severity || "Info") === sev).length,
+        }),
+      );
+      const statusBreakdown = ["Open", "In Progress", "Resolved"].map(
+        (st) => ({
+          status: st,
+          count: allPins.filter((p) => p.status === st).length,
+        }),
+      );
+
       const blob = await pdf(
-        <CapturePDF captures={captureData} />,
+        <CapturePDF
+          captures={captureData}
+          cover={{
+            projectTitle: project.title,
+            clientName: project.clientName,
+            projectAddress: project.address,
+            companyName: workspace?.name,
+            companyLogoUrl: workspace?.logoUrl,
+            companyAddress: workspace?.address,
+            totalCaptures: captureData.length,
+            totalHotspots,
+            severityBreakdown,
+            statusBreakdown,
+          }}
+        />,
       ).toBlob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
