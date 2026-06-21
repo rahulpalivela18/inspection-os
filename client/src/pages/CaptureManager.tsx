@@ -157,7 +157,7 @@ export default function CaptureManager() {
 
       const allPins = captureData.flatMap((c) => c.pins);
       const totalHotspots = allPins.length;
-      const severityBreakdown = ["Critical", "Major", "Minor", "Info"].map(
+      const severityBreakdown = ["Major", "Cosmetic", "Minor", "Info"].map(
         (sev) => ({
           severity: sev,
           count: allPins.filter((p) => (p.severity || "Info") === sev).length,

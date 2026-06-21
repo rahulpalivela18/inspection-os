@@ -51,9 +51,9 @@ import { useAuth } from "@/lib/auth";
 
 // ─── Severity / status helpers ────────────────────────────────────────────────
 const SEV_COLOR: Record<string, string> = {
-  Critical: "#dc2626",
-  Major: "#f97316",
-  Minor: "#eab308",
+  Major: "#dc2626",
+  Cosmetic: "#f97316",
+  Minor: "#22c55e",
 };
 const severityColor = (s?: string) => SEV_COLOR[s ?? ""] ?? "#3b82f6";
 
@@ -92,9 +92,9 @@ const HOTSPOT_STYLE = `
   transition: transform .15s;
 }
 .cap-hs:hover { transform: translate(-50%,-50%) scale(1.25); }
-.cap-hs.sev-Critical { background: #dc2626; }
-.cap-hs.sev-Major    { background: #f97316; }
-.cap-hs.sev-Minor    { background: #eab308; }
+.cap-hs.sev-Major    { background: #dc2626; }
+.cap-hs.sev-Cosmetic { background: #f97316; }
+.cap-hs.sev-Minor    { background: #22c55e; }
 `;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -415,7 +415,7 @@ export default function CaptureCanvas() {
 
       const allPins = pinsData;
       const totalHotspots = allPins.length;
-      const severityBreakdown = ["Critical", "Major", "Minor", "Info"].map(
+      const severityBreakdown = ["Major", "Cosmetic", "Minor", "Info"].map(
         (sev) => ({
           severity: sev,
           count: allPins.filter((p) => (p.severity || "Info") === sev).length,
@@ -737,22 +737,28 @@ export default function CaptureCanvas() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Critical">
-                      <span className="flex items-center gap-1.5">
-                        <span className="w-2 h-2 rounded-full bg-red-600 inline-block" />
-                        Critical
-                      </span>
-                    </SelectItem>
                     <SelectItem value="Major">
                       <span className="flex items-center gap-1.5">
-                        <span className="w-2 h-2 rounded-full bg-orange-500 inline-block" />
+                        <span className="w-2 h-2 rounded-full bg-red-600 inline-block" />
                         Major
+                      </span>
+                    </SelectItem>
+                    <SelectItem value="Cosmetic">
+                      <span className="flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-orange-500 inline-block" />
+                        Cosmetic
                       </span>
                     </SelectItem>
                     <SelectItem value="Minor">
                       <span className="flex items-center gap-1.5">
-                        <span className="w-2 h-2 rounded-full bg-yellow-500 inline-block" />
+                        <span className="w-2 h-2 rounded-full bg-green-500 inline-block" />
                         Minor
+                      </span>
+                    </SelectItem>
+                    <SelectItem value="Info">
+                      <span className="flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-blue-500 inline-block" />
+                        Info
                       </span>
                     </SelectItem>
                   </SelectContent>

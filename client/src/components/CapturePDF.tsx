@@ -8,9 +8,9 @@ const DOT_SIZE = 10;
 
 function severityColor(severity?: string) {
   switch (severity) {
-    case "Critical": return "#dc2626";
-    case "Major": return "#f97316";
-    case "Minor": return "#eab308";
+    case "Major": return "#dc2626";
+    case "Cosmetic": return "#f97316";
+    case "Minor": return "#22c55e";
     default: return "#3b82f6";
   }
 }
@@ -19,7 +19,7 @@ function severityLabel(severity?: string) {
   return severity || "Info";
 }
 
-const SEVERITIES = ["Critical", "Major", "Minor", "Info"] as const;
+const SEVERITIES = ["Major", "Cosmetic", "Minor", "Info"] as const;
 const STATUSES = ["Open", "In Progress", "Resolved"] as const;
 
 function statusColor(s?: string) {
@@ -649,14 +649,14 @@ function CapturePage({ capture }: { capture: CapturePDF }) {
       <View style={styles.legend}>
         <View style={styles.legendItem}>
           <View style={[styles.legendDot, { backgroundColor: "#dc2626" }]} />
-          <Text style={styles.legendText}>Critical</Text>
-        </View>
-        <View style={styles.legendItem}>
-          <View style={[styles.legendDot, { backgroundColor: "#f97316" }]} />
           <Text style={styles.legendText}>Major</Text>
         </View>
         <View style={styles.legendItem}>
-          <View style={[styles.legendDot, { backgroundColor: "#eab308" }]} />
+          <View style={[styles.legendDot, { backgroundColor: "#f97316" }]} />
+          <Text style={styles.legendText}>Cosmetic</Text>
+        </View>
+        <View style={styles.legendItem}>
+          <View style={[styles.legendDot, { backgroundColor: "#22c55e" }]} />
           <Text style={styles.legendText}>Minor</Text>
         </View>
         <View style={styles.legendItem}>
