@@ -179,7 +179,7 @@ export default function CaptureManager() {
             clientName: project.clientName,
             projectAddress: project.address,
             companyName: workspace?.name,
-            companyLogoUrl: workspace?.logoUrl,
+            companyLogoUrl: logoUrl,
             companyAddress: workspace?.address,
             totalCaptures: captureData.length,
             totalHotspots,
