@@ -123,6 +123,7 @@ export default function CaptureManager() {
     setExportingAll(true);
     try {
       const project = await api.getProject(projectId);
+      const logoUrl = workspace?.logoUrl ? await ensureJpeg(workspace.logoUrl) : undefined;
       const captureData = await Promise.all(
         captures.map(async (fp: any) => {
           const pins = await api.getHotspots(fp.id);
@@ -135,7 +136,7 @@ export default function CaptureManager() {
             imageHeight: fp.height,
             totalCaptures: captures.length,
             companyName: workspace?.name,
-            companyLogoUrl: workspace?.logoUrl,
+            companyLogoUrl: logoUrl,
             companyAddress: workspace?.address,
             companyEmail: workspace?.email,
             clientName: project.clientName,

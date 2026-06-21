@@ -429,6 +429,7 @@ export default function CaptureCanvas() {
       );
 
       const imageUrl = await ensureJpeg(capture.imageUrl);
+      const logoUrl = workspace?.logoUrl ? await ensureJpeg(workspace.logoUrl) : undefined;
       const blob = await pdf(
         <CapturePDF
           captures={[{
@@ -439,7 +440,7 @@ export default function CaptureCanvas() {
             imageHeight: capture.height,
             totalCaptures: 1,
             companyName: workspace?.name,
-            companyLogoUrl: workspace?.logoUrl,
+            companyLogoUrl: logoUrl,
             companyAddress: workspace?.address,
             companyEmail: workspace?.email,
             clientName: project.clientName,
@@ -451,7 +452,7 @@ export default function CaptureCanvas() {
             clientName: project.clientName,
             projectAddress: project.address,
             companyName: workspace?.name,
-            companyLogoUrl: workspace?.logoUrl,
+            companyLogoUrl: logoUrl,
             companyAddress: workspace?.address,
             totalCaptures: 1,
             totalHotspots,
