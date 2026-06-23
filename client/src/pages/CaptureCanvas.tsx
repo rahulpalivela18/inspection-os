@@ -694,15 +694,13 @@ export default function CaptureCanvas() {
                   </div>
                 )}
 
-                {/* Notes */}
                 {viewingPin.notes && (
-                  <p className="text-xs text-slate-600 leading-relaxed">
-                    {viewingPin.notes}
-                  </p>
-                )}
-
-                {!viewingPin.notes && !viewingPin.panoUrl && (
-                  <p className="text-xs text-slate-400 italic">No additional details</p>
+                  <div>
+                    <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Recommendations</p>
+                    <p className="text-xs text-slate-600 leading-relaxed">
+                      {viewingPin.notes}
+                    </p>
+                  </div>
                 )}
               </div>
             </div>
@@ -783,7 +781,7 @@ export default function CaptureCanvas() {
               </div>
             </div>
             <div>
-              <Label htmlFor="pin-notes">Notes (optional)</Label>
+              <Label htmlFor="pin-notes">Recommendations (optional)</Label>
               <Textarea
                 id="pin-notes"
                 value={draft.notes}

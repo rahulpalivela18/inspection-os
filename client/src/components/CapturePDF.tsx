@@ -499,12 +499,16 @@ function CaptureCoverPage({ cover }: { cover: CapturePDFCover }) {
   );
 }
 
+const MAX_TABLE_ROWS = 15;
+
 function CapturePage({ capture }: { capture: CapturePDF }) {
   const date = new Date().toLocaleDateString("en-US", {
     year: "numeric", month: "long", day: "numeric",
   });
 
   const pins = capture.pins.map((p, i) => ({ ...p, number: i + 1 }));
+  const visiblePins = pins.slice(0, MAX_TABLE_ROWS);
+  const hiddenCount = pins.length - MAX_TABLE_ROWS;
 
   const imageAspect = capture.imageWidth / capture.imageHeight;
   const boxAspect = IMAGE_W / IMAGE_H;
@@ -598,9 +602,9 @@ function CapturePage({ capture }: { capture: CapturePDF }) {
               <Text style={[{ width: "26%" }, styles.tableHeaderCell]}>Label</Text>
               <Text style={[{ width: "18%" }, styles.tableHeaderCell]}>Severity</Text>
               <Text style={[{ width: "18%" }, styles.tableHeaderCell]}>Status</Text>
-              <Text style={[{ width: "30%" }, styles.tableHeaderCell]}>Notes</Text>
+              <Text style={[{ width: "30%" }, styles.tableHeaderCell]}>Recommendations</Text>
             </View>
-            {pins.map((pin) => (
+            {visiblePins.map((pin) => (
               <View key={pin.id} style={styles.tableRow}>
                 <Text style={[{ width: "8%" }, styles.tableCell]}>{pin.number}</Text>
                 <Text style={[{ width: "26%" }, styles.tableCell]}>
@@ -634,12 +638,17 @@ function CapturePage({ capture }: { capture: CapturePDF }) {
                   )}
                 </View>
                 <Text style={[{ width: "30%" }, styles.tableCellSmall]}>
-                  {pin.notes
-                    ? (pin.notes.length > 40 ? pin.notes.slice(0, 40) + "..." : pin.notes)
-                    : "—"}
+                  {pin.notes ? pin.notes : "—"}
                 </Text>
               </View>
             ))}
+            {hiddenCount > 0 && (
+              <View style={[styles.tableRow, { justifyContent: "center" }]}>
+                <Text style={{ fontSize: 8, color: "#94a3b8", fontStyle: "italic" }}>
+                  +{hiddenCount} more hotspot{hiddenCount !== 1 ? "s" : ""} not shown in this view
+                </Text>
+              </View>
+            )}
           </View>
         </>
       )}
