@@ -156,7 +156,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: "#f1f5f9",
     paddingVertical: 6,
-    alignItems: "center",
+    alignItems: "flex-start",
   },
   tableCell: {
     fontSize: 9,
@@ -499,16 +499,71 @@ function CaptureCoverPage({ cover }: { cover: CapturePDFCover }) {
   );
 }
 
-const MAX_TABLE_ROWS = 15;
+const rowAvailableH = 120;
 
-function CapturePage({ capture }: { capture: CapturePDF }) {
+function estimateRowHeight(note?: string | null, label?: string | null): number {
+  const labelColW = IMAGE_W * 0.26;
+  const labelCharsPerLine = Math.floor(labelColW / 5);
+  const labelLines = label
+    ? Math.max(1, ...label.split('\n').map(s => Math.ceil(s.length / Math.max(1, labelCharsPerLine))))
+    : 0;
+
+  const notesColW = IMAGE_W * 0.3;
+  const notesCharsPerLine = Math.floor(notesColW / 4.2);
+  let notesLines = 0;
+  if (note) {
+    const segments = note.split('\n');
+    for (const seg of segments) {
+      notesLines += Math.max(1, Math.ceil(seg.length / Math.max(1, notesCharsPerLine)));
+    }
+  }
+
+  const labelH = labelLines * 12 + 13;
+  const notesH = notesLines * 10 + 13;
+  return Math.round(Math.max(25, labelH, notesH) * 1.2);
+}
+
+function chunkPins(pins: PinPDF[]): PinPDF[][] {
+  if (pins.length === 0) return [[]];
+  const chunks: PinPDF[][] = [];
+  let i = 0;
+  while (i < pins.length) {
+    let used = 0;
+    let count = 0;
+    for (let j = i; j < pins.length; j++) {
+      const h = estimateRowHeight(pins[j].notes, pins[j].label);
+      if (used + h > rowAvailableH && count > 0) break;
+      used += h;
+      count++;
+    }
+    if (count === 0) count = 1;
+    chunks.push(pins.slice(i, i + count));
+    i += count;
+  }
+  return chunks;
+}
+
+function CapturePageContent({
+  capture,
+  pinsToShow,
+  pinOffset,
+  totalPins,
+  pageNumber,
+  totalPages,
+}: {
+  capture: CapturePDF;
+  pinsToShow: PinPDF[];
+  pinOffset: number;
+  totalPins: number;
+  pageNumber: number;
+  totalPages: number;
+}) {
   const date = new Date().toLocaleDateString("en-US", {
     year: "numeric", month: "long", day: "numeric",
   });
 
-  const pins = capture.pins.map((p, i) => ({ ...p, number: i + 1 }));
-  const visiblePins = pins.slice(0, MAX_TABLE_ROWS);
-  const hiddenCount = pins.length - MAX_TABLE_ROWS;
+  const allPins = capture.pins.map((p, i) => ({ ...p, number: i + 1 }));
+  const visible = pinsToShow.map((p, i) => ({ ...p, number: pinOffset + i + 1 }));
 
   const imageAspect = capture.imageWidth / capture.imageHeight;
   const boxAspect = IMAGE_W / IMAGE_H;
@@ -564,7 +619,7 @@ function CapturePage({ capture }: { capture: CapturePDF }) {
           </Text>
         )}
         <Text style={{ fontSize: 8, color: "#64748b", marginBottom: 4 }}>
-          {pins.length} hotspot{pins.length !== 1 ? "s" : ""} marked on image
+          {totalPins} hotspot{totalPins !== 1 ? "s" : ""} marked on image
         </Text>
       </View>
 
@@ -572,7 +627,7 @@ function CapturePage({ capture }: { capture: CapturePDF }) {
       <View style={styles.sectionTitleLine} />
       <View style={styles.imageWrapper}>
         <Image style={styles.floorPlanImage} src={capture.imageUrl} />
-        {pins.map((pin) => (
+        {allPins.map((pin) => (
           <View
             key={pin.id}
             style={[
@@ -589,12 +644,14 @@ function CapturePage({ capture }: { capture: CapturePDF }) {
         ))}
       </View>
       <Text style={styles.imageCaption}>
-        Reference map with {pins.length} pin{pins.length !== 1 ? "s" : ""}
+        Reference map with {totalPins} pin{totalPins !== 1 ? "s" : ""}
       </Text>
 
-      {pins.length > 0 && (
+      {totalPins > 0 && (
         <>
-          <Text style={styles.sectionTitle}>Hotspot Details</Text>
+          <Text style={styles.sectionTitle}>
+            Hotspot Details{totalPages > 1 ? ` (Page ${pageNumber} of ${totalPages})` : ""}
+          </Text>
           <View style={styles.sectionTitleLine} />
           <View style={styles.pinTable}>
             <View style={styles.tableHeader}>
@@ -604,8 +661,8 @@ function CapturePage({ capture }: { capture: CapturePDF }) {
               <Text style={[{ width: "18%" }, styles.tableHeaderCell]}>Status</Text>
               <Text style={[{ width: "30%" }, styles.tableHeaderCell]}>Recommendations</Text>
             </View>
-            {visiblePins.map((pin) => (
-              <View key={pin.id} style={styles.tableRow}>
+            {visible.map((pin) => (
+              <View key={pin.id} wrap={false} style={styles.tableRow}>
                 <Text style={[{ width: "8%" }, styles.tableCell]}>{pin.number}</Text>
                 <Text style={[{ width: "26%" }, styles.tableCell]}>
                   {pin.label}{pin.hasPhoto ? " 📷" : ""}
@@ -642,16 +699,11 @@ function CapturePage({ capture }: { capture: CapturePDF }) {
                 </Text>
               </View>
             ))}
-            {hiddenCount > 0 && (
-              <View style={[styles.tableRow, { justifyContent: "center" }]}>
-                <Text style={{ fontSize: 8, color: "#94a3b8", fontStyle: "italic" }}>
-                  +{hiddenCount} more hotspot{hiddenCount !== 1 ? "s" : ""} not shown in this view
-                </Text>
-              </View>
-            )}
           </View>
         </>
       )}
+
+      <View style={{ flex: 1 }} />
 
       <Text style={[styles.sectionTitle, { marginTop: 20 }]}>Severity Legend</Text>
       <View style={styles.sectionTitleLine} />
@@ -680,6 +732,7 @@ function CapturePage({ capture }: { capture: CapturePDF }) {
       <View style={{ borderTopWidth: 1, borderTopColor: "#e2e8f0", paddingTop: 8, marginTop: 16, flexDirection: "row", justifyContent: "space-between" }}>
         <Text style={{ fontSize: 7, color: "#94a3b8" }}>
           {capture.totalCaptures} capture{capture.totalCaptures !== 1 ? "s" : ""} included
+          {totalPages > 1 ? ` · Page ${pageNumber} of ${totalPages}` : ""}
         </Text>
         <Text style={{ fontSize: 7, color: "#94a3b8" }}>
           Report generated by ReportGen &copy; {new Date().getFullYear()}
@@ -693,9 +746,25 @@ export default function CapturePDF({ captures, cover }: CapturePDFProps) {
   return (
     <Document>
       {cover && <CaptureCoverPage cover={cover} />}
-      {captures.map((capture) => (
-        <CapturePage key={capture.title} capture={capture} />
-      ))}
+      {captures.map((capture) => {
+        const chunks = chunkPins(capture.pins);
+        let runningOffset = 0;
+        return chunks.map((chunk, i) => {
+          const offset = runningOffset;
+          runningOffset += chunk.length;
+          return (
+            <CapturePageContent
+              key={`${capture.title}-${i}`}
+              capture={capture}
+              pinsToShow={chunk}
+              pinOffset={offset}
+              totalPins={capture.pins.length}
+              pageNumber={i + 1}
+              totalPages={chunks.length}
+            />
+          );
+        });
+      })}
     </Document>
   );
 }
