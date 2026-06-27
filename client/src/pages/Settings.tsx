@@ -130,6 +130,7 @@ export default function Settings() {
   const { data: team = [] } = useQuery({
     queryKey: ["team"],
     queryFn: api.getTeam,
+    enabled: isAdmin,
   });
 
   const addMemberMutation = useMutation({
@@ -322,7 +323,8 @@ export default function Settings() {
           </CardContent>
         </Card>
 
-        {/* Team Members */}
+        {/* Team Members — only visible to admin / super_admin */}
+        {isAdmin && (
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
@@ -560,6 +562,7 @@ export default function Settings() {
             </div>
           </CardContent>
         </Card>
+        )}
       </div>
     </Layout>
   );

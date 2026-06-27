@@ -211,7 +211,7 @@ export async function registerRoutes(
 
   // ── Team Routes ───────────────────────────────────────────────────────────────
 
-  app.get("/api/team", requireAdmin, async (req, res) => {
+  app.get("/api/team", requireAuth, async (req, res) => {
     const user = req.user as any;
     const members = await storage.getUsersByWorkspace(user.workspaceId);
     res.json(members.map(({ password: _, ...m }) => m));
@@ -347,7 +347,7 @@ export async function registerRoutes(
     res.json(items);
   });
 
-  app.post("/api/checklist-templates", requireAdmin, async (req, res) => {
+  app.post("/api/checklist-templates", requireWriteAccess, async (req, res) => {
     const user = req.user as any;
     const parsed = insertChecklistTemplateSchema.safeParse({
       ...req.body,
@@ -359,26 +359,34 @@ export async function registerRoutes(
     res.status(201).json(item);
   });
 
-  app.patch("/api/checklist-templates/:id", requireAdmin, async (req, res) => {
-    const user = req.user as any;
-    const item = await storage.updateChecklistTemplate(
-      req.params.id as string,
-      user.workspaceId,
-      req.body,
-    );
-    if (!item) return res.status(404).json({ message: "Not found" });
-    res.json(item);
-  });
+  app.patch(
+    "/api/checklist-templates/:id",
+    requireWriteAccess,
+    async (req, res) => {
+      const user = req.user as any;
+      const item = await storage.updateChecklistTemplate(
+        req.params.id as string,
+        user.workspaceId,
+        req.body,
+      );
+      if (!item) return res.status(404).json({ message: "Not found" });
+      res.json(item);
+    },
+  );
 
-  app.delete("/api/checklist-templates/:id", requireAdmin, async (req, res) => {
-    const user = req.user as any;
-    const ok = await storage.deleteChecklistTemplate(
-      req.params.id as string,
-      user.workspaceId,
-    );
-    if (!ok) return res.status(404).json({ message: "Not found" });
-    res.json({ success: true });
-  });
+  app.delete(
+    "/api/checklist-templates/:id",
+    requireWriteAccess,
+    async (req, res) => {
+      const user = req.user as any;
+      const ok = await storage.deleteChecklistTemplate(
+        req.params.id as string,
+        user.workspaceId,
+      );
+      if (!ok) return res.status(404).json({ message: "Not found" });
+      res.json({ success: true });
+    },
+  );
 
   // ── Project Routes ────────────────────────────────────────────────────────────
 
