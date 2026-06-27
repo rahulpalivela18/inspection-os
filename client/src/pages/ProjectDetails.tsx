@@ -54,6 +54,7 @@ import {
 import { Link, useRoute, useLocation } from "wouter";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/lib/auth";
 import { buildChecklistWithPreservedResponses } from "@/lib/checklist";
 import { pick } from "@shared/cleanData";
 import NotFound from "./not-found";
@@ -72,6 +73,7 @@ const getStatusColor = (status: string) => {
 };
 
 export default function ProjectDetails() {
+  const { user } = useAuth();
   const [match, params] = useRoute("/project/:id");
   const [, setLocation] = useLocation();
   const { toast } = useToast();
@@ -346,6 +348,7 @@ export default function ProjectDetails() {
                   <span className="hidden sm:block w-1 h-1 rounded-full bg-slate-300"></span>
                   <span className="shrink-0">{project.address}</span>
                 </div>
+                {user?.role !== "viewer" && (
                 <Button
                   variant="link"
                   size="sm"
@@ -362,6 +365,7 @@ export default function ProjectDetails() {
                 >
                   <Settings className="w-3.5 h-3.5" /> Edit Project Details
                 </Button>
+                )}
               </div>
               <div className="flex flex-col gap-3 shrink-0">
                 <Link href={`/project/${params?.id}/captures`}>
@@ -373,6 +377,7 @@ export default function ProjectDetails() {
                     <Map className="mr-2 h-4 w-4" /> Captures
                   </Button>
                 </Link>
+                {user?.role !== "viewer" && (
                 <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                   <DialogTrigger asChild>
                     <Button
@@ -552,6 +557,7 @@ export default function ProjectDetails() {
                     </div>
                   </DialogContent>
                 </Dialog>
+                )}
               </div>
             </div>
           </div>
@@ -578,6 +584,7 @@ export default function ProjectDetails() {
                 <p className="text-muted-foreground max-w-xs mt-2 mb-6">
                   Create your first report to get started.
                 </p>
+                {user?.role !== "viewer" && (
                 <Button
                   variant="outline"
                   onClick={() => setIsDialogOpen(true)}
@@ -585,6 +592,7 @@ export default function ProjectDetails() {
                 >
                   Create Report
                 </Button>
+                )}
               </div>
             ) : (
               <div className="grid grid-cols-1 gap-3 md:gap-4">
@@ -648,6 +656,7 @@ export default function ProjectDetails() {
                           )}
                       </div>
                       <div className="shrink-0 flex flex-col md:flex-row items-center md:border-l md:pl-4 mt-2 md:mt-0 pt-2 md:pt-0 border-t md:border-t-0 gap-2">
+                        {user?.role !== "viewer" && (
                         <Button
                           variant="outline"
                           size="sm"
@@ -656,6 +665,7 @@ export default function ProjectDetails() {
                         >
                           Edit
                         </Button>
+                        )}
                         <Button
                           variant="ghost"
                           size="sm"
@@ -667,6 +677,7 @@ export default function ProjectDetails() {
                         >
                           Open <ArrowRight className="ml-2 h-4 w-4" />
                         </Button>
+                        {user?.role !== "viewer" && (
                         <Button
                           variant="outline"
                           size="sm"
@@ -678,6 +689,7 @@ export default function ProjectDetails() {
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
+                        )}
                       </div>
                     </div>
                   </Card>

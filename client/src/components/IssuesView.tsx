@@ -23,12 +23,14 @@ interface IssuesViewProps {
   report: any;
   openEditIssueSheet: (issue: Issue) => void;
   saveReport: (data: any) => void;
+  readOnly?: boolean;
 }
 
 export default function IssuesView({
   report,
   openEditIssueSheet,
   saveReport,
+  readOnly = false,
 }: IssuesViewProps) {
   const issues: Issue[] = report.issues ?? [];
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
@@ -152,6 +154,7 @@ export default function IssuesView({
                     </div>
                   )}
                 </div>
+                {!readOnly && (
                 <div className="flex md:flex-col gap-2 shrink-0">
                   <Button
                     variant="outline"
@@ -168,6 +171,7 @@ export default function IssuesView({
                     <Trash2 className="h-3.5 w-3.5" />
                   </Button>
                 </div>
+                )}
               </div>
             </Card>
           ))}

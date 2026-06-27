@@ -16,6 +16,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { useState } from "react";
+import { useAuth } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
 import {
   Dialog,
@@ -45,6 +46,7 @@ import {
 } from "@/components/ui/alert-dialog";
 
 export default function Templates() {
+  const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -318,6 +320,7 @@ export default function Templates() {
           <h2 className="text-lg font-bold text-slate-900">
             All Checklist Points
           </h2>
+          {user?.role !== "viewer" && (
           <Button
             onClick={() => setIsDialogOpen(true)}
             size="sm"
@@ -326,6 +329,7 @@ export default function Templates() {
           >
             <Plus className="h-4 w-4" /> Add Item
           </Button>
+          )}
         </div>
 
         {isLoading ? (
@@ -389,6 +393,7 @@ export default function Templates() {
                               {item.triggerOn === "yes" ? "YES" : "NO"}
                             </span>
 
+                            {user?.role !== "viewer" && (
                             <div className="flex items-center gap-1 shrink-0">
                               <Button
                                 size="icon"
@@ -440,6 +445,7 @@ export default function Templates() {
                                 </AlertDialogContent>
                               </AlertDialog>
                             </div>
+                            )}
                           </div>
                         ))}
                       </div>

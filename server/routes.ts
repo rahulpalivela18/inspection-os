@@ -45,6 +45,14 @@ function requireSuperAdmin(req: Request, res: Response, next: NextFunction) {
     return res.status(403).json({ message: "Forbidden" });
   next();
 }
+function requireWriteAccess(req: Request, res: Response, next: NextFunction) {
+  const user = req.user as any;
+  if (!req.isAuthenticated())
+    return res.status(401).json({ message: "Unauthorized" });
+  if (user?.role === "viewer")
+    return res.status(403).json({ message: "Viewers cannot modify data." });
+  next();
+}
 
 export async function registerRoutes(
   httpServer: Server,
@@ -203,7 +211,7 @@ export async function registerRoutes(
 
   // ── Team Routes ───────────────────────────────────────────────────────────────
 
-  app.get("/api/team", requireAuth, async (req, res) => {
+  app.get("/api/team", requireAdmin, async (req, res) => {
     const user = req.user as any;
     const members = await storage.getUsersByWorkspace(user.workspaceId);
     res.json(members.map(({ password: _, ...m }) => m));
@@ -380,7 +388,7 @@ export async function registerRoutes(
     res.json(items);
   });
 
-  app.post("/api/projects", requireAuth, async (req, res) => {
+  app.post("/api/projects", requireWriteAccess, async (req, res) => {
     const user = req.user as any;
     const parsed = insertProjectSchema.safeParse({
       ...req.body,
@@ -402,7 +410,7 @@ export async function registerRoutes(
     res.json(item);
   });
 
-  app.patch("/api/projects/:id", requireAuth, async (req, res) => {
+  app.patch("/api/projects/:id", requireWriteAccess, async (req, res) => {
     const user = req.user as any;
     const { id, createdAt, workspaceId, ...updates } = req.body;
     const item = await storage.updateProject(
@@ -414,7 +422,7 @@ export async function registerRoutes(
     res.json(item);
   });
 
-  app.delete("/api/projects/:id", requireAuth, async (req, res) => {
+  app.delete("/api/projects/:id", requireWriteAccess, async (req, res) => {
     const user = req.user as any;
     const ok = await storage.deleteProject(
       req.params.id as string,
@@ -440,7 +448,7 @@ export async function registerRoutes(
 
   app.post(
     "/api/projects/:projectId/reports",
-    requireAuth,
+    requireWriteAccess,
     async (req, res) => {
       const user = req.user as any;
       const parsed = insertReportSchema.safeParse({
@@ -467,7 +475,7 @@ export async function registerRoutes(
     res.json(item);
   });
 
-  app.patch("/api/reports/:id", requireAuth, async (req, res) => {
+  app.patch("/api/reports/:id", requireWriteAccess, async (req, res) => {
     const user = req.user as any;
     // Strip read-only / auto-generated fields before passing to Drizzle
     let { id, createdAt, workspaceId, projectId, ...updates } = req.body;
@@ -536,7 +544,7 @@ export async function registerRoutes(
     res.json(item);
   });
 
-  app.delete("/api/reports/:id", requireAuth, async (req, res) => {
+  app.delete("/api/reports/:id", requireWriteAccess, async (req, res) => {
     const user = req.user as any;
     const ok = await storage.deleteReport(
       req.params.id as string,
@@ -563,7 +571,7 @@ export async function registerRoutes(
 
   app.post(
     "/api/projects/:projectId/captures",
-    requireAuth,
+    requireWriteAccess,
     async (req, res) => {
       const user = req.user as any;
       const parsed = insertCaptureSchema.safeParse({
@@ -607,7 +615,7 @@ export async function registerRoutes(
     res.json(item);
   });
 
-  app.patch("/api/captures/:id", requireAuth, async (req, res) => {
+  app.patch("/api/captures/:id", requireWriteAccess, async (req, res) => {
     const user = req.user as any;
     let { id, createdAt, workspaceId, projectId, ...updates } = req.body;
 
@@ -636,7 +644,7 @@ export async function registerRoutes(
     res.json(item);
   });
 
-  app.delete("/api/captures/:id", requireAuth, async (req, res) => {
+  app.delete("/api/captures/:id", requireWriteAccess, async (req, res) => {
     const user = req.user as any;
     const ok = await spatialStorage.deleteCapture(
       req.params.id as string,
@@ -663,7 +671,7 @@ export async function registerRoutes(
 
   app.post(
     "/api/captures/:captureId/hotspots",
-    requireAuth,
+    requireWriteAccess,
     async (req, res) => {
       const user = req.user as any;
       const parsed = insertHotspotSchema.safeParse({
@@ -697,7 +705,7 @@ export async function registerRoutes(
     },
   );
 
-  app.patch("/api/hotspots/:id", requireAuth, async (req, res) => {
+  app.patch("/api/hotspots/:id", requireWriteAccess, async (req, res) => {
     const user = req.user as any;
     let { id, createdAt, workspaceId, captureId, ...updates } = req.body;
 
@@ -726,7 +734,7 @@ export async function registerRoutes(
     res.json(item);
   });
 
-  app.delete("/api/hotspots/:id", requireAuth, async (req, res) => {
+  app.delete("/api/hotspots/:id", requireWriteAccess, async (req, res) => {
     const user = req.user as any;
     const ok = await spatialStorage.deleteHotspot(
       req.params.id as string,

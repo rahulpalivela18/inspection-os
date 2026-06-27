@@ -36,8 +36,10 @@ import {
 import { Link, useLocation } from "wouter";
 import { formatDistanceToNow } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/lib/auth";
 
 export default function Dashboard() {
+  const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [, setLocation] = useLocation();
@@ -113,6 +115,7 @@ export default function Dashboard() {
             </h1>
           </div>
           <div className="flex items-center gap-3">
+            {user?.role !== "viewer" && (
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
               <DialogTrigger asChild>
                 <Button
@@ -208,6 +211,7 @@ export default function Dashboard() {
                 </DialogFooter>
               </DialogContent>
             </Dialog>
+            )}
           </div>
         </div>
 
@@ -278,12 +282,14 @@ export default function Dashboard() {
               Get started by creating your first project to track inspections
               and reports.
             </p>
-            <Button
-              onClick={() => setIsDialogOpen(true)}
-              data-testid="button-create-first-project"
-            >
-              Create Project
-            </Button>
+            {user?.role !== "viewer" && (
+              <Button
+                onClick={() => setIsDialogOpen(true)}
+                data-testid="button-create-first-project"
+              >
+                Create Project
+              </Button>
+            )}
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -301,6 +307,7 @@ export default function Dashboard() {
                       {project.title}
                     </CardTitle>
                     <div className="flex items-center gap-2 shrink-0">
+                      {user?.role !== "viewer" && (
                       <Button
                         variant="ghost"
                         size="icon"
@@ -313,6 +320,7 @@ export default function Dashboard() {
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
+                      )}
                     </div>
                   </div>
                   <CardDescription className="flex items-center gap-1 mt-1">

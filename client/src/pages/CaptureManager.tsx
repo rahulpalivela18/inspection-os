@@ -46,6 +46,7 @@ import { pdf } from "@react-pdf/renderer";
 import { useAuth } from "@/lib/auth";
 
 export default function CaptureManager() {
+  const { user } = useAuth();
   const [, params] = useRoute("/project/:id/captures");
   const [, setLocation] = useLocation();
   const { toast } = useToast();
@@ -233,10 +234,12 @@ export default function CaptureManager() {
                 {exportingAll ? "Exporting..." : "Export All PDF"}
               </Button>
             )}
+            {user?.role !== "viewer" && (
             <Button onClick={() => setIsUploadOpen(true)}>
               <Plus className="h-4 w-4 mr-2" />
               Upload Capture
             </Button>
+            )}
           </div>
         </div>
 
@@ -282,6 +285,7 @@ export default function CaptureManager() {
                     <Eye className="h-3.5 w-3.5 mr-1.5" />
                     View
                   </Button>
+                  {user?.role !== "viewer" && (
                   <Button
                     variant="ghost"
                     size="sm"
@@ -290,6 +294,7 @@ export default function CaptureManager() {
                   >
                     <Trash2 className="h-3.5 w-3.5" />
                   </Button>
+                  )}
                 </CardFooter>
               </Card>
             ))}
