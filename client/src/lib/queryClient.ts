@@ -1,5 +1,11 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
+let onUnauthorized: (() => void) | null = null;
+
+export function setQueryOnUnauthorized(handler: () => void) {
+  onUnauthorized = handler;
+}
+
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
     const text = (await res.text()) || res.statusText;
@@ -35,6 +41,10 @@ export const getQueryFn: <T>(options: {
 
     if (unauthorizedBehavior === "returnNull" && res.status === 401) {
       return null;
+    }
+
+    if (res.status === 401) {
+      onUnauthorized?.();
     }
 
     await throwIfResNotOk(res);

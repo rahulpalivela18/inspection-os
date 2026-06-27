@@ -1,3 +1,11 @@
+export const PUBLIC_PATHS = ["/", "/login", "/register", "/contact"];
+
+let onUnauthorized: (() => void) | null = null;
+
+export function setOnUnauthorized(handler: () => void) {
+  onUnauthorized = handler;
+}
+
 // Typed API helpers
 async function request<T>(url: string, options?: RequestInit): Promise<T> {
   const res = await fetch(url, {
@@ -5,6 +13,11 @@ async function request<T>(url: string, options?: RequestInit): Promise<T> {
     headers: { "Content-Type": "application/json" },
     ...options,
   });
+  if (res.status === 401) {
+    onUnauthorized?.();
+    const body = await res.json().catch(() => ({ message: "Unauthorized" }));
+    throw new Error(body.message || "Unauthorized");
+  }
   if (!res.ok) {
     const body = await res.json().catch(() => ({ message: "Request failed" }));
     throw new Error(body.message || "Request failed");

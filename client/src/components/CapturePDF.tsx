@@ -3,7 +3,7 @@ import { Document, Page, Text, View, Image, StyleSheet } from "@react-pdf/render
 const PAGE_PADDING = 36;
 const PAGE_W = 595.28;
 const IMAGE_W = PAGE_W - PAGE_PADDING * 2;
-const IMAGE_H = 280;
+const IMAGE_H = 350;
 const DOT_SIZE = 10;
 
 function severityColor(severity?: string) {
@@ -342,6 +342,7 @@ interface CapturePDF {
   companyLogoUrl?: string;
   companyAddress?: string;
   companyEmail?: string;
+  companyPhone?: string;
   clientName?: string;
   projectAddress?: string;
 }
@@ -363,6 +364,7 @@ interface CapturePDFCover {
   companyName?: string;
   companyLogoUrl?: string;
   companyAddress?: string;
+  companyPhone?: string;
   totalCaptures: number;
   totalHotspots: number;
   severityBreakdown: SeverityStat[];
@@ -435,7 +437,7 @@ function CaptureCoverPage({ cover }: { cover: CapturePDFCover }) {
         <View style={[styles.statCard, styles.statCardAccent]}>
           <Text style={styles.statValue}>{cover.totalHotspots}</Text>
           <Text style={styles.statLabel}>
-            Hotspot{cover.totalHotspots !== 1 ? "s" : ""}
+            Observation{cover.totalHotspots !== 1 ? "s" : ""}
           </Text>
         </View>
       </View>
@@ -600,7 +602,7 @@ function CapturePageContent({
           </View>
         )}
         <View style={styles.meta}>
-          <Text style={styles.metaLabel}>Capture Report</Text>
+          <Text style={styles.metaLabel}>Observation Report</Text>
           <Text style={styles.metaValue}>{date}</Text>
         </View>
       </View>
@@ -619,11 +621,11 @@ function CapturePageContent({
           </Text>
         )}
         <Text style={{ fontSize: 8, color: "#64748b", marginBottom: 4 }}>
-          {totalPins} hotspot{totalPins !== 1 ? "s" : ""} marked on image
+          {totalPins} observation{totalPins !== 1 ? "s" : ""} found
         </Text>
       </View>
 
-      <Text style={styles.sectionTitle}>Reference Map</Text>
+      <Text style={styles.sectionTitle}>Reference Image</Text>
       <View style={styles.sectionTitleLine} />
       <View style={styles.imageWrapper}>
         <Image style={styles.floorPlanImage} src={capture.imageUrl} />
@@ -643,14 +645,12 @@ function CapturePageContent({
           </View>
         ))}
       </View>
-      <Text style={styles.imageCaption}>
-        Reference map with {totalPins} pin{totalPins !== 1 ? "s" : ""}
-      </Text>
+
 
       {totalPins > 0 && (
         <>
           <Text style={styles.sectionTitle}>
-            Hotspot Details{totalPages > 1 ? ` (Page ${pageNumber} of ${totalPages})` : ""}
+            Observation Details{totalPages > 1 ? ` (Page ${pageNumber} of ${totalPages})` : ""}
           </Text>
           <View style={styles.sectionTitleLine} />
           <View style={styles.pinTable}>
@@ -705,33 +705,38 @@ function CapturePageContent({
 
       <View style={{ flex: 1 }} />
 
-      <Text style={[styles.sectionTitle, { marginTop: 20 }]}>Severity Legend</Text>
-      <View style={styles.sectionTitleLine} />
-      <View style={styles.legend}>
-        <View style={styles.legendItem}>
-          <View style={[styles.legendDot, { backgroundColor: "#dc2626" }]} />
-          <Text style={styles.legendText}>Major</Text>
-        </View>
-        <View style={styles.legendItem}>
-          <View style={[styles.legendDot, { backgroundColor: "#f97316" }]} />
-          <Text style={styles.legendText}>Cosmetic</Text>
-        </View>
-        <View style={styles.legendItem}>
-          <View style={[styles.legendDot, { backgroundColor: "#22c55e" }]} />
-          <Text style={styles.legendText}>Minor</Text>
-        </View>
-        <View style={styles.legendItem}>
-          <View style={[styles.legendDot, { backgroundColor: "#3b82f6" }]} />
-          <Text style={styles.legendText}>Info</Text>
-        </View>
-        <Text style={{ fontSize: 7, color: "#94a3b8", marginLeft: 4 }}>
-          📷 = Evidence photo attached
-        </Text>
-      </View>
+      {pageNumber === 1 && (
+        <>
+          <Text style={[styles.sectionTitle, { marginTop: 20 }]}>Severity</Text>
+          <View style={styles.sectionTitleLine} />
+          <View style={styles.legend}>
+            <View style={styles.legendItem}>
+              <View style={[styles.legendDot, { backgroundColor: "#dc2626" }]} />
+              <Text style={styles.legendText}>Major</Text>
+            </View>
+            <View style={styles.legendItem}>
+              <View style={[styles.legendDot, { backgroundColor: "#f97316" }]} />
+              <Text style={styles.legendText}>Cosmetic</Text>
+            </View>
+            <View style={styles.legendItem}>
+              <View style={[styles.legendDot, { backgroundColor: "#22c55e" }]} />
+              <Text style={styles.legendText}>Minor</Text>
+            </View>
+            <View style={styles.legendItem}>
+              <View style={[styles.legendDot, { backgroundColor: "#3b82f6" }]} />
+              <Text style={styles.legendText}>Info</Text>
+            </View>
+            <Text style={{ fontSize: 7, color: "#94a3b8", marginLeft: 4 }}>
+              📷 = Evidence photo attached
+            </Text>
+          </View>
+        </>
+      )}
 
       <View style={{ borderTopWidth: 1, borderTopColor: "#e2e8f0", paddingTop: 8, marginTop: 16, flexDirection: "row", justifyContent: "space-between" }}>
         <Text style={{ fontSize: 7, color: "#94a3b8" }}>
-          {capture.totalCaptures} capture{capture.totalCaptures !== 1 ? "s" : ""} included
+          {capture.companyName || "Workspace"}
+          {capture.companyPhone ? ` · ${capture.companyPhone}` : ""}
           {totalPages > 1 ? ` · Page ${pageNumber} of ${totalPages}` : ""}
         </Text>
         <Text style={{ fontSize: 7, color: "#94a3b8" }}>

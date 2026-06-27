@@ -5,8 +5,8 @@ import {
   useState,
   useEffect,
 } from "react";
-import { api } from "./api";
-import { queryClient } from "./queryClient";
+import { api, setOnUnauthorized } from "./api";
+import { queryClient, setQueryOnUnauthorized } from "./queryClient";
 
 type User = {
   id: string;
@@ -22,6 +22,7 @@ type Workspace = {
   logoUrl?: string;
   address?: string;
   email?: string;
+  phone?: string;
   plan?: string;
   planStatus?: string;
 };
@@ -49,6 +50,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    const onUnauth = () => {
+      queryClient.clear();
+      setUser(null);
+      setWorkspace(null);
+      if (!["/", "/login", "/register", "/contact"].includes(window.location.pathname)) {
+        window.location.href = "/";
+      }
+    };
+    setOnUnauthorized(onUnauth);
+    setQueryOnUnauthorized(onUnauth);
+
     api
       .me()
       .then(({ user, workspace }) => {

@@ -139,6 +139,7 @@ export default function CaptureManager() {
             companyLogoUrl: logoUrl,
             companyAddress: workspace?.address,
             companyEmail: workspace?.email,
+            companyPhone: workspace?.phone,
             clientName: project.clientName,
             projectAddress: project.address,
             pins: pins.map((p: any) => ({
@@ -181,6 +182,7 @@ export default function CaptureManager() {
             companyName: workspace?.name,
             companyLogoUrl: logoUrl,
             companyAddress: workspace?.address,
+            companyPhone: workspace?.phone,
             totalCaptures: captureData.length,
             totalHotspots,
             severityBreakdown,

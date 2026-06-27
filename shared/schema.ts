@@ -22,6 +22,7 @@ export const workspaces = pgTable("workspaces", {
   logoUrl: text("logo_url"),
   address: text("address"),
   email: text("email"),
+  phone: text("phone"),
   plan: text("plan", { enum: ["starter", "pro", "enterprise"] })
     .notNull()
     .default("starter"),

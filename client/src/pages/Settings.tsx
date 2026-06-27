@@ -72,6 +72,7 @@ export default function Settings() {
   const [profile, setProfile] = useState({
     name: workspace?.name || "",
     email: workspace?.email || "",
+    phone: workspace?.phone || "",
     address: workspace?.address || "",
     logoUrl: workspace?.logoUrl || "",
   });
@@ -239,19 +240,19 @@ export default function Settings() {
                 />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="email" className="font-semibold">
-                  Support Email
+                <Label htmlFor="phone" className="font-semibold">
+                  Phone Number
                 </Label>
                 <Input
-                  id="email"
-                  type="email"
-                  value={profile.email}
+                  id="phone"
+                  type="tel"
+                  value={profile.phone}
                   onChange={(e) =>
-                    setProfile({ ...profile, email: e.target.value })
+                    setProfile({ ...profile, phone: e.target.value })
                   }
-                  placeholder="info@yourcompany.com"
+                  placeholder="+91 123 456 7890"
                   disabled={!isAdmin}
-                  data-testid="input-company-email"
+                  data-testid="input-company-phone"
                 />
               </div>
               <div className="grid gap-2 md:col-span-2">

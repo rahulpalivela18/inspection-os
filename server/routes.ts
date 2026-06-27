@@ -140,6 +140,7 @@ export async function registerRoutes(
         "logoUrl",
         "address",
         "email",
+        "phone",
         "plan",
         "planStatus",
       ]);
@@ -168,6 +169,7 @@ export async function registerRoutes(
           "logoUrl",
           "address",
           "email",
+          "phone",
           "plan",
           "planStatus",
         ]);
@@ -192,6 +194,7 @@ export async function registerRoutes(
       "logoUrl",
       "address",
       "email",
+      "phone",
       "plan",
       "planStatus",
     ]);
