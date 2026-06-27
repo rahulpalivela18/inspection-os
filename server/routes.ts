@@ -217,6 +217,12 @@ export async function registerRoutes(
     res.json(members.map(({ password: _, ...m }) => m));
   });
 
+  const PLAN_INSPECTOR_LIMITS: Record<string, number> = {
+    starter: 2,
+    pro: 9,
+    enterprise: Infinity,
+  };
+
   app.post("/api/team", requireAdmin, async (req, res) => {
     const admin = req.user as any;
     const { name, email, password, role } = req.body;
@@ -236,13 +242,30 @@ export async function registerRoutes(
       return res
         .status(409)
         .json({ message: "A user with this email already exists." });
+
+    const targetRole = role || "inspector";
+    if (targetRole === "inspector") {
+      const workspace = await storage.getWorkspace(admin.workspaceId);
+      if (!workspace)
+        return res.status(404).json({ message: "Workspace not found." });
+      const limit = PLAN_INSPECTOR_LIMITS[workspace.plan] ?? 2;
+      const allMembers = await storage.getUsersByWorkspace(admin.workspaceId);
+      const currentCount = allMembers.filter(
+        (m) => m.role === "inspector",
+      ).length;
+      if (currentCount >= limit)
+        return res.status(403).json({
+          message: `Your ${workspace.plan} plan allows up to ${limit === Infinity ? "unlimited" : limit} inspector${limit === 1 ? "" : "s"}. You already have ${currentCount}.`,
+        });
+    }
+
     const hashed = await bcrypt.hash(password, 10);
     const member = await storage.createUser({
       name,
       email,
       password: hashed,
       workspaceId: admin.workspaceId,
-      role: role || "inspector",
+      role: targetRole,
     });
     const { password: _, ...safe } = member;
     res.status(201).json(safe);
