@@ -8,6 +8,8 @@ import Dashboard from "@/pages/Dashboard";
 import ProjectDetails from "@/pages/ProjectDetails";
 import ReportEditor from "@/pages/ReportEditor";
 import Templates from "@/pages/Templates";
+import CaptureManager from "@/pages/CaptureManager";
+import CaptureCanvas from "@/pages/CaptureCanvas";
 import LandingPage from "@/pages/LandingPage";
 import Settings from "@/pages/Settings";
 import Admin from "@/pages/Admin";
@@ -88,6 +90,15 @@ function Router() {
       </Route>
       <Route path="/project/:id">
         <ProtectedRoute component={ProjectDetails} />
+      </Route>
+      <Route path="/project/:id/captures">
+        <CaptureManager />
+      </Route>
+      <Route path="/project/:projectId/captures/:captureId">
+        <CaptureCanvas />
+      </Route>
+      <Route path="/project/:projectId/floor-plans/:floorPlanId">
+        <ProtectedRoute component={CaptureCanvas} />
       </Route>
       <Route path="/report/:id">
         <ProtectedRoute component={ReportEditor} />

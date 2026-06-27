@@ -1,0 +1,35 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: reportgen
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "5002:5002"
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/reportgen
+      SESSION_SECRET: ${SESSION_SECRET:-changeme-in-production}
+      NODE_ENV: production
+      GCP_BUCKET_NAME: ${GCP_BUCKET_NAME:-}
+      GCP_PROJECT_ID: ${GCP_PROJECT_ID:-}
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata:

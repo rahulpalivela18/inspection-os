@@ -4,6 +4,7 @@ import {
   LayoutDashboard,
   ClipboardCheck,
   FileText,
+  MapPinned,
   CheckCircle2,
 } from "lucide-react";
 import { Link } from "wouter";
@@ -140,6 +141,38 @@ export default function LandingPage() {
             </motion.div>
           ))}
         </div>
+
+        <motion.div
+          initial={{ y: 40, opacity: 0 }}
+          whileInView={{ y: 0, opacity: 1 }}
+          viewport={{ once: true }}
+          transition={{ delay: 0.6 + 3 * 0.15, duration: 0.6 }}
+          className="mx-auto mt-8 max-w-2xl"
+        >
+          <div className="group rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition-all duration-300 hover:shadow-xl hover:-translate-y-1">
+            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-primary/10 to-indigo-500/10">
+              <MapPinned className="h-6 w-6 text-primary" />
+            </div>
+            <h3 className="mb-2 font-heading text-xl font-bold text-slate-900">
+              Visual Hotspot Mapping
+            </h3>
+            <p className="mb-6 text-sm leading-relaxed text-slate-600">
+              Pin defects directly on 360° photos with severity levels and
+              status tracking. Visual inspection reporting made precise.
+            </p>
+            <div className="flex items-center justify-center overflow-hidden rounded-xl border border-slate-100 bg-slate-50 p-2">
+              <video
+                src="/videos/hotspot-demo.mp4"
+                controls
+                muted
+                playsInline
+                className="max-h-64 w-full rounded-lg"
+              >
+                Your browser does not support the video tag.
+              </video>
+            </div>
+          </div>
+        </motion.div>
 
         <motion.div
           initial={{ opacity: 0, y: 20 }}

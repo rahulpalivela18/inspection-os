@@ -1,3 +1,11 @@
+export const PUBLIC_PATHS = ["/", "/login", "/register", "/contact"];
+
+let onUnauthorized: (() => void) | null = null;
+
+export function setOnUnauthorized(handler: () => void) {
+  onUnauthorized = handler;
+}
+
 // Typed API helpers
 async function request<T>(url: string, options?: RequestInit): Promise<T> {
   const res = await fetch(url, {
@@ -5,6 +13,11 @@ async function request<T>(url: string, options?: RequestInit): Promise<T> {
     headers: { "Content-Type": "application/json" },
     ...options,
   });
+  if (res.status === 401) {
+    onUnauthorized?.();
+    const body = await res.json().catch(() => ({ message: "Unauthorized" }));
+    throw new Error(body.message || "Unauthorized");
+  }
   if (!res.ok) {
     const body = await res.json().catch(() => ({ message: "Request failed" }));
     throw new Error(body.message || "Request failed");
@@ -116,4 +129,37 @@ export const api = {
     }),
   deleteReport: (id: string) =>
     request(`/api/reports/${id}`, { method: "DELETE" }),
+
+  // Captures
+  getCaptures: (projectId: string) =>
+    request<any[]>(`/api/projects/${projectId}/captures`),
+  getCapture: (id: string) => request<any>(`/api/captures/${id}`),
+  createCapture: (projectId: string, data: any) =>
+    request<any>(`/api/projects/${projectId}/captures`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  updateCapture: (id: string, data: any) =>
+    request<any>(`/api/captures/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
+  deleteCapture: (id: string) =>
+    request(`/api/captures/${id}`, { method: "DELETE" }),
+
+  // Hotspots
+  getHotspots: (captureId: string) =>
+    request<any[]>(`/api/captures/${captureId}/hotspots`),
+  createHotspot: (captureId: string, data: any) =>
+    request<any>(`/api/captures/${captureId}/hotspots`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  updateHotspot: (id: string, data: any) =>
+    request<any>(`/api/hotspots/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
+  deleteHotspot: (id: string) =>
+    request(`/api/hotspots/${id}`, { method: "DELETE" }),
 };

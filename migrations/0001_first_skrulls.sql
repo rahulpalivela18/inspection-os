@@ -1,0 +1,1 @@
+ALTER TABLE "spatial"."captures" ADD COLUMN "is_360" boolean DEFAULT false NOT NULL;

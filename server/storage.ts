@@ -7,6 +7,8 @@ import {
   reports,
   checklistTemplates,
   invoices,
+  captures,
+  hotspots,
   type User,
   type InsertUser,
   type Workspace,
@@ -19,6 +21,10 @@ import {
   type InsertChecklistTemplate,
   type Invoice,
   type InsertInvoice,
+  type Capture,
+  type InsertCapture,
+  type Hotspot,
+  type InsertHotspot,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -277,4 +283,103 @@ export class DatabaseStorage implements IStorage {
   }
 }
 
+export class SpatialStorage {
+  // Captures
+  async getCapturesByProject(projectId: string, workspaceId: string) {
+    return db
+      .select()
+      .from(captures)
+      .where(
+        and(
+          eq(captures.projectId, projectId),
+          eq(captures.workspaceId, workspaceId),
+        ),
+      )
+      .orderBy(desc(captures.createdAt));
+  }
+
+  async getCapture(id: string, workspaceId: string) {
+    const [row] = await db
+      .select()
+      .from(captures)
+      .where(and(eq(captures.id, id), eq(captures.workspaceId, workspaceId)));
+    return row;
+  }
+
+  async createCapture(data: InsertCapture) {
+    const [row] = await db.insert(captures).values(data).returning();
+    return row;
+  }
+
+  async updateCapture(
+    id: string,
+    workspaceId: string,
+    data: Partial<InsertCapture>,
+  ) {
+    const [row] = await db
+      .update(captures)
+      .set(data)
+      .where(and(eq(captures.id, id), eq(captures.workspaceId, workspaceId)))
+      .returning();
+    return row;
+  }
+
+  async deleteCapture(id: string, workspaceId: string) {
+    const result = await db
+      .delete(captures)
+      .where(and(eq(captures.id, id), eq(captures.workspaceId, workspaceId)))
+      .returning();
+    return result.length > 0;
+  }
+
+  // Hotspots
+  async getHotspotsByCapture(captureId: string, workspaceId: string) {
+    return db
+      .select()
+      .from(hotspots)
+      .where(
+        and(
+          eq(hotspots.captureId, captureId),
+          eq(hotspots.workspaceId, workspaceId),
+        ),
+      )
+      .orderBy(desc(hotspots.createdAt));
+  }
+
+  async getHotspot(id: string, workspaceId: string) {
+    const [row] = await db
+      .select()
+      .from(hotspots)
+      .where(and(eq(hotspots.id, id), eq(hotspots.workspaceId, workspaceId)));
+    return row;
+  }
+
+  async createHotspot(data: InsertHotspot) {
+    const [row] = await db.insert(hotspots).values(data).returning();
+    return row;
+  }
+
+  async updateHotspot(
+    id: string,
+    workspaceId: string,
+    data: Partial<InsertHotspot>,
+  ) {
+    const [row] = await db
+      .update(hotspots)
+      .set(data)
+      .where(and(eq(hotspots.id, id), eq(hotspots.workspaceId, workspaceId)))
+      .returning();
+    return row;
+  }
+
+  async deleteHotspot(id: string, workspaceId: string) {
+    const result = await db
+      .delete(hotspots)
+      .where(and(eq(hotspots.id, id), eq(hotspots.workspaceId, workspaceId)))
+      .returning();
+    return result.length > 0;
+  }
+}
+
 export const storage = new DatabaseStorage();
+export const spatialStorage = new SpatialStorage();

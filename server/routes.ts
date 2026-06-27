@@ -6,7 +6,7 @@ import { Strategy as LocalStrategy } from "passport-local";
 import connectPgSimple from "connect-pg-simple";
 import { Pool } from "pg";
 import bcrypt from "bcryptjs";
-import { storage } from "./storage";
+import { storage, spatialStorage } from "./storage";
 import {
   loginSchema,
   registerSchema,
@@ -14,6 +14,8 @@ import {
   insertReportSchema,
   insertChecklistTemplateSchema,
   insertWorkspaceSchema,
+  insertCaptureSchema,
+  insertHotspotSchema,
 } from "@shared/schema";
 import { pick } from "@shared/cleanData";
 import { DEFAULT_CHECKLIST_POINTS } from "./defaultChecklist";
@@ -138,6 +140,7 @@ export async function registerRoutes(
         "logoUrl",
         "address",
         "email",
+        "phone",
         "plan",
         "planStatus",
       ]);
@@ -166,6 +169,7 @@ export async function registerRoutes(
           "logoUrl",
           "address",
           "email",
+          "phone",
           "plan",
           "planStatus",
         ]);
@@ -190,6 +194,7 @@ export async function registerRoutes(
       "logoUrl",
       "address",
       "email",
+      "phone",
       "plan",
       "planStatus",
     ]);
@@ -467,28 +472,30 @@ export async function registerRoutes(
     // Strip read-only / auto-generated fields before passing to Drizzle
     let { id, createdAt, workspaceId, projectId, ...updates } = req.body;
 
-    // Upload images to GCP if present in checklist
+    // Upload images to GCP if present in checklist (parallel)
     if (updates.checklist) {
-      for (const item of updates.checklist) {
-        if (
-          item.image &&
-          !isGCPUrl(item.image) &&
-          item.image.startsWith("data:")
-        ) {
-          try {
-            const gcpUrl = await uploadImageToGCP(
-              item.image,
-              `checklist-${item.id}.jpg`,
-            );
-            if (gcpUrl) {
-              item.image = gcpUrl;
+      await Promise.all(
+        updates.checklist.map(async (item: any) => {
+          if (
+            item.image &&
+            !isGCPUrl(item.image) &&
+            item.image.startsWith("data:")
+          ) {
+            try {
+              const gcpUrl = await uploadImageToGCP(
+                item.image,
+                `checklist-${item.id}.jpg`,
+              );
+              if (gcpUrl) {
+                item.image = gcpUrl;
+              }
+            } catch (err) {
+              console.error("Image upload error:", err);
+              // Keep base64 if GCP fails
             }
-          } catch (err) {
-            console.error("Image upload error:", err);
-            // Keep base64 if GCP fails
           }
-        }
-      }
+        }),
+      );
     }
 
     // Upload images to GCP if present in issues
@@ -537,6 +544,221 @@ export async function registerRoutes(
     );
     if (!ok) return res.status(404).json({ message: "Not found" });
     res.json({ success: true });
+  });
+
+  // ── Capture Routes ───────────────────────────────────────────────────────────
+
+  app.get(
+    "/api/projects/:projectId/captures",
+    requireAuth,
+    async (req, res) => {
+      const user = req.user as any;
+      const items = await spatialStorage.getCapturesByProject(
+        req.params.projectId as string,
+        user.workspaceId,
+      );
+      res.json(items);
+    },
+  );
+
+  app.post(
+    "/api/projects/:projectId/captures",
+    requireAuth,
+    async (req, res) => {
+      const user = req.user as any;
+      const parsed = insertCaptureSchema.safeParse({
+        ...req.body,
+        projectId: req.params.projectId as string,
+        workspaceId: user.workspaceId,
+      });
+      if (!parsed.success)
+        return res
+          .status(400)
+          .json({ message: parsed.error.errors[0].message });
+
+      if (
+        parsed.data.imageUrl &&
+        !isGCPUrl(parsed.data.imageUrl) &&
+        parsed.data.imageUrl.startsWith("data:")
+      ) {
+        try {
+          const gcpUrl = await uploadImageToGCP(
+            parsed.data.imageUrl,
+            `capture-${Date.now()}.png`,
+          );
+          if (gcpUrl) parsed.data.imageUrl = gcpUrl;
+        } catch (err) {
+          console.error("Capture image upload error:", err);
+        }
+      }
+
+      const item = await spatialStorage.createCapture(parsed.data);
+      res.status(201).json(item);
+    },
+  );
+
+  app.get("/api/captures/:id", requireAuth, async (req, res) => {
+    const user = req.user as any;
+    const item = await spatialStorage.getCapture(
+      req.params.id as string,
+      user.workspaceId,
+    );
+    if (!item) return res.status(404).json({ message: "Not found" });
+    res.json(item);
+  });
+
+  app.patch("/api/captures/:id", requireAuth, async (req, res) => {
+    const user = req.user as any;
+    let { id, createdAt, workspaceId, projectId, ...updates } = req.body;
+
+    if (
+      updates.imageUrl &&
+      !isGCPUrl(updates.imageUrl) &&
+      updates.imageUrl.startsWith("data:")
+    ) {
+      try {
+        const gcpUrl = await uploadImageToGCP(
+          updates.imageUrl,
+          `capture-${Date.now()}.png`,
+        );
+        if (gcpUrl) updates.imageUrl = gcpUrl;
+      } catch (err) {
+        console.error("Capture image upload error:", err);
+      }
+    }
+
+    const item = await spatialStorage.updateCapture(
+      req.params.id as string,
+      user.workspaceId,
+      updates,
+    );
+    if (!item) return res.status(404).json({ message: "Not found" });
+    res.json(item);
+  });
+
+  app.delete("/api/captures/:id", requireAuth, async (req, res) => {
+    const user = req.user as any;
+    const ok = await spatialStorage.deleteCapture(
+      req.params.id as string,
+      user.workspaceId,
+    );
+    if (!ok) return res.status(404).json({ message: "Not found" });
+    res.json({ success: true });
+  });
+
+  // ── Hotspot Routes ───────────────────────────────────────────────────────────
+
+  app.get(
+    "/api/captures/:captureId/hotspots",
+    requireAuth,
+    async (req, res) => {
+      const user = req.user as any;
+      const items = await spatialStorage.getHotspotsByCapture(
+        req.params.captureId as string,
+        user.workspaceId,
+      );
+      res.json(items);
+    },
+  );
+
+  app.post(
+    "/api/captures/:captureId/hotspots",
+    requireAuth,
+    async (req, res) => {
+      const user = req.user as any;
+      const parsed = insertHotspotSchema.safeParse({
+        ...req.body,
+        captureId: req.params.captureId as string,
+        workspaceId: user.workspaceId,
+      });
+      if (!parsed.success)
+        return res
+          .status(400)
+          .json({ message: parsed.error.errors[0].message });
+
+      if (
+        parsed.data.panoUrl &&
+        !isGCPUrl(parsed.data.panoUrl) &&
+        parsed.data.panoUrl.startsWith("data:")
+      ) {
+        try {
+          const gcpUrl = await uploadImageToGCP(
+            parsed.data.panoUrl,
+            `pano-${Date.now()}.jpg`,
+          );
+          if (gcpUrl) parsed.data.panoUrl = gcpUrl;
+        } catch (err) {
+          console.error("Pano image upload error:", err);
+        }
+      }
+
+      const item = await spatialStorage.createHotspot(parsed.data);
+      res.status(201).json(item);
+    },
+  );
+
+  app.patch("/api/hotspots/:id", requireAuth, async (req, res) => {
+    const user = req.user as any;
+    let { id, createdAt, workspaceId, captureId, ...updates } = req.body;
+
+    if (
+      updates.panoUrl &&
+      !isGCPUrl(updates.panoUrl) &&
+      updates.panoUrl.startsWith("data:")
+    ) {
+      try {
+        const gcpUrl = await uploadImageToGCP(
+          updates.panoUrl,
+          `pano-${Date.now()}.jpg`,
+        );
+        if (gcpUrl) updates.panoUrl = gcpUrl;
+      } catch (err) {
+        console.error("Pano image upload error:", err);
+      }
+    }
+
+    const item = await spatialStorage.updateHotspot(
+      req.params.id as string,
+      user.workspaceId,
+      updates,
+    );
+    if (!item) return res.status(404).json({ message: "Not found" });
+    res.json(item);
+  });
+
+  app.delete("/api/hotspots/:id", requireAuth, async (req, res) => {
+    const user = req.user as any;
+    const ok = await spatialStorage.deleteHotspot(
+      req.params.id as string,
+      user.workspaceId,
+    );
+    if (!ok) return res.status(404).json({ message: "Not found" });
+    res.json({ success: true });
+  });
+
+  // ── Image proxy ────────────────────────────────────────────────────────────
+
+  app.get("/api/image-proxy", async (req, res) => {
+    const url = req.query.url as string;
+    if (!url) return res.status(400).json({ message: "Missing url param" });
+
+    try {
+      const response = await fetch(url);
+      if (!response.ok)
+        return res
+          .status(response.status)
+          .json({ message: "Failed to fetch image" });
+
+      const contentType = response.headers.get("content-type") || "image/jpeg";
+      const buffer = Buffer.from(await response.arrayBuffer());
+
+      res.set("Content-Type", contentType);
+      res.set("Access-Control-Allow-Origin", "*");
+      res.set("Cache-Control", "public, max-age=86400");
+      res.send(buffer);
+    } catch (err) {
+      res.status(502).json({ message: "Image proxy failed" });
+    }
   });
 
   return httpServer;

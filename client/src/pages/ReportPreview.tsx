@@ -102,6 +102,41 @@ export default function ReportPreview({
   );
   const totalAreaSqM = totalAreaSqFt / 10.7639;
 
+  const checklistSeverityBreakdown = (
+    [
+      { label: "MAJOR", count: failedChecklistItems.filter((i) => i.severity === "MAJOR").length },
+      { label: "MINOR", count: failedChecklistItems.filter((i) => i.severity === "MINOR").length },
+      { label: "COSMETIC", count: failedChecklistItems.filter((i) => i.severity === "COSMETIC").length },
+    ] as { label: string; count: number }[]
+  ).filter((b) => b.count > 0);
+
+  const checklistCategoryMap = new Map<string, number>();
+  failedChecklistItems.forEach((item) => {
+    const cat = spaceNameMap.get(item.category) || item.category;
+    checklistCategoryMap.set(cat, (checklistCategoryMap.get(cat) || 0) + 1);
+  });
+  const checklistCategories = Array.from(checklistCategoryMap.entries()).map(
+    ([category, count]) => ({ category, count }),
+  );
+
+  const issues = report.issues ?? [];
+  const issueSeverityBreakdown = (
+    [
+      { label: "Critical", count: issues.filter((i) => i.severity === "Critical").length },
+      { label: "High", count: issues.filter((i) => i.severity === "High").length },
+      { label: "Medium", count: issues.filter((i) => i.severity === "Medium").length },
+      { label: "Low", count: issues.filter((i) => i.severity === "Low").length },
+    ] as { label: string; count: number }[]
+  ).filter((b) => b.count > 0);
+
+  const issueStatusBreakdown = (
+    [
+      { label: "Open", count: issues.filter((i) => i.status === "Open").length },
+      { label: "In Progress", count: issues.filter((i) => i.status === "In Progress").length },
+      { label: "Resolved", count: issues.filter((i) => i.status === "Resolved").length },
+    ] as { label: string; count: number }[]
+  ).filter((b) => b.count > 0);
+
   function PDFPage({ children, className = "" }: { children: React.ReactNode; className?: string }) {
     return (
       <div
@@ -381,6 +416,89 @@ export default function ReportPreview({
         </div>
       </PDFPage>
 
+      {/* Checklist Summary — before individual items */}
+      {failedChecklistItems.length > 0 && (
+        <PDFPage className="p-6 md:p-[15mm] flex flex-col">
+          <Watermark />
+          <PageLogo />
+          <div className="border-b-2 border-slate-900 pb-4 mb-6 flex justify-between items-start mt-12 md:mt-0">
+            <div>
+              <p className="text-[9px] font-black uppercase tracking-[0.25em] text-slate-400">
+                Summary &nbsp;·&nbsp; Checklist
+              </p>
+              <h2 className="text-2xl font-black tracking-tight text-slate-900 leading-tight mt-1">
+                Checklist Summary
+              </h2>
+            </div>
+          </div>
+
+          {/* Severity breakdown */}
+          {checklistSeverityBreakdown.length > 0 && (
+            <div className="mb-6">
+              <h3 className="text-xs font-black uppercase tracking-widest text-slate-500 mb-3">
+                Severity Breakdown
+              </h3>
+              {checklistSeverityBreakdown.map((b) => {
+                const total = failedChecklistItems.length;
+                const pct = total > 0 ? (b.count / total) * 100 : 0;
+                const barColor =
+                  b.label === "MAJOR"
+                    ? "bg-red-500"
+                    : b.label === "MINOR"
+                      ? "bg-orange-500"
+                      : "bg-blue-500";
+                return (
+                  <div key={b.label} className="flex items-center gap-3 mb-2">
+                    <span className="text-xs font-bold text-slate-700 w-20 shrink-0">
+                      {b.label}
+                    </span>
+                    <div className="flex-1 h-4 bg-slate-100 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full ${barColor}`}
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                    <span className="text-xs font-bold text-slate-900 w-8 text-right">
+                      {b.count}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Category breakdown */}
+          {checklistCategories.length > 0 && (
+            <div>
+              <h3 className="text-xs font-black uppercase tracking-widest text-slate-500 mb-3">
+                By Category
+              </h3>
+              <div className="border border-slate-200 rounded-xl overflow-hidden">
+                <div className="grid grid-cols-2 bg-slate-100 px-4 py-2 text-[10px] font-black uppercase tracking-widest text-slate-500">
+                  <span>Category</span>
+                  <span className="text-right">Failed</span>
+                </div>
+                <div className="divide-y divide-slate-100">
+                  {checklistCategories.map(({ category, count }) => (
+                    <div
+                      key={category}
+                      className="grid grid-cols-2 px-4 py-2.5 text-sm text-slate-700"
+                    >
+                      <span className="font-semibold text-slate-900">
+                        {category}
+                      </span>
+                      <span className="text-right font-bold text-indigo-600">
+                        {count}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+        </PDFPage>
+      )}
+
       {/* Failed Checklist Items — one per page, spread layout */}
       {failedChecklistItems.map((item, index) => (
         <PDFPage key={item.id} className="p-6 md:p-[15mm]">
@@ -463,6 +581,116 @@ export default function ReportPreview({
           </div>
         </PDFPage>
       ))}
+
+      {/* Issues Summary — before individual items */}
+      {issues.length > 0 && (
+        <PDFPage className="p-6 md:p-[15mm] flex flex-col">
+          <Watermark />
+          <PageLogo />
+          <div className="border-b-2 border-slate-900 pb-4 mb-6 flex justify-between items-start mt-12 md:mt-0">
+            <div>
+              <p className="text-[9px] font-black uppercase tracking-[0.25em] text-slate-400">
+                Summary &nbsp;·&nbsp; Issues
+              </p>
+              <h2 className="text-2xl font-black tracking-tight text-slate-900 leading-tight mt-1">
+                Issues Summary
+              </h2>
+            </div>
+          </div>
+
+          {/* Stats cards */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div className={cn("rounded-2xl border p-4", theme.bg)}>
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                Total Issues
+              </p>
+              <p className="mt-2 text-2xl font-black text-slate-900">
+                {issues.length}
+              </p>
+            </div>
+            <div className="rounded-2xl border border-slate-200 p-4 bg-white">
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                Critical
+              </p>
+              <p className="mt-2 text-2xl font-black text-slate-900">
+                {issues.filter((i) => i.severity === "Critical").length}
+              </p>
+            </div>
+            <div className="rounded-2xl border border-slate-200 p-4 bg-white">
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                Open
+              </p>
+              <p className="mt-2 text-2xl font-black text-slate-900">
+                {issues.filter((i) => i.status === "Open").length}
+              </p>
+            </div>
+          </div>
+
+          {/* Severity breakdown */}
+          {issueSeverityBreakdown.length > 0 && (
+            <div className="mb-6">
+              <h3 className="text-xs font-black uppercase tracking-widest text-slate-500 mb-3">
+                Severity Breakdown
+              </h3>
+              {issueSeverityBreakdown.map((b) => {
+                const total = issues.length;
+                const pct = total > 0 ? (b.count / total) * 100 : 0;
+                const barColor =
+                  b.label === "Critical"
+                    ? "bg-red-500"
+                    : b.label === "High"
+                      ? "bg-orange-500"
+                      : b.label === "Medium"
+                        ? "bg-amber-500"
+                        : "bg-slate-400";
+                return (
+                  <div key={b.label} className="flex items-center gap-3 mb-2">
+                    <span className="text-xs font-bold text-slate-700 w-20 shrink-0">
+                      {b.label}
+                    </span>
+                    <div className="flex-1 h-4 bg-slate-100 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full ${barColor}`}
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                    <span className="text-xs font-bold text-slate-900 w-8 text-right">
+                      {b.count}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Status breakdown */}
+          {issueStatusBreakdown.length > 0 && (
+            <div>
+              <h3 className="text-xs font-black uppercase tracking-widest text-slate-500 mb-3">
+                Status Breakdown
+              </h3>
+              <div className="flex flex-wrap gap-2">
+                {issueStatusBreakdown.map((b) => {
+                  const colors =
+                    b.label === "Open"
+                      ? "bg-red-100 text-red-700 border-red-200"
+                      : b.label === "In Progress"
+                        ? "bg-amber-100 text-amber-700 border-amber-200"
+                        : "bg-emerald-100 text-emerald-700 border-emerald-200";
+                  return (
+                    <span
+                      key={b.label}
+                      className={`rounded-full border px-4 py-1.5 text-[10px] font-black uppercase tracking-widest ${colors}`}
+                    >
+                      {b.label}: {b.count}
+                    </span>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </PDFPage>
+      )}
 
       {/* Issues Section — one per page, spread layout */}
       {report.issues &&
