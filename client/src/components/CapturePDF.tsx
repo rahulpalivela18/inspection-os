@@ -501,7 +501,7 @@ function CaptureCoverPage({ cover }: { cover: CapturePDFCover }) {
   );
 }
 
-const rowAvailableH = 120;
+const rowAvailableH = 90;
 
 function estimateRowHeight(note?: string | null, label?: string | null): number {
   const labelColW = IMAGE_W * 0.26;
