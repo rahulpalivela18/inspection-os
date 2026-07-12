@@ -9,6 +9,7 @@ import {
   invoices,
   captures,
   hotspots,
+  progressLogs,
   type User,
   type InsertUser,
   type Workspace,
@@ -25,6 +26,8 @@ import {
   type InsertCapture,
   type Hotspot,
   type InsertHotspot,
+  type ProgressLog,
+  type InsertProgressLog,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -88,6 +91,21 @@ export interface IStorage {
   createInvoice(inv: InsertInvoice): Promise<Invoice>;
   getInvoicesByWorkspace(workspaceId: string): Promise<Invoice[]>;
   getAllInvoices(): Promise<Invoice[]>;
+
+  // Progress Logs
+  getProgressLogsByReport(
+    reportId: string,
+    workspaceId: string,
+  ): Promise<ProgressLog[]>;
+  createProgressLog(
+    p: InsertProgressLog & { afterPhotos?: any },
+  ): Promise<ProgressLog>;
+  updateProgressLog(
+    id: string,
+    workspaceId: string,
+    data: Partial<InsertProgressLog>,
+  ): Promise<ProgressLog | undefined>;
+  deleteProgressLog(id: string, workspaceId: string): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -280,6 +298,50 @@ export class DatabaseStorage implements IStorage {
   }
   async getAllInvoices() {
     return db.select().from(invoices).orderBy(desc(invoices.createdAt));
+  }
+
+  // Progress Logs
+  async getProgressLogsByReport(reportId: string, workspaceId: string) {
+    return db
+      .select()
+      .from(progressLogs)
+      .where(
+        and(
+          eq(progressLogs.reportId, reportId),
+          eq(progressLogs.workspaceId, workspaceId),
+        ),
+      )
+      .orderBy(desc(progressLogs.createdAt));
+  }
+  async createProgressLog(data: InsertProgressLog & { afterPhotos?: any }) {
+    const [row] = await db
+      .insert(progressLogs)
+      .values(data as any)
+      .returning();
+    return row;
+  }
+  async updateProgressLog(
+    id: string,
+    workspaceId: string,
+    data: Partial<InsertProgressLog>,
+  ) {
+    const [row] = await db
+      .update(progressLogs)
+      .set(data)
+      .where(
+        and(eq(progressLogs.id, id), eq(progressLogs.workspaceId, workspaceId)),
+      )
+      .returning();
+    return row;
+  }
+  async deleteProgressLog(id: string, workspaceId: string) {
+    const result = await db
+      .delete(progressLogs)
+      .where(
+        and(eq(progressLogs.id, id), eq(progressLogs.workspaceId, workspaceId)),
+      )
+      .returning();
+    return result.length > 0;
   }
 }
 

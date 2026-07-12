@@ -4,7 +4,7 @@ import Layout from "@/components/Layout";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { buildChecklistWithPreservedResponses } from "@/lib/checklist";
-import type { ReportDimension, ChecklistItem, Issue } from "@/lib/store";
+import type { ReportDimension, ChecklistItem, Issue, ProgressLog } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -62,6 +62,7 @@ import {
   Calculator,
   RefreshCw,
   Loader2,
+  Pencil,
 } from "lucide-react";
 import { Link, useRoute } from "wouter";
 import NotFound from "./not-found";
@@ -85,8 +86,9 @@ export default function ReportEditor() {
   const { user, workspace } = useAuth();
   const isViewer = user?.role === "viewer";
   const [viewMode, setViewMode] = useState<
-    "checklist" | "dimensions" | "issues" | "preview"
+    "checklist" | "dimensions" | "issues" | "progress" | "preview"
   >("checklist");
+  const [pdfMode, setPdfMode] = useState<"initial" | "progress" | "completion">("initial");
   const [isSyncConfirmOpen, setIsSyncConfirmOpen] = useState(false);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [editingIssue, setEditingIssue] = useState<Issue | null>(null);
@@ -136,6 +138,12 @@ export default function ReportEditor() {
       staleTime: Infinity,
     },
   );
+
+  const { data: progressLogs = [] } = useQuery({
+    queryKey: ["progress-logs", params?.id],
+    queryFn: () => api.getProgressLogs(params!.id),
+    enabled: !!params?.id && viewMode === "preview",
+  });
 
   // Initialize ref once on report load; never overwrite from server after that
   // (updateChecklistItem is the sole writer once editing begins)
@@ -419,7 +427,7 @@ export default function ReportEditor() {
 
           <div className="flex flex-col sm:flex-row items-center gap-2 w-full lg:w-auto justify-between lg:justify-end">
             <div className="bg-muted p-1 rounded-lg flex items-center shrink-0 w-full sm:w-auto">
-              {(["checklist", "dimensions", "issues", "preview"] as const).map(
+              {(["checklist", "dimensions", "issues", "progress", "preview"] as const).map(
                 (mode) => (
                   <button
                     key={mode}
@@ -454,7 +462,7 @@ export default function ReportEditor() {
             <Button
               size="sm"
               onClick={openNewIssueSheet}
-              disabled={viewMode === "preview"}
+              disabled={viewMode === "preview" || viewMode === "progress"}
               className="h-9 md:h-10 text-xs md:text-sm px-3 md:px-4"
             >
               <Plus className="mr-2 h-3.5 w-3.5 md:h-4 md:w-4" /> Add Issue
@@ -466,7 +474,24 @@ export default function ReportEditor() {
         {/* Content */}
         <div className="flex-1 overflow-hidden bg-muted/10">
           {viewMode === "preview" ? (
-            <div className="h-full overflow-y-auto p-4 md:p-8 bg-slate-200/50 flex justify-center print:p-0 print:bg-white print:overflow-visible">
+            <div className="h-full overflow-y-auto p-4 md:p-8 bg-slate-200/50 flex flex-col items-center print:p-0 print:bg-white print:overflow-visible">
+              {/* PDF Mode Selector */}
+              <div className="bg-white rounded-lg border shadow-sm p-1 flex items-center gap-1 mb-4 print:hidden">
+                {(["initial", "progress", "completion"] as const).map((mode) => (
+                  <button
+                    key={mode}
+                    onClick={() => setPdfMode(mode)}
+                    className={cn(
+                      "px-4 py-1.5 text-xs font-medium rounded-md transition-all",
+                      pdfMode === mode
+                        ? "bg-primary text-white shadow-sm"
+                        : "text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    {mode === "initial" ? "Initial Inspection" : mode === "progress" ? "Progress Report" : "Completion Report"}
+                  </button>
+                ))}
+              </div>
               <div
                 ref={componentRef}
                 className="bg-white shadow-xl w-full max-w-[210mm] min-h-[297mm] p-0 print:shadow-none print:m-0 print:max-w-none origin-top transition-transform sm:scale-100"
@@ -484,6 +509,8 @@ export default function ReportEditor() {
                       address: workspace?.address,
                       email: workspace?.email,
                     }}
+                    progressLogs={progressLogs}
+                    pdfMode={pdfMode}
                   />
                 )}
               </div>
@@ -508,6 +535,11 @@ export default function ReportEditor() {
                     report={report}
                     openEditIssueSheet={openEditIssueSheet}
                     saveReport={saveReport}
+                    readOnly={isViewer}
+                  />
+                ) : viewMode === "progress" ? (
+                  <ProgressView
+                    report={report}
                     readOnly={isViewer}
                   />
                 ) : (
@@ -1314,6 +1346,491 @@ function DimensionsView({
           );
         })}
       </div>
+    </>
+  );
+}
+
+// ─── Progress View ───────────────────────────────────────────────────────────
+
+function ProgressView({
+  report,
+  readOnly = false,
+}: {
+  report: any;
+  readOnly?: boolean;
+}) {
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const [isAdding, setIsAdding] = useState(false);
+  const [editingLogId, setEditingLogId] = useState<string | null>(null);
+  const [editNotes, setEditNotes] = useState("");
+  const [editAfterPhotos, setEditAfterPhotos] = useState<Record<string, string[]>>({});
+  const [notes, setNotes] = useState("");
+  const [resolvedIds, setResolvedIds] = useState<string[]>([]);
+  const [afterPhotos, setAfterPhotos] = useState<Record<string, string[]>>({});
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+
+  const { data: logs = [], isLoading } = useQuery({
+    queryKey: ["progress-logs", report.id],
+    queryFn: () => api.getProgressLogs(report.id),
+  });
+
+  const createMutation = useMutation({
+    mutationFn: (data: any) => api.createProgressLog(report.id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["progress-logs", report.id] });
+      resetForm();
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: any }) =>
+      api.updateProgressLog(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["progress-logs", report.id] });
+      setEditingLogId(null);
+      setEditNotes("");
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => api.deleteProgressLog(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["progress-logs", report.id] });
+      setDeleteConfirmId(null);
+    },
+  });
+
+  const checklist: ChecklistItem[] = report.checklist ?? [];
+  const failedItems = checklist.filter(
+    (c) => (c.triggerOn === "yes" ? c.status === "Y" : c.status === "N") && c.severity,
+  );
+
+  const allResolvedIds = new Set(
+    logs.flatMap((log: any) => log.resolvedChecklistItemIds ?? []),
+  );
+
+  const unresolvedItems = failedItems.filter((c) => !allResolvedIds.has(c.id));
+  const resolvedCount = failedItems.length - unresolvedItems.length;
+  const progressPct =
+    failedItems.length > 0
+      ? Math.round((resolvedCount / failedItems.length) * 100)
+      : 0;
+
+  const resetForm = () => {
+    setIsAdding(false);
+    setResolvedIds([]);
+    setAfterPhotos({});
+    setNotes("");
+  };
+
+  const handlePhotoUpload = (itemId: string, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      setAfterPhotos((prev) => ({
+        ...prev,
+        [itemId]: [...(prev[itemId] || []), ev.target?.result as string],
+      }));
+    };
+    reader.readAsDataURL(file);
+    e.target.value = "";
+  };
+
+  const removeAfterPhoto = (itemId: string, photoIdx: number) => {
+    setAfterPhotos((prev) => ({
+      ...prev,
+      [itemId]: (prev[itemId] || []).filter((_, i) => i !== photoIdx),
+    }));
+  };
+
+  const canSubmit = resolvedIds.length > 0 || notes.trim();
+  const allResolvedHavePhotos = resolvedIds.every(
+    (id) => afterPhotos[id] && afterPhotos[id].length > 0,
+  );
+
+  const handleSubmit = () => {
+    if (!canSubmit) return;
+    if (resolvedIds.length > 0 && !allResolvedHavePhotos) return;
+    createMutation.mutate({
+      author: user?.name || "Inspector",
+      date: new Date().toISOString().split("T")[0],
+      notes: notes.trim() || undefined,
+      resolvedChecklistItemIds: resolvedIds.length > 0 ? resolvedIds : undefined,
+      afterPhotos: resolvedIds.length > 0 && Object.keys(afterPhotos).length > 0
+        ? Object.fromEntries(
+            Object.entries(afterPhotos).filter(([k]) => resolvedIds.includes(k)),
+          )
+        : undefined,
+    });
+  };
+
+  const toggleResolved = (id: string) => {
+    setResolvedIds((prev) => {
+      const next = prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id];
+      if (!next.includes(id)) {
+        setAfterPhotos((p) => { const n = { ...p }; delete n[id]; return n; });
+      }
+      return next;
+    });
+  };
+
+  const startEditNotes = (log: any) => {
+    setEditingLogId(log.id);
+    setEditNotes(log.notes || "");
+    setEditAfterPhotos(log.afterPhotos ? { ...log.afterPhotos } : {});
+  };
+
+  const saveEditNotes = () => {
+    if (!editingLogId) return;
+    updateMutation.mutate({
+      id: editingLogId,
+      data: {
+        notes: editNotes.trim() || null,
+        afterPhotos: Object.keys(editAfterPhotos).length > 0 ? editAfterPhotos : null,
+      },
+    });
+  };
+
+  const handleEditPhotoUpload = (itemId: string, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      setEditAfterPhotos((prev) => ({
+        ...prev,
+        [itemId]: [...(prev[itemId] || []), ev.target?.result as string],
+      }));
+    };
+    reader.readAsDataURL(file);
+    e.target.value = "";
+  };
+
+  const removeEditAfterPhoto = (itemId: string, photoIdx: number) => {
+    setEditAfterPhotos((prev) => ({
+      ...prev,
+      [itemId]: (prev[itemId] || []).filter((_, i) => i !== photoIdx),
+    }));
+  };
+
+  return (
+    <>
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-lg font-bold flex items-center gap-2">
+          <RefreshCw className="h-5 w-5 text-primary" /> Progress Log
+        </h2>
+        {!readOnly && !isAdding && (
+          <Button size="sm" onClick={() => setIsAdding(true)}>
+            <Plus className="mr-2 h-4 w-4" /> Log Entry
+          </Button>
+        )}
+      </div>
+
+      {/* Summary Bar */}
+      <div className="bg-white rounded-xl border shadow-sm p-4 mb-6">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-sm font-medium text-slate-700">
+            {resolvedCount} of {failedItems.length} items resolved
+          </span>
+          <span className="text-sm font-bold text-primary">{progressPct}%</span>
+        </div>
+        <div className="w-full bg-slate-100 rounded-full h-2.5">
+          <div
+            className="bg-primary h-2.5 rounded-full transition-all"
+            style={{ width: `${progressPct}%` }}
+          />
+        </div>
+      </div>
+
+      {/* New Entry Form */}
+      {isAdding && (
+        <div className="bg-white rounded-xl border shadow-sm p-4 mb-6">
+          <h3 className="font-semibold text-sm mb-3">New Log Entry</h3>
+          {unresolvedItems.length > 0 && (
+            <div className="mb-4">
+              <Label className="text-xs font-medium text-slate-600 mb-2 block">
+                Mark resolved items:
+              </Label>
+              <div className="space-y-2 max-h-64 overflow-y-auto">
+                {unresolvedItems.map((item) => {
+                  const isChecked = resolvedIds.includes(item.id);
+                  const itemPhotos = afterPhotos[item.id] || [];
+                  return (
+                    <div key={item.id} className="rounded-lg border border-slate-200 p-2">
+                      <label className="flex items-center gap-2 cursor-pointer text-sm">
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => toggleResolved(item.id)}
+                          className="rounded"
+                        />
+                        <span className="flex-1">{item.point}</span>
+                        <span
+                          className={cn(
+                            "text-[10px] font-semibold px-1.5 py-0.5 rounded",
+                            item.severity === "MAJOR"
+                              ? "bg-red-50 text-red-600"
+                              : item.severity === "MINOR"
+                                ? "bg-orange-50 text-orange-600"
+                                : "bg-blue-50 text-blue-600",
+                          )}
+                        >
+                          {item.severity}
+                        </span>
+                      </label>
+                      {isChecked && (
+                        <div className="mt-2 pl-6">
+                          <p className="text-[10px] text-slate-500 mb-1">
+                            After photo required:
+                          </p>
+                          <div className="flex gap-2 flex-wrap items-center">
+                            {itemPhotos.map((photo, pIdx) => (
+                              <div key={pIdx} className="relative h-12 w-12 rounded border overflow-hidden group">
+                                <img src={photo} alt="After" className="object-cover w-full h-full" />
+                                <button
+                                  type="button"
+                                  onClick={(e) => { e.preventDefault(); removeAfterPhoto(item.id, pIdx); }}
+                                  className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity"
+                                >
+                                  <X className="h-3 w-3 text-white" />
+                                </button>
+                              </div>
+                            ))}
+                            {itemPhotos.length < 2 && (
+                              <>
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  id={`after-${item.id}`}
+                                  className="hidden"
+                                  onChange={(e) => handlePhotoUpload(item.id, e)}
+                                />
+                                <label
+                                  htmlFor={`after-${item.id}`}
+                                  className="flex items-center justify-center gap-1 h-12 w-12 border-2 border-dashed border-slate-300 rounded-lg text-slate-400 hover:border-primary hover:text-primary cursor-pointer transition-colors"
+                                >
+                                  <Plus className="h-3 w-3" />
+                                </label>
+                              </>
+                            )}
+                          </div>
+                          {itemPhotos.length === 0 && (
+                            <p className="text-[10px] text-red-500 mt-1">At least 1 photo required</p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+          <div className="grid gap-2 mb-4">
+            <Label htmlFor="log-notes">Notes</Label>
+            <Textarea
+              id="log-notes"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="What was done during this visit?"
+              className="min-h-20"
+            />
+          </div>
+          <div className="flex gap-2 justify-end">
+            <Button variant="outline" size="sm" onClick={resetForm}>
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              onClick={handleSubmit}
+              disabled={
+                createMutation.isPending ||
+                !canSubmit ||
+                (resolvedIds.length > 0 && !allResolvedHavePhotos)
+              }
+            >
+              {createMutation.isPending ? "Saving..." : "Save Entry"}
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation */}
+      <AlertDialog open={!!deleteConfirmId} onOpenChange={(open) => { if (!open) setDeleteConfirmId(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Log Entry?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently remove this progress entry. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => { if (deleteConfirmId) deleteMutation.mutate(deleteConfirmId); }}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Timeline */}
+      {isLoading ? (
+        <p className="text-sm text-muted-foreground">Loading logs...</p>
+      ) : logs.length === 0 ? (
+        <div className="text-center py-12 text-slate-400">
+          <RefreshCw className="h-8 w-8 mx-auto mb-2 opacity-50" />
+          <p className="text-sm">No progress entries yet.</p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {logs.map((log: any) => {
+            const isEditing = editingLogId === log.id;
+            return (
+              <div key={log.id} className="bg-white rounded-xl border shadow-sm p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary text-xs font-bold">
+                      {log.author?.charAt(0) || "?"}
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold">{log.author}</p>
+                      <p className="text-[10px] text-slate-400">{log.date}</p>
+                    </div>
+                  </div>
+                  {!readOnly && (
+                    <div className="flex items-center gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-slate-400 hover:text-foreground"
+                        onClick={() => startEditNotes(log)}
+                        disabled={isEditing}
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-slate-400 hover:text-red-500"
+                        onClick={() => setDeleteConfirmId(log.id)}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  )}
+                </div>
+
+                {log.resolvedChecklistItemIds?.length > 0 && (
+                  <div className="mt-2">
+                    <p className="text-[10px] font-semibold uppercase text-slate-400 mb-1">Resolved</p>
+                    <div className="space-y-1.5">
+                      {log.resolvedChecklistItemIds.map((id: string) => {
+                        const item = checklist.find((c) => c.id === id);
+                        const photos = log.afterPhotos?.[id] ?? [];
+                        return item ? (
+                          <div key={id} className="flex items-center gap-2">
+                            <span className="text-[11px] bg-green-50 text-green-700 px-2 py-0.5 rounded-full border border-green-200 shrink-0">
+                              ✓ {item.point}
+                            </span>
+                            {photos.length > 0 && (
+                              <div className="flex gap-1">
+                                {photos.map((p: string, i: number) => (
+                                  <img
+                                    key={i}
+                                    src={p}
+                                    alt="After"
+                                    className="h-8 w-8 rounded border object-cover cursor-pointer hover:opacity-80"
+                                    onClick={() => openImageInNewTab(p)}
+                                  />
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        ) : null;
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {isEditing ? (
+                  <div className="mt-3">
+                    <Textarea
+                      value={editNotes}
+                      onChange={(e) => setEditNotes(e.target.value)}
+                      placeholder="Notes..."
+                      className="min-h-16 text-sm"
+                    />
+                    {log.resolvedChecklistItemIds?.length > 0 && (
+                      <div className="mt-3">
+                        <Label className="text-[10px] font-semibold uppercase text-slate-400 mb-1 block">
+                          After Photos
+                        </Label>
+                        <div className="space-y-2">
+                          {log.resolvedChecklistItemIds.map((itemId: string) => {
+                            const item = checklist.find((c) => c.id === itemId);
+                            const photos = editAfterPhotos[itemId] || [];
+                            return item ? (
+                              <div key={itemId} className="rounded-lg border border-slate-200 p-2">
+                                <p className="text-[11px] text-slate-600 mb-1">{item.point}</p>
+                                <div className="flex gap-1.5 flex-wrap items-center">
+                                  {photos.map((photo: string, pIdx: number) => (
+                                    <div key={pIdx} className="relative h-14 w-14 rounded border overflow-hidden group">
+                                      <img src={photo} alt="After" className="object-cover w-full h-full" />
+                                      <button
+                                        type="button"
+                                        onClick={(e) => { e.preventDefault(); removeEditAfterPhoto(itemId, pIdx); }}
+                                        className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity"
+                                      >
+                                        <X className="h-3 w-3 text-white" />
+                                      </button>
+                                    </div>
+                                  ))}
+                                  {photos.length < 2 && (
+                                    <>
+                                      <input
+                                        type="file"
+                                        accept="image/*"
+                                        id={`edit-after-${itemId}`}
+                                        className="hidden"
+                                        onChange={(e) => handleEditPhotoUpload(itemId, e)}
+                                      />
+                                      <label
+                                        htmlFor={`edit-after-${itemId}`}
+                                        className="flex items-center justify-center gap-1 h-14 w-14 border-2 border-dashed border-slate-300 rounded-lg text-slate-400 hover:border-primary hover:text-primary cursor-pointer transition-colors"
+                                      >
+                                        <Plus className="h-3 w-3" />
+                                      </label>
+                                    </>
+                                  )}
+                                </div>
+                              </div>
+                            ) : null;
+                          })}
+                        </div>
+                      </div>
+                    )}
+                    <div className="flex gap-2 justify-end mt-2">
+                      <Button variant="outline" size="sm" onClick={() => setEditingLogId(null)}>
+                        Cancel
+                      </Button>
+                      <Button size="sm" onClick={saveEditNotes} disabled={updateMutation.isPending}>
+                        {updateMutation.isPending ? "Saving..." : "Save"}
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  log.notes && (
+                    <p className="text-sm text-slate-600 mt-2">{log.notes}</p>
+                  )
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
     </>
   );
 }

@@ -16,6 +16,7 @@ import {
   insertWorkspaceSchema,
   insertCaptureSchema,
   insertHotspotSchema,
+  insertProgressLogSchema,
 } from "@shared/schema";
 import { pick } from "@shared/cleanData";
 import { DEFAULT_CHECKLIST_POINTS } from "./defaultChecklist";
@@ -578,6 +579,116 @@ export async function registerRoutes(
   app.delete("/api/reports/:id", requireWriteAccess, async (req, res) => {
     const user = req.user as any;
     const ok = await storage.deleteReport(
+      req.params.id as string,
+      user.workspaceId,
+    );
+    if (!ok) return res.status(404).json({ message: "Not found" });
+    res.json({ success: true });
+  });
+
+  // ── Progress Log Routes ──────────────────────────────────────────────────────
+
+  app.get(
+    "/api/reports/:reportId/progress-logs",
+    requireAuth,
+    async (req, res) => {
+      const user = req.user as any;
+      const items = await storage.getProgressLogsByReport(
+        req.params.reportId as string,
+        user.workspaceId,
+      );
+      res.json(items);
+    },
+  );
+
+  app.post(
+    "/api/reports/:reportId/progress-logs",
+    requireWriteAccess,
+    async (req, res) => {
+      const user = req.user as any;
+      const { afterPhotos, ...bodyRest } = req.body;
+
+      // Upload afterPhotos to GCP
+      let uploadedAfterPhotos: Record<string, string[]> | undefined;
+      if (afterPhotos && typeof afterPhotos === "object") {
+        uploadedAfterPhotos = {};
+        for (const [itemId, photos] of Object.entries(
+          afterPhotos as Record<string, string[]>,
+        )) {
+          if (Array.isArray(photos)) {
+            uploadedAfterPhotos[itemId] = await Promise.all(
+              photos.map(async (photo: string) => {
+                if (photo && !isGCPUrl(photo) && photo.startsWith("data:")) {
+                  try {
+                    const gcpUrl = await uploadImageToGCP(
+                      photo,
+                      `after-${itemId}-${Date.now()}.jpg`,
+                    );
+                    return gcpUrl || photo;
+                  } catch (err) {
+                    console.error("After photo upload error:", err);
+                    return photo;
+                  }
+                }
+                return photo;
+              }),
+            );
+          }
+        }
+      }
+
+      const item = await storage.createProgressLog({
+        ...bodyRest,
+        reportId: req.params.reportId as string,
+        workspaceId: user.workspaceId,
+        afterPhotos: uploadedAfterPhotos ?? afterPhotos ?? undefined,
+      });
+      res.status(201).json(item);
+    },
+  );
+
+  app.patch("/api/progress-logs/:id", requireWriteAccess, async (req, res) => {
+    const user = req.user as any;
+    let { id, createdAt, reportId, workspaceId, ...updates } = req.body;
+
+    if (updates.afterPhotos) {
+      for (const [itemId, photos] of Object.entries(
+        updates.afterPhotos as Record<string, string[]>,
+      )) {
+        if (Array.isArray(photos)) {
+          (updates.afterPhotos as any)[itemId] = await Promise.all(
+            photos.map(async (photo: string) => {
+              if (photo && !isGCPUrl(photo) && photo.startsWith("data:")) {
+                try {
+                  const gcpUrl = await uploadImageToGCP(
+                    photo,
+                    `after-${itemId}-${Date.now()}.jpg`,
+                  );
+                  return gcpUrl || photo;
+                } catch (err) {
+                  console.error("After photo upload error:", err);
+                  return photo;
+                }
+              }
+              return photo;
+            }),
+          );
+        }
+      }
+    }
+
+    const item = await storage.updateProgressLog(
+      req.params.id as string,
+      user.workspaceId,
+      updates,
+    );
+    if (!item) return res.status(404).json({ message: "Not found" });
+    res.json(item);
+  });
+
+  app.delete("/api/progress-logs/:id", requireWriteAccess, async (req, res) => {
+    const user = req.user as any;
+    const ok = await storage.deleteProgressLog(
       req.params.id as string,
       user.workspaceId,
     );

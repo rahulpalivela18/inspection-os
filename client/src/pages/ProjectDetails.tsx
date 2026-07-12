@@ -202,17 +202,19 @@ export default function ProjectDetails() {
     updateProjectMutation.mutate(editProjectData);
   };
 
-  const openEditReport = (report: any, e: React.MouseEvent) => {
+  const openEditReport = async (report: any, e: React.MouseEvent) => {
     e.stopPropagation();
+    // Fetch full report data (checklist, dimensions, issues are stripped from list API)
+    const fullReport = await api.getReport(report.id);
     setEditingReport({
-      ...report,
-      inspectionType: Array.isArray(report.inspectionType)
-        ? report.inspectionType
-        : [report.inspectionType || "Home Inspection"],
+      ...fullReport,
+      inspectionType: Array.isArray(fullReport.inspectionType)
+        ? fullReport.inspectionType
+        : [fullReport.inspectionType || "Home Inspection"],
     });
-    const reportType = Array.isArray(report.inspectionType)
-      ? report.inspectionType[0]
-      : report.inspectionType || "Home Inspection";
+    const reportType = Array.isArray(fullReport.inspectionType)
+      ? fullReport.inspectionType[0]
+      : fullReport.inspectionType || "Home Inspection";
     const typeTemplates = checklistTemplates.filter(
       (t: any) => t.checklistType === reportType,
     );
@@ -222,7 +224,7 @@ export default function ProjectDetails() {
 
     const counts: Record<string, number> = {};
     typeCategories.forEach((cat: any) => {
-      counts[cat] = getSpaceCount(report.spaceCounts ?? {}, cat);
+      counts[cat] = getSpaceCount(fullReport.spaceCounts ?? {}, cat);
     });
 
     setEditCategoryCounts(counts);

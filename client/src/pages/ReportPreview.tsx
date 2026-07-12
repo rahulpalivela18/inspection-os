@@ -1,4 +1,4 @@
-import type { Project, Report } from "@/lib/store";
+import type { Project, Report, ProgressLog, ChecklistItem } from "@/lib/store";
 import {
   buildDimensionsFromChecklist,
   DEFAULT_DIMENSION_UNIT,
@@ -17,12 +17,16 @@ interface ReportPreviewProps {
   report: Report;
   project: Project;
   companyProfile: CompanyProfile;
+  progressLogs?: ProgressLog[];
+  pdfMode?: "initial" | "progress" | "completion";
 }
 
 export default function ReportPreview({
   report,
   project,
   companyProfile,
+  progressLogs = [],
+  pdfMode = "initial",
 }: ReportPreviewProps) {
   const theme = {
     text: "text-indigo-600",
@@ -854,6 +858,282 @@ export default function ReportPreview({
             )}
           </PDFPage>
         ))}
+
+      {/* ─── Progress / Completion Pages ──────────────────────────────────── */}
+      {pdfMode !== "initial" && progressLogs.length > 0 && (() => {
+        const allResolvedIds = new Set(
+          progressLogs.flatMap((log) => log.resolvedChecklistItemIds ?? []),
+        );
+        const resolvedItems = failedChecklistItems.filter((c) => allResolvedIds.has(c.id));
+        const unresolvedItems = failedChecklistItems.filter((c) => !allResolvedIds.has(c.id));
+        const totalFailed = failedChecklistItems.length;
+        const resolvedCount = resolvedItems.length;
+        const progressPct = totalFailed > 0 ? Math.round((resolvedCount / totalFailed) * 100) : 0;
+
+        // Build after photos map: latest photos per resolved item
+        const afterPhotosMap: Record<string, string[]> = {};
+        for (const log of progressLogs) {
+          if (log.afterPhotos) {
+            for (const [itemId, photos] of Object.entries(log.afterPhotos)) {
+              if (Array.isArray(photos) && photos.length > 0) {
+                afterPhotosMap[itemId] = photos;
+              }
+            }
+          }
+        }
+
+        return (
+          <>
+            {/* ── Summary Page ───────────────────────────────────────────── */}
+            <PDFPage className="p-6 md:p-[15mm] flex flex-col">
+              <Watermark />
+              <PageLogo />
+              <div className="flex-1 mt-12 md:mt-0">
+                <div className="border-b-2 border-slate-900 pb-4 mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
+                  <h2 className="text-xl md:text-2xl font-black uppercase tracking-tight">
+                    {pdfMode === "completion" ? "Completion Summary" : "Progress Status"}
+                  </h2>
+                  <span className="text-slate-400 text-[10px] font-bold uppercase tracking-widest">
+                    {pdfMode === "completion" ? "Final Report" : `As of ${progressLogs[progressLogs.length - 1]?.date || "N/A"}`}
+                  </span>
+                </div>
+
+                {/* Stats */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+                  <div className={cn("rounded-2xl border p-4", theme.bg)}>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Total Items</p>
+                    <p className="mt-2 text-2xl font-black text-slate-900">{totalFailed}</p>
+                  </div>
+                  <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Resolved</p>
+                    <p className="mt-2 text-2xl font-black text-emerald-700">{resolvedCount}</p>
+                  </div>
+                  <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Remaining</p>
+                    <p className="mt-2 text-2xl font-black text-amber-700">{unresolvedItems.length}</p>
+                  </div>
+                </div>
+
+                {/* Progress Bar */}
+                <div className="mb-8">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-bold text-slate-700">Overall Progress</span>
+                    <span className="text-sm font-black text-indigo-600">{progressPct}%</span>
+                  </div>
+                  <div className="w-full bg-slate-100 rounded-full h-4">
+                    <div className="bg-indigo-600 h-4 rounded-full" style={{ width: `${progressPct}%` }} />
+                  </div>
+                </div>
+
+                {/* Resolved Items */}
+                {resolvedItems.length > 0 && (
+                  <div className="mb-8">
+                    <h3 className="text-sm font-black uppercase tracking-widest text-emerald-600 mb-3">
+                      Resolved Items ({resolvedItems.length})
+                    </h3>
+                    <div className="border border-emerald-200 rounded-xl overflow-hidden">
+                      <div className="divide-y divide-emerald-100">
+                        {resolvedItems.map((item) => (
+                          <div key={item.id} className="flex items-center gap-3 px-4 py-2.5 bg-emerald-50/50">
+                            <span className="text-emerald-600 text-xs">✓</span>
+                            <span className="text-sm font-medium text-slate-800 flex-1">{item.point}</span>
+                            <span className="text-[10px] text-slate-400">{spaceNameMap.get(item.category) || item.category}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Remaining Items */}
+                {unresolvedItems.length > 0 && (
+                  <div>
+                    <h3 className="text-sm font-black uppercase tracking-widest text-amber-600 mb-3">
+                      Remaining Items ({unresolvedItems.length})
+                    </h3>
+                    <div className="border border-amber-200 rounded-xl overflow-hidden">
+                      <div className="divide-y divide-amber-100">
+                        {unresolvedItems.map((item) => (
+                          <div key={item.id} className="flex items-center gap-3 px-4 py-2.5 bg-amber-50/50">
+                            <span className="text-amber-600 text-xs">○</span>
+                            <span className="text-sm font-medium text-slate-800 flex-1">{item.point}</span>
+                            {item.severity && (
+                              <span className={cn(
+                                "text-[10px] font-bold px-1.5 py-0.5 rounded",
+                                item.severity === "MAJOR" ? "bg-red-100 text-red-600" :
+                                item.severity === "MINOR" ? "bg-orange-100 text-orange-600" :
+                                "bg-blue-100 text-blue-600",
+                              )}>
+                                {item.severity}
+                              </span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </PDFPage>
+
+            {/* ── Individual Log Entry Pages ─────────────────────────────── */}
+            {progressLogs.map((log, logIdx) => {
+              const logResolvedItems = failedChecklistItems.filter(
+                (c) => log.resolvedChecklistItemIds?.includes(c.id),
+              );
+
+              return (
+                <PDFPage key={log.id} className="p-6 md:p-[15mm]">
+                  <Watermark />
+                  <PageLogo />
+
+                  {/* Header */}
+                  <div className="border-b-2 border-slate-900 pb-4 mb-6 flex justify-between items-start mt-12 md:mt-0">
+                    <div className="flex-1 pr-6">
+                      <p className="text-[9px] font-black uppercase tracking-[0.25em] text-slate-400">
+                        Progress Log &nbsp;·&nbsp; Entry {logIdx + 1} of {progressLogs.length}
+                      </p>
+                      <h2 className="text-2xl font-black tracking-tight text-slate-900 leading-tight mt-1">
+                        {log.author}'s Visit
+                      </h2>
+                    </div>
+                    <span className="rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-widest border-indigo-200 bg-indigo-50 text-indigo-700 shrink-0">
+                      {log.date}
+                    </span>
+                  </div>
+
+                  {/* Notes */}
+                  {log.notes && (
+                    <div className="mb-6 pb-5 border-b border-slate-100">
+                      <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">
+                        Visit Notes
+                      </h4>
+                      <p className="text-slate-700 leading-relaxed font-medium whitespace-pre-wrap">
+                        {log.notes}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Resolved Items with Before/After */}
+                  {logResolvedItems.length > 0 ? (
+                    <div className="space-y-6">
+                      {logResolvedItems.map((item) => {
+                        const itemAfterPhotos = log.afterPhotos?.[item.id] ?? [];
+                        return (
+                          <div key={item.id} className="border border-slate-200 rounded-xl overflow-hidden break-inside-avoid">
+                            {/* Item header */}
+                            <div className="bg-slate-50 px-4 py-2.5 border-b border-slate-200 flex items-center justify-between">
+                              <div>
+                                <span className="text-sm font-bold text-slate-800">{item.point}</span>
+                                <span className="text-[10px] text-slate-400 ml-2">
+                                  {spaceNameMap.get(item.category) || item.category} · {item.severity}
+                                </span>
+                              </div>
+                              <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                                ✓ RESOLVED
+                              </span>
+                            </div>
+
+                            {/* Before photo - full width, large */}
+                            <div>
+                              <div className="px-3 py-1.5 bg-slate-50 border-b border-slate-100">
+                                <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Before</span>
+                              </div>
+                              <div className="w-full bg-slate-50" style={{ height: "100mm" }}>
+                                {item.image ? (
+                                  <img src={item.image} alt="Before" className="w-full h-full object-contain" />
+                                ) : (
+                                  <div className="flex h-full items-center justify-center text-xs text-slate-400">
+                                    No before photo
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* After photos - full width, large */}
+                            <div>
+                              <div className="px-3 py-1.5 bg-emerald-50 border-b border-emerald-100">
+                                <span className="text-[9px] font-black uppercase tracking-widest text-emerald-500">
+                                  After {itemAfterPhotos.length > 1 && `(${itemAfterPhotos.length} photos)`}
+                                </span>
+                              </div>
+                              {itemAfterPhotos.length === 0 ? (
+                                <div className="w-full bg-emerald-50/30 flex items-center justify-center" style={{ height: "100mm" }}>
+                                  <span className="text-xs text-slate-400">No after photo</span>
+                                </div>
+                              ) : itemAfterPhotos.length === 1 ? (
+                                <div className="w-full bg-emerald-50/30" style={{ height: "100mm" }}>
+                                  <img src={itemAfterPhotos[0]} alt="After" className="w-full h-full object-contain" />
+                                </div>
+                              ) : (
+                                <div className="grid grid-cols-2 gap-0.5 bg-slate-100 p-0.5">
+                                  {itemAfterPhotos.map((photo, pIdx) => (
+                                    <div key={pIdx} className="bg-emerald-50/30" style={{ height: "80mm" }}>
+                                      <img src={photo} alt={`After ${pIdx + 1}`} className="w-full h-full object-contain" />
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5 text-sm font-medium text-slate-500">
+                      No items resolved during this visit.
+                    </div>
+                  )}
+                </PDFPage>
+              );
+            })}
+
+            {/* ── Sign-off Page — Completion mode only ──────────────────── */}
+            {pdfMode === "completion" && (
+              <PDFPage className="p-6 md:p-[15mm] flex flex-col">
+                <Watermark />
+                <PageLogo />
+                <div className="flex-1 flex flex-col justify-center mt-12 md:mt-0">
+                  <div className="text-center mb-12">
+                    <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-emerald-100 mb-6">
+                      <span className="text-4xl text-emerald-600">✓</span>
+                    </div>
+                    <h2 className="text-3xl font-black text-slate-900 mb-2">
+                      {unresolvedItems.length === 0 ? "All Items Resolved" : "Report Complete"}
+                    </h2>
+                    <p className="text-slate-500 text-lg">
+                      {unresolvedItems.length === 0
+                        ? "All identified issues have been addressed and verified."
+                        : `${resolvedCount} of ${totalFailed} items resolved. ${unresolvedItems.length} items remaining.`}
+                    </p>
+                  </div>
+
+                  <div className="border-t-2 border-slate-900 pt-8 mt-auto">
+                    <div className="grid grid-cols-2 gap-8">
+                      <div>
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">
+                          Inspector Signature
+                        </p>
+                        <div className="border-b border-slate-300 mb-2 pb-8" />
+                        <p className="text-sm font-bold text-slate-700">{report.author}</p>
+                        <p className="text-xs text-slate-400">{report.date}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">
+                          Client Acknowledgment
+                        </p>
+                        <div className="border-b border-slate-300 mb-2 pb-8" />
+                        <p className="text-sm font-bold text-slate-700">{project.clientName}</p>
+                        <p className="text-xs text-slate-400">Date: _______________</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </PDFPage>
+            )}
+          </>
+        );
+      })()}
 
       {/* Footer */}
       <div className="border-t border-slate-100 bg-white p-6 text-center md:p-[15mm]">

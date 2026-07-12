@@ -162,4 +162,20 @@ export const api = {
     }),
   deleteHotspot: (id: string) =>
     request(`/api/hotspots/${id}`, { method: "DELETE" }),
+
+  // Progress Logs
+  getProgressLogs: (reportId: string) =>
+    request<any[]>(`/api/reports/${reportId}/progress-logs`),
+  createProgressLog: (reportId: string, data: any) =>
+    request<any>(`/api/reports/${reportId}/progress-logs`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  updateProgressLog: (id: string, data: any) =>
+    request<any>(`/api/progress-logs/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
+  deleteProgressLog: (id: string) =>
+    request(`/api/progress-logs/${id}`, { method: "DELETE" }),
 };

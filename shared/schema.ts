@@ -166,6 +166,34 @@ export const insertInvoiceSchema = createInsertSchema(invoices).omit({
 export type InsertInvoice = z.infer<typeof insertInvoiceSchema>;
 export type Invoice = typeof invoices.$inferSelect;
 
+// ─── Progress Logs (Track work done on a report over time) ───────────────────
+export const progressLogs = pgTable("progress_logs", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  reportId: varchar("report_id")
+    .notNull()
+    .references(() => reports.id, { onDelete: "cascade" }),
+  workspaceId: varchar("workspace_id")
+    .notNull()
+    .references(() => workspaces.id, { onDelete: "cascade" }),
+  author: text("author").notNull(),
+  date: text("date").notNull(),
+  notes: text("notes"),
+  resolvedChecklistItemIds: jsonb("resolved_checklist_item_ids"),
+  afterPhotos: jsonb("after_photos"),
+  resolvedIssuePhotos: jsonb("resolved_issue_photos"),
+  newFindings: jsonb("new_findings"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertProgressLogSchema = createInsertSchema(progressLogs).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertProgressLog = z.infer<typeof insertProgressLogSchema>;
+export type ProgressLog = typeof progressLogs.$inferSelect;
+
 // ─── Auth schemas (used in routes) ───────────────────────────────────────────
 export const loginSchema = z.object({
   email: z.string().email(),
