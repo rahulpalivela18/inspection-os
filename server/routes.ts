@@ -45,6 +45,14 @@ function requireSuperAdmin(req: Request, res: Response, next: NextFunction) {
     return res.status(403).json({ message: "Forbidden" });
   next();
 }
+function requireWriteAccess(req: Request, res: Response, next: NextFunction) {
+  const user = req.user as any;
+  if (!req.isAuthenticated())
+    return res.status(401).json({ message: "Unauthorized" });
+  if (user?.role === "viewer")
+    return res.status(403).json({ message: "Viewers cannot modify data." });
+  next();
+}
 
 export async function registerRoutes(
   httpServer: Server,
@@ -209,6 +217,12 @@ export async function registerRoutes(
     res.json(members.map(({ password: _, ...m }) => m));
   });
 
+  const PLAN_INSPECTOR_LIMITS: Record<string, number> = {
+    starter: 2,
+    pro: 9,
+    enterprise: Infinity,
+  };
+
   app.post("/api/team", requireAdmin, async (req, res) => {
     const admin = req.user as any;
     const { name, email, password, role } = req.body;
@@ -228,13 +242,30 @@ export async function registerRoutes(
       return res
         .status(409)
         .json({ message: "A user with this email already exists." });
+
+    const targetRole = role || "inspector";
+    if (targetRole === "inspector") {
+      const workspace = await storage.getWorkspace(admin.workspaceId);
+      if (!workspace)
+        return res.status(404).json({ message: "Workspace not found." });
+      const limit = PLAN_INSPECTOR_LIMITS[workspace.plan] ?? 2;
+      const allMembers = await storage.getUsersByWorkspace(admin.workspaceId);
+      const currentCount = allMembers.filter(
+        (m) => m.role === "inspector",
+      ).length;
+      if (currentCount >= limit)
+        return res.status(403).json({
+          message: `Your ${workspace.plan} plan allows up to ${limit === Infinity ? "unlimited" : limit} inspector${limit === 1 ? "" : "s"}. You already have ${currentCount}.`,
+        });
+    }
+
     const hashed = await bcrypt.hash(password, 10);
     const member = await storage.createUser({
       name,
       email,
       password: hashed,
       workspaceId: admin.workspaceId,
-      role: role || "inspector",
+      role: targetRole,
     });
     const { password: _, ...safe } = member;
     res.status(201).json(safe);
@@ -339,7 +370,7 @@ export async function registerRoutes(
     res.json(items);
   });
 
-  app.post("/api/checklist-templates", requireAdmin, async (req, res) => {
+  app.post("/api/checklist-templates", requireWriteAccess, async (req, res) => {
     const user = req.user as any;
     const parsed = insertChecklistTemplateSchema.safeParse({
       ...req.body,
@@ -351,26 +382,34 @@ export async function registerRoutes(
     res.status(201).json(item);
   });
 
-  app.patch("/api/checklist-templates/:id", requireAdmin, async (req, res) => {
-    const user = req.user as any;
-    const item = await storage.updateChecklistTemplate(
-      req.params.id as string,
-      user.workspaceId,
-      req.body,
-    );
-    if (!item) return res.status(404).json({ message: "Not found" });
-    res.json(item);
-  });
+  app.patch(
+    "/api/checklist-templates/:id",
+    requireWriteAccess,
+    async (req, res) => {
+      const user = req.user as any;
+      const item = await storage.updateChecklistTemplate(
+        req.params.id as string,
+        user.workspaceId,
+        req.body,
+      );
+      if (!item) return res.status(404).json({ message: "Not found" });
+      res.json(item);
+    },
+  );
 
-  app.delete("/api/checklist-templates/:id", requireAdmin, async (req, res) => {
-    const user = req.user as any;
-    const ok = await storage.deleteChecklistTemplate(
-      req.params.id as string,
-      user.workspaceId,
-    );
-    if (!ok) return res.status(404).json({ message: "Not found" });
-    res.json({ success: true });
-  });
+  app.delete(
+    "/api/checklist-templates/:id",
+    requireWriteAccess,
+    async (req, res) => {
+      const user = req.user as any;
+      const ok = await storage.deleteChecklistTemplate(
+        req.params.id as string,
+        user.workspaceId,
+      );
+      if (!ok) return res.status(404).json({ message: "Not found" });
+      res.json({ success: true });
+    },
+  );
 
   // ── Project Routes ────────────────────────────────────────────────────────────
 
@@ -380,7 +419,7 @@ export async function registerRoutes(
     res.json(items);
   });
 
-  app.post("/api/projects", requireAuth, async (req, res) => {
+  app.post("/api/projects", requireWriteAccess, async (req, res) => {
     const user = req.user as any;
     const parsed = insertProjectSchema.safeParse({
       ...req.body,
@@ -402,7 +441,7 @@ export async function registerRoutes(
     res.json(item);
   });
 
-  app.patch("/api/projects/:id", requireAuth, async (req, res) => {
+  app.patch("/api/projects/:id", requireWriteAccess, async (req, res) => {
     const user = req.user as any;
     const { id, createdAt, workspaceId, ...updates } = req.body;
     const item = await storage.updateProject(
@@ -414,7 +453,7 @@ export async function registerRoutes(
     res.json(item);
   });
 
-  app.delete("/api/projects/:id", requireAuth, async (req, res) => {
+  app.delete("/api/projects/:id", requireWriteAccess, async (req, res) => {
     const user = req.user as any;
     const ok = await storage.deleteProject(
       req.params.id as string,
@@ -440,7 +479,7 @@ export async function registerRoutes(
 
   app.post(
     "/api/projects/:projectId/reports",
-    requireAuth,
+    requireWriteAccess,
     async (req, res) => {
       const user = req.user as any;
       const parsed = insertReportSchema.safeParse({
@@ -467,7 +506,7 @@ export async function registerRoutes(
     res.json(item);
   });
 
-  app.patch("/api/reports/:id", requireAuth, async (req, res) => {
+  app.patch("/api/reports/:id", requireWriteAccess, async (req, res) => {
     const user = req.user as any;
     // Strip read-only / auto-generated fields before passing to Drizzle
     let { id, createdAt, workspaceId, projectId, ...updates } = req.body;
@@ -536,7 +575,7 @@ export async function registerRoutes(
     res.json(item);
   });
 
-  app.delete("/api/reports/:id", requireAuth, async (req, res) => {
+  app.delete("/api/reports/:id", requireWriteAccess, async (req, res) => {
     const user = req.user as any;
     const ok = await storage.deleteReport(
       req.params.id as string,
@@ -563,7 +602,7 @@ export async function registerRoutes(
 
   app.post(
     "/api/projects/:projectId/captures",
-    requireAuth,
+    requireWriteAccess,
     async (req, res) => {
       const user = req.user as any;
       const parsed = insertCaptureSchema.safeParse({
@@ -607,7 +646,7 @@ export async function registerRoutes(
     res.json(item);
   });
 
-  app.patch("/api/captures/:id", requireAuth, async (req, res) => {
+  app.patch("/api/captures/:id", requireWriteAccess, async (req, res) => {
     const user = req.user as any;
     let { id, createdAt, workspaceId, projectId, ...updates } = req.body;
 
@@ -636,7 +675,7 @@ export async function registerRoutes(
     res.json(item);
   });
 
-  app.delete("/api/captures/:id", requireAuth, async (req, res) => {
+  app.delete("/api/captures/:id", requireWriteAccess, async (req, res) => {
     const user = req.user as any;
     const ok = await spatialStorage.deleteCapture(
       req.params.id as string,
@@ -663,7 +702,7 @@ export async function registerRoutes(
 
   app.post(
     "/api/captures/:captureId/hotspots",
-    requireAuth,
+    requireWriteAccess,
     async (req, res) => {
       const user = req.user as any;
       const parsed = insertHotspotSchema.safeParse({
@@ -697,7 +736,7 @@ export async function registerRoutes(
     },
   );
 
-  app.patch("/api/hotspots/:id", requireAuth, async (req, res) => {
+  app.patch("/api/hotspots/:id", requireWriteAccess, async (req, res) => {
     const user = req.user as any;
     let { id, createdAt, workspaceId, captureId, ...updates } = req.body;
 
@@ -726,7 +765,7 @@ export async function registerRoutes(
     res.json(item);
   });
 
-  app.delete("/api/hotspots/:id", requireAuth, async (req, res) => {
+  app.delete("/api/hotspots/:id", requireWriteAccess, async (req, res) => {
     const user = req.user as any;
     const ok = await spatialStorage.deleteHotspot(
       req.params.id as string,

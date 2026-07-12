@@ -24,8 +24,12 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const navigation = [
     { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
     { name: "Projects", href: "/dashboard", icon: FolderOpen },
-    { name: "Billing", href: "/billing", icon: Receipt },
-    { name: "Settings", href: "/settings", icon: Settings },
+    ...(user?.role !== "viewer"
+      ? [{ name: "Settings", href: "/settings", icon: Settings }]
+      : []),
+    ...(user?.role !== "viewer"
+      ? [{ name: "Billing", href: "/billing", icon: Receipt }]
+      : []),
     ...(user?.role === "super_admin"
       ? [{ name: "Admin", href: "/admin", icon: Shield }]
       : []),

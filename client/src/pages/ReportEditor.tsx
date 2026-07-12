@@ -82,7 +82,8 @@ export default function ReportEditor() {
     queryFn: () => api.getTeam(),
   });
   const queryClient = useQueryClient();
-  const { workspace } = useAuth();
+  const { user, workspace } = useAuth();
+  const isViewer = user?.role === "viewer";
   const [viewMode, setViewMode] = useState<
     "checklist" | "dimensions" | "issues" | "preview"
   >("checklist");
@@ -381,6 +382,11 @@ export default function ReportEditor() {
 
   return (
     <Layout>
+      {isViewer && (
+        <div className="bg-amber-50 border-b border-amber-200 px-4 md:px-6 py-2 text-xs text-amber-800 font-medium text-center shrink-0">
+          You are viewing this report in read-only mode.
+        </div>
+      )}
       <div className="flex h-screen flex-col bg-background">
         {/* Header Toolbar */}
         <div className="border-b border-border bg-white px-4 md:px-6 py-3 flex flex-col lg:flex-row items-start lg:items-center justify-between shrink-0 gap-4 z-10">
@@ -439,20 +445,12 @@ export default function ReportEditor() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setIsSyncConfirmOpen(true)}
-              className="h-9 md:h-10 text-xs md:text-sm px-3 md:px-4"
-            >
-              <RefreshCw className="mr-2 h-3.5 w-3.5 md:h-4 md:w-4" /> Sync
-            </Button>
-
-            <Button
-              variant="outline"
-              size="sm"
               onClick={() => handlePrint()}
               className="h-9 md:h-10 text-xs md:text-sm px-3 md:px-4"
             >
               <Printer className="mr-2 h-3.5 w-3.5 md:h-4 md:w-4" /> Export PDF
             </Button>
+            {!isViewer && (
             <Button
               size="sm"
               onClick={openNewIssueSheet}
@@ -461,6 +459,7 @@ export default function ReportEditor() {
             >
               <Plus className="mr-2 h-3.5 w-3.5 md:h-4 md:w-4" /> Add Issue
             </Button>
+            )}
           </div>
         </div>
 
@@ -502,12 +501,14 @@ export default function ReportEditor() {
                     formatArea={formatArea}
                     updateDimensionField={updateDimensionField}
                     updateDefaultUnit={updateDefaultUnit}
+                    readOnly={isViewer}
                   />
                 ) : viewMode === "issues" ? (
                   <IssuesView
                     report={report}
                     openEditIssueSheet={openEditIssueSheet}
                     saveReport={saveReport}
+                    readOnly={isViewer}
                   />
                 ) : (
                   <ChecklistView
@@ -515,6 +516,7 @@ export default function ReportEditor() {
                     categories={categories}
                     spaceNameMap={spaceNameMap}
                     updateChecklistItem={updateChecklistItem}
+                    readOnly={isViewer}
                   />
                 )}
               </div>
@@ -724,11 +726,13 @@ function ChecklistView({
   categories,
   spaceNameMap,
   updateChecklistItem,
+  readOnly = false,
 }: {
   report: any;
   categories: string[];
   spaceNameMap: Map<string, string>;
   updateChecklistItem: (id: string, updates: Partial<ChecklistItem>) => void;
+  readOnly?: boolean;
 }) {
   const [expandedCategories, setExpandedCategories] = useState<
     Record<string, boolean>
@@ -847,6 +851,7 @@ function ChecklistView({
                       item={item}
                       index={checklist.indexOf(item)}
                       update={updateChecklistItem}
+                      readOnly={readOnly}
                     />
                   ))}
               </div>
@@ -862,20 +867,24 @@ function ChecklistItemRow({
   item,
   index,
   update,
+  readOnly = false,
 }: {
   item: ChecklistItem;
   index: number;
   update: (id: string, updates: Partial<ChecklistItem>) => void;
+  readOnly?: boolean;
 }) {
   const [isReadingFile, setIsReadingFile] = useState(false);
 
   const handleYes = () => {
+    if (readOnly) return;
     if (item.status === "Y")
       update(item.id, { status: null, severity: null, image: undefined });
     else update(item.id, { status: "Y", severity: null, image: undefined });
   };
 
   const handleNo = () => {
+    if (readOnly) return;
     if (item.status === "N")
       update(item.id, { status: null, severity: null, image: undefined });
     else update(item.id, { status: "N" });
@@ -961,9 +970,11 @@ function ChecklistItemRow({
             <select
               className="text-xs border rounded-md px-2 py-1.5 bg-white text-slate-700 w-full sm:w-[110px]"
               value={item.severity || "invalid"}
-              onChange={(e) =>
-                update(item.id, { severity: (e.target.value || null) as any })
-              }
+              onChange={(e) => {
+                if (readOnly) return;
+                update(item.id, { severity: (e.target.value || null) as any });
+              }}
+              disabled={readOnly}
               data-testid={`select-severity-${item.id}`}
             >
               <option value="invalid" disabled>
@@ -995,6 +1006,7 @@ function ChecklistItemRow({
                   >
                     <Download className="h-4 w-4 text-white" />
                   </button>
+                  {!readOnly && (
                   <button
                     type="button"
                     className="p-1 cursor-pointer"
@@ -1002,9 +1014,10 @@ function ChecklistItemRow({
                   >
                     <X className="h-4 w-4 text-white" />
                   </button>
+                  )}
                 </div>
               </div>
-            ) : (
+            ) : !readOnly ? (
               <>
                 <input
                   type="file"
@@ -1030,7 +1043,7 @@ function ChecklistItemRow({
                   {isReadingFile ? "Reading..." : "Add Photo"}
                 </label>
               </>
-            )}
+            ) : null}
           </div>
         )}
       </div>
@@ -1049,6 +1062,7 @@ function DimensionsView({
   formatArea,
   updateDimensionField,
   updateDefaultUnit,
+  readOnly = false,
 }: any) {
   return (
     <>
@@ -1071,6 +1085,7 @@ function DimensionsView({
             <Select
               value={dimensionUnit}
               onValueChange={(value: "ft" | "m") => updateDefaultUnit(value)}
+              disabled={readOnly}
             >
               <SelectTrigger
                 id="report-default-unit"
@@ -1175,6 +1190,7 @@ function DimensionsView({
                         className="flex-1 text-xl font-semibold text-slate-900 bg-transparent outline-none"
                         defaultValue={dimension.spaceName ?? dimension.space}
                         onBlur={(e) => {
+                          if (readOnly) return;
                           const val = e.target.value.trim();
                           if (!val) {
                             e.target.value = dimension.space;
@@ -1191,6 +1207,7 @@ function DimensionsView({
                             );
                           }
                         }}
+                        readOnly={readOnly}
                         data-testid={`text-dimension-space-${dimension.id}`}
                       />
                       <svg
@@ -1221,13 +1238,15 @@ function DimensionsView({
                         dimension.unit === "ft" ? "e.g. 12.5" : "e.g. 3.8"
                       }
                       defaultValue={dimension.length}
-                      onBlur={(e) =>
+                      onBlur={(e) => {
+                        if (readOnly) return;
                         updateDimensionField(
                           dimension.id,
                           "length",
                           e.target.value,
-                        )
-                      }
+                        );
+                      }}
+                      disabled={readOnly}
                       data-testid={`input-dimension-length-${dimension.id}`}
                     />
                   </div>
@@ -1239,13 +1258,15 @@ function DimensionsView({
                         dimension.unit === "ft" ? "e.g. 10" : "e.g. 3.2"
                       }
                       defaultValue={dimension.width}
-                      onBlur={(e) =>
+                      onBlur={(e) => {
+                        if (readOnly) return;
                         updateDimensionField(
                           dimension.id,
                           "width",
                           e.target.value,
-                        )
-                      }
+                        );
+                      }}
+                      disabled={readOnly}
                       data-testid={`input-dimension-width-${dimension.id}`}
                     />
                   </div>
@@ -1258,13 +1279,15 @@ function DimensionsView({
                       placeholder="Optional notes about this measurement"
                       className="min-h-22"
                       defaultValue={dimension.notes || ""}
-                      onBlur={(e) =>
+                      onBlur={(e) => {
+                        if (readOnly) return;
                         updateDimensionField(
                           dimension.id,
                           "notes",
                           e.target.value,
-                        )
-                      }
+                        );
+                      }}
+                      disabled={readOnly}
                       data-testid={`input-dimension-notes-${dimension.id}`}
                     />
                   </div>

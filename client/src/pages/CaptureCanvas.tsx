@@ -151,7 +151,7 @@ export default function CaptureCanvas() {
   const [draft, setDraft] = useState<PinDraft>(emptyDraft());
   const [deletePinId, setDeletePinId] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
-  const { workspace } = useAuth();
+  const { user, workspace } = useAuth();
 
   // ── Queries ─────────────────────────────────────────────────────────────────
   const { data: capture, isLoading: loadingPlan } = useQuery({
@@ -509,7 +509,7 @@ export default function CaptureCanvas() {
             <span className="text-xs text-slate-400">
               {hotspots.length} hotspot{hotspots.length !== 1 ? "s" : ""}
             </span>
-            {is360 ? (
+            {is360 && user?.role !== "viewer" ? (
               <Button
                 variant={adding360 ? "default" : "outline"}
                 size="sm"
@@ -638,22 +638,26 @@ export default function CaptureCanvas() {
                   </span>
                 </div>
                 <div className="flex items-center gap-0.5 shrink-0">
-                  <button
-                    type="button"
-                    className="p-1.5 rounded-lg hover:bg-slate-100 transition-colors"
-                    title="Edit"
-                    onClick={() => openEditForPin(viewingPin)}
-                  >
-                    <Edit2 className="h-3.5 w-3.5 text-slate-500" />
-                  </button>
-                  <button
-                    type="button"
-                    className="p-1.5 rounded-lg hover:bg-red-50 transition-colors"
-                    title="Delete"
-                    onClick={() => setDeletePinId(viewingPin.id)}
-                  >
-                    <Trash2 className="h-3.5 w-3.5 text-red-400" />
-                  </button>
+                  {user?.role !== "viewer" && (
+                    <button
+                      type="button"
+                      className="p-1.5 rounded-lg hover:bg-slate-100 transition-colors"
+                      title="Edit"
+                      onClick={() => openEditForPin(viewingPin)}
+                    >
+                      <Edit2 className="h-3.5 w-3.5 text-slate-500" />
+                    </button>
+                  )}
+                  {user?.role !== "viewer" && (
+                    <button
+                      type="button"
+                      className="p-1.5 rounded-lg hover:bg-red-50 transition-colors"
+                      title="Delete"
+                      onClick={() => setDeletePinId(viewingPin.id)}
+                    >
+                      <Trash2 className="h-3.5 w-3.5 text-red-400" />
+                    </button>
+                  )}
                   <button
                     type="button"
                     className="p-1.5 rounded-lg hover:bg-slate-100 transition-colors"

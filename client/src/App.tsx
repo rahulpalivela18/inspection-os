@@ -92,10 +92,10 @@ function Router() {
         <ProtectedRoute component={ProjectDetails} />
       </Route>
       <Route path="/project/:id/captures">
-        <CaptureManager />
+        <ProtectedRoute component={CaptureManager} />
       </Route>
       <Route path="/project/:projectId/captures/:captureId">
-        <CaptureCanvas />
+        <ProtectedRoute component={CaptureCanvas} />
       </Route>
       <Route path="/project/:projectId/floor-plans/:floorPlanId">
         <ProtectedRoute component={CaptureCanvas} />

@@ -47,6 +47,10 @@ import {
 import { Badge } from "@/components/ui/badge";
 
 const ROLE_LABELS: Record<string, { label: string; color: string }> = {
+  super_admin: {
+    label: "Super Admin",
+    color: "bg-purple-100 text-purple-700 border-purple-200",
+  },
   admin: { label: "Admin", color: "bg-red-100 text-red-700 border-red-200" },
   inspector: {
     label: "Inspector",
@@ -126,6 +130,7 @@ export default function Settings() {
   const { data: team = [] } = useQuery({
     queryKey: ["team"],
     queryFn: api.getTeam,
+    enabled: isAdmin,
   });
 
   const addMemberMutation = useMutation({
@@ -318,7 +323,8 @@ export default function Settings() {
           </CardContent>
         </Card>
 
-        {/* Team Members */}
+        {/* Team Members — only visible to admin / super_admin */}
+        {isAdmin && (
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
@@ -556,6 +562,7 @@ export default function Settings() {
             </div>
           </CardContent>
         </Card>
+        )}
       </div>
     </Layout>
   );
