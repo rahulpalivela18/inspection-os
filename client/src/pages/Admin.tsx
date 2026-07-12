@@ -98,9 +98,12 @@ export default function Admin() {
     if (!selectedWs || editStatus !== "active") return;
     setPdfLoading(true);
     try {
-      const existing = adminInvoices.find(
-        (i: any) => i.workspaceId === selectedWs.id && i.plan === editPlan
-      );
+      const now = new Date();
+      const existing = adminInvoices.find((i: any) => {
+        if (i.workspaceId !== selectedWs.id || i.plan !== editPlan) return false;
+        const d = new Date(i.createdAt);
+        return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+      });
       let receiptNumber: string;
       if (existing) {
         receiptNumber = existing.receiptNumber;
