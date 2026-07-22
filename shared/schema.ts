@@ -194,6 +194,29 @@ export const insertProgressLogSchema = createInsertSchema(progressLogs).omit({
 export type InsertProgressLog = z.infer<typeof insertProgressLogSchema>;
 export type ProgressLog = typeof progressLogs.$inferSelect;
 
+// ─── Share Links ─────────────────────────────────────────────────────────────
+export const shareLinks = pgTable("share_links", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  projectId: varchar("project_id")
+    .notNull()
+    .references(() => projects.id, { onDelete: "cascade" }),
+  workspaceId: varchar("workspace_id")
+    .notNull()
+    .references(() => workspaces.id, { onDelete: "cascade" }),
+  token: varchar("token").notNull().unique(),
+  expiresAt: timestamp("expires_at").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertShareLinkSchema = createInsertSchema(shareLinks).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertShareLink = z.infer<typeof insertShareLinkSchema>;
+export type ShareLink = typeof shareLinks.$inferSelect;
+
 // ─── Auth schemas (used in routes) ───────────────────────────────────────────
 export const loginSchema = z.object({
   email: z.string().email(),
@@ -256,6 +279,7 @@ export const hotspots = spatial.table("hotspots", {
   issueStatus: text("issue_status"),
   issueSeverity: text("issue_severity"),
   notes: text("notes"),
+  resolvedPhoto: text("resolved_photo"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

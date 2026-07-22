@@ -18,6 +18,7 @@ import Login from "@/pages/Login";
 import Register from "@/pages/Register";
 import Contact from "@/pages/Contact";
 import NotFound from "@/pages/not-found";
+import SharedPortal from "@/pages/SharedPortal";
 import { Loader2 } from "lucide-react";
 
 function ProtectedRoute({
@@ -103,6 +104,7 @@ function Router() {
       <Route path="/report/:id">
         <ProtectedRoute component={ReportEditor} />
       </Route>
+      <Route path="/shared/:token" component={SharedPortal} />
       <Route component={NotFound} />
     </Switch>
   );

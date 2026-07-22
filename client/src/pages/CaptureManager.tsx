@@ -152,7 +152,9 @@ export default function CaptureManager() {
               severity: p.issueSeverity,
               status: p.issueStatus,
               notes: p.notes,
-              hasPhoto: !!p.panoUrl,
+              hasPhoto: !!p.panoUrl || !!p.resolvedPhoto,
+              panoUrl: p.panoUrl,
+              resolvedPhoto: p.resolvedPhoto,
             })),
           };
         }),

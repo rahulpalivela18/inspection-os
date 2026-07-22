@@ -178,4 +178,16 @@ export const api = {
     }),
   deleteProgressLog: (id: string) =>
     request(`/api/progress-logs/${id}`, { method: "DELETE" }),
+
+  // Share Links
+  getShareLinks: (projectId: string) =>
+    request<any[]>(`/api/projects/${projectId}/share-links`),
+  createShareLink: (projectId: string, expiresInDays?: number) =>
+    request<any>(`/api/projects/${projectId}/share-links`, {
+      method: "POST",
+      body: JSON.stringify({ expiresInDays }),
+    }),
+  deleteShareLink: (id: string) =>
+    request(`/api/share-links/${id}`, { method: "DELETE" }),
+  getSharedProject: (token: string) => request<any>(`/api/shared/${token}`),
 };

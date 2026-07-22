@@ -54,12 +54,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       queryClient.clear();
       setUser(null);
       setWorkspace(null);
-      if (!["/", "/login", "/register", "/contact"].includes(window.location.pathname)) {
+      if (!["/", "/login", "/register", "/contact"].includes(window.location.pathname) && !window.location.pathname.startsWith("/shared/")) {
         window.location.href = "/";
       }
     };
     setOnUnauthorized(onUnauth);
     setQueryOnUnauthorized(onUnauth);
+
+    if (window.location.pathname.startsWith("/shared/")) {
+      setIsLoading(false);
+      return;
+    }
 
     api
       .me()

@@ -50,6 +50,9 @@ import {
   Settings,
   Trash2,
   Map,
+  Share2,
+  Copy,
+  Check,
 } from "lucide-react";
 import { Link, useRoute, useLocation } from "wouter";
 import { format } from "date-fns";
@@ -85,6 +88,8 @@ export default function ProjectDetails() {
   const [editingReport, setEditingReport] = useState<any>(null);
   const [reportToDelete, setReportToDelete] = useState<any>(null);
   const [editProjectData, setEditProjectData] = useState<any>(null);
+  const [isShareOpen, setIsShareOpen] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
 
   const [newReport, setNewReport] = useState({
     title: "",
@@ -117,6 +122,26 @@ export default function ProjectDetails() {
     queryKey: ["reports", params?.id],
     queryFn: () => api.getReports(params!.id),
     enabled: !!params?.id,
+  });
+
+  const { data: shareLinks = [] } = useQuery({
+    queryKey: ["share-links", params?.id],
+    queryFn: () => api.getShareLinks(params!.id),
+    enabled: !!params?.id && isShareOpen,
+  });
+
+  const createShareLinkMutation = useMutation({
+    mutationFn: () => api.createShareLink(params!.id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["share-links", params?.id] });
+    },
+  });
+
+  const deleteShareLinkMutation = useMutation({
+    mutationFn: (id: string) => api.deleteShareLink(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["share-links", params?.id] });
+    },
   });
 
   const updateProjectMutation = useMutation({
@@ -351,22 +376,33 @@ export default function ProjectDetails() {
                   <span className="shrink-0">{project.address}</span>
                 </div>
                 {user?.role !== "viewer" && (
-                <Button
-                  variant="link"
-                  size="sm"
-                  className="p-0 h-auto mt-4 text-primary font-semibold hover:no-underline flex items-center gap-1"
-                  onClick={() => {
-                    setEditProjectData({
-                      title: project.title,
-                      clientName: project.clientName,
-                      address: project.address,
-                      description: project.description,
-                    });
-                    setIsEditProjectOpen(true);
-                  }}
-                >
-                  <Settings className="w-3.5 h-3.5" /> Edit Project Details
-                </Button>
+                <div className="flex items-center gap-2 mt-4">
+                  <Button
+                    variant="link"
+                    size="sm"
+                    className="p-0 h-auto text-primary font-semibold hover:no-underline flex items-center gap-1"
+                    onClick={() => {
+                      setEditProjectData({
+                        title: project.title,
+                        clientName: project.clientName,
+                        address: project.address,
+                        description: project.description,
+                      });
+                      setIsEditProjectOpen(true);
+                    }}
+                  >
+                    <Settings className="w-3.5 h-3.5" /> Edit Project Details
+                  </Button>
+                  <span className="text-slate-300">|</span>
+                  <Button
+                    variant="link"
+                    size="sm"
+                    className="p-0 h-auto text-slate-500 hover:text-primary font-semibold hover:no-underline flex items-center gap-1"
+                    onClick={() => setIsShareOpen(true)}
+                  >
+                    <Share2 className="w-3.5 h-3.5" /> Share
+                  </Button>
+                </div>
                 )}
               </div>
               <div className="flex flex-col gap-3 shrink-0">
@@ -975,6 +1011,75 @@ export default function ProjectDetails() {
                 {deleteReportMutation.isPending ? "Deleting..." : "Delete"}
               </Button>
             </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Share Dialog */}
+        <Dialog open={isShareOpen} onOpenChange={setIsShareOpen}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle>Share Project</DialogTitle>
+              <DialogDescription>
+                Create shareable links for clients to view this project. Links expire after 6 months.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-2 py-2">
+              {shareLinks.length === 0 && (
+                <p className="text-sm text-slate-400 text-center py-4">No share links yet. Generate one below.</p>
+              )}
+              {shareLinks.map((link: any) => {
+                const url = `${window.location.origin}/shared/${link.token}`;
+                const isExpired = new Date(link.expiresAt) < new Date();
+                return (
+                  <div key={link.id} className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg border border-slate-100">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-mono text-slate-700 truncate">{url}</p>
+                      <p className="text-[11px] text-slate-400 mt-1">
+                        {isExpired ? (
+                          <span className="text-red-500">Expired</span>
+                        ) : (
+                          `Expires ${new Date(link.expiresAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`
+                        )}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 w-8 p-0"
+                        title="Copy link"
+                        onClick={() => {
+                          navigator.clipboard.writeText(url);
+                          setCopiedLink(true);
+                          setTimeout(() => setCopiedLink(false), 2000);
+                        }}
+                      >
+                        {copiedLink ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 w-8 p-0 text-red-400 hover:text-red-600"
+                        title="Revoke link"
+                        onClick={() => deleteShareLinkMutation.mutate(link.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="border-t pt-4">
+              <Button
+                className="w-full"
+                onClick={() => createShareLinkMutation.mutate()}
+                disabled={createShareLinkMutation.isPending}
+              >
+                <Share2 className="mr-2 h-4 w-4" />
+                {createShareLinkMutation.isPending ? "Creating..." : "Generate New Link"}
+              </Button>
+            </div>
           </DialogContent>
         </Dialog>
       </div>

@@ -842,6 +842,22 @@ export async function registerRoutes(
         }
       }
 
+      if (
+        parsed.data.resolvedPhoto &&
+        !isGCPUrl(parsed.data.resolvedPhoto) &&
+        parsed.data.resolvedPhoto.startsWith("data:")
+      ) {
+        try {
+          const gcpUrl = await uploadImageToGCP(
+            parsed.data.resolvedPhoto,
+            `resolved-${Date.now()}.jpg`,
+          );
+          if (gcpUrl) parsed.data.resolvedPhoto = gcpUrl;
+        } catch (err) {
+          console.error("Resolved photo upload error:", err);
+        }
+      }
+
       const item = await spatialStorage.createHotspot(parsed.data);
       res.status(201).json(item);
     },
@@ -867,6 +883,22 @@ export async function registerRoutes(
       }
     }
 
+    if (
+      updates.resolvedPhoto &&
+      !isGCPUrl(updates.resolvedPhoto) &&
+      updates.resolvedPhoto.startsWith("data:")
+    ) {
+      try {
+        const gcpUrl = await uploadImageToGCP(
+          updates.resolvedPhoto,
+          `resolved-${Date.now()}.jpg`,
+        );
+        if (gcpUrl) updates.resolvedPhoto = gcpUrl;
+      } catch (err) {
+        console.error("Resolved photo upload error:", err);
+      }
+    }
+
     const item = await spatialStorage.updateHotspot(
       req.params.id as string,
       user.workspaceId,
@@ -879,6 +911,110 @@ export async function registerRoutes(
   app.delete("/api/hotspots/:id", requireWriteAccess, async (req, res) => {
     const user = req.user as any;
     const ok = await spatialStorage.deleteHotspot(
+      req.params.id as string,
+      user.workspaceId,
+    );
+    if (!ok) return res.status(404).json({ message: "Not found" });
+    res.json({ success: true });
+  });
+
+  // ── Share Link Routes ────────────────────────────────────────────────────────
+
+  // Public: resolve a share token (no auth required)
+  app.get("/api/shared/:token", async (req, res) => {
+    try {
+      const link = await storage.getShareLinkByToken(req.params.token);
+      if (!link) return res.status(404).json({ message: "Link not found" });
+      if (new Date(link.expiresAt) < new Date())
+        return res.status(410).json({ message: "Link expired" });
+
+      const project = await storage.getProject(
+        link.projectId,
+        link.workspaceId,
+      );
+      if (!project)
+        return res.status(404).json({ message: "Project not found" });
+
+      const reports = await storage.getReportsByProject(
+        link.projectId,
+        link.workspaceId,
+      );
+      const captures = await spatialStorage.getCapturesByProject(
+        link.projectId,
+        link.workspaceId,
+      );
+
+      // Attach progress logs to reports
+      const reportsWithLogs = await Promise.all(
+        reports.map(async (report: any) => {
+          const progressLogs = await storage.getProgressLogsByReport(
+            report.id,
+            link.workspaceId,
+          );
+          return { ...report, progressLogs };
+        }),
+      );
+
+      // Attach hotspots to captures
+      const capturesWithHotspots = await Promise.all(
+        captures.map(async (capture: any) => {
+          const hotspots = await spatialStorage.getHotspotsByCapture(
+            capture.id,
+            link.workspaceId,
+          );
+          return { ...capture, hotspots };
+        }),
+      );
+
+      res.json({
+        project,
+        reports: reportsWithLogs,
+        captures: capturesWithHotspots,
+        expiresAt: link.expiresAt,
+      });
+    } catch (err: any) {
+      console.error("Shared portal error:", err);
+      res.status(500).json({ message: err.message || "Internal server error" });
+    }
+  });
+
+  app.get(
+    "/api/projects/:projectId/share-links",
+    requireAuth,
+    async (req, res) => {
+      const user = req.user as any;
+      const links = await storage.getShareLinksByProject(
+        req.params.projectId as string,
+        user.workspaceId,
+      );
+      res.json(links);
+    },
+  );
+
+  app.post(
+    "/api/projects/:projectId/share-links",
+    requireWriteAccess,
+    async (req, res) => {
+      const user = req.user as any;
+      const { expiresInDays = 180 } = req.body;
+      const token =
+        Math.random().toString(36).substring(2) + Date.now().toString(36);
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + expiresInDays);
+
+      const link = await storage.createShareLink({
+        projectId: req.params.projectId as string,
+        workspaceId: user.workspaceId,
+        token,
+        expiresAt,
+      });
+      res.status(201).json(link);
+    },
+  );
+
+  app.delete("/api/share-links/:id", requireWriteAccess, async (req, res) => {
+    const user = req.user as any;
+    const ok = await storage.deleteShareLink(
       req.params.id as string,
       user.workspaceId,
     );

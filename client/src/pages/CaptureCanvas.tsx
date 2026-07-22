@@ -107,11 +107,13 @@ interface PinDraft {
   status: string;
   photoDataUrl: string | null;
   photoFile: File | null;
+  resolvedPhotoDataUrl: string | null;
 }
 const emptyDraft = (): PinDraft => ({
   x: 0, y: 0, label: "", notes: "",
   severity: "Minor", status: "Open",
   photoDataUrl: null, photoFile: null,
+  resolvedPhotoDataUrl: null,
 });
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -287,6 +289,7 @@ export default function CaptureCanvas() {
         issueStatus: draft.status,
         issueSeverity: draft.severity,
         panoUrl: draft.photoDataUrl || undefined,
+        resolvedPhoto: draft.resolvedPhotoDataUrl || undefined,
       });
     },
 
@@ -304,6 +307,7 @@ export default function CaptureCanvas() {
         issueSeverity: draft.severity,
       };
       if (draft.photoDataUrl) body.panoUrl = draft.photoDataUrl;
+      if (draft.resolvedPhotoDataUrl) body.resolvedPhoto = draft.resolvedPhotoDataUrl;
       return api.updateHotspot(editingPinId, body);
     },
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["hotspots", captureId] }); closePinDialog(); },
@@ -334,6 +338,7 @@ export default function CaptureCanvas() {
       status: pin.issueStatus || "Open",
       photoDataUrl: null,
       photoFile: null,
+      resolvedPhotoDataUrl: null,
     });
     setViewingPinId(null);
     setPinDialogOpen(true);
@@ -391,6 +396,15 @@ export default function CaptureCanvas() {
     reader.readAsDataURL(file);
   }, []);
 
+  const resolvedPhotoInputRef = useRef<HTMLInputElement>(null);
+  const handleResolvedPhotoSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => setDraft((p) => ({ ...p, resolvedPhotoDataUrl: reader.result as string }));
+    reader.readAsDataURL(file);
+  }, []);
+
   function zoomIn() { setScale((s) => Math.min(s * 1.3, 5)); }
   function zoomOut() { setScale((s) => Math.max(s / 1.3, 0.3)); }
   function resetView() { setScale(1); setPanX(0); setPanY(0); }
@@ -410,7 +424,9 @@ export default function CaptureCanvas() {
         severity: pin.issueSeverity,
         status: pin.issueStatus,
         notes: pin.notes,
-        hasPhoto: !!pin.panoUrl,
+        hasPhoto: !!pin.panoUrl || !!pin.resolvedPhoto,
+        panoUrl: pin.panoUrl,
+        resolvedPhoto: pin.resolvedPhoto,
       }));
 
       const allPins = pinsData;
@@ -840,6 +856,52 @@ export default function CaptureCanvas() {
                 </Button>
               </div>
             </div>
+            {draft.status === "Resolved" && (
+              <div>
+                <Label>Resolution Photo (required when Resolved)</Label>
+                <div className="mt-1">
+                  <input
+                    ref={resolvedPhotoInputRef}
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    className="hidden"
+                    onChange={handleResolvedPhotoSelect}
+                  />
+                  {draft.resolvedPhotoDataUrl ? (
+                    <div className="relative rounded-lg overflow-hidden border mb-2">
+                      <img src={draft.resolvedPhotoDataUrl} alt="Resolved preview" className="w-full h-32 object-cover" />
+                      <button
+                        type="button"
+                        className="absolute top-1 right-1 bg-black/50 rounded-full p-1"
+                        onClick={() => setDraft((p) => ({ ...p, resolvedPhotoDataUrl: null }))}
+                      >
+                        <X className="h-3 w-3 text-white" />
+                      </button>
+                    </div>
+                  ) : editingPinId && hotspots.find((p: any) => p.id === editingPinId)?.resolvedPhoto ? (
+                    <div className="relative rounded-lg overflow-hidden border mb-2">
+                      <img
+                        src={hotspots.find((p: any) => p.id === editingPinId).resolvedPhoto}
+                        alt="Current resolved"
+                        className="w-full h-32 object-cover"
+                      />
+                      <span className="absolute bottom-1 left-1 text-[10px] bg-black/40 text-white px-1.5 py-0.5 rounded">
+                        Current resolution photo
+                      </span>
+                    </div>
+                  ) : null}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => resolvedPhotoInputRef.current?.click()}
+                  >
+                    <Camera className="h-3.5 w-3.5 mr-1.5" />
+                    {draft.resolvedPhotoDataUrl ? "Replace Photo" : "Add Resolution Photo"}
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
           <DialogFooter className="gap-2">
             {editingPinId && (
@@ -857,6 +919,7 @@ export default function CaptureCanvas() {
               onClick={() => editingPinId ? updatePinMutation.mutate() : createPinMutation.mutate()}
               disabled={
                 !draft.label ||
+                (draft.status === "Resolved" && !draft.resolvedPhotoDataUrl && !(editingPinId && hotspots.find((p: any) => p.id === editingPinId)?.resolvedPhoto)) ||
                 (editingPinId ? updatePinMutation.isPending : createPinMutation.isPending)
               }
             >

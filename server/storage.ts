@@ -10,6 +10,7 @@ import {
   captures,
   hotspots,
   progressLogs,
+  shareLinks,
   type User,
   type InsertUser,
   type Workspace,
@@ -28,6 +29,8 @@ import {
   type InsertHotspot,
   type ProgressLog,
   type InsertProgressLog,
+  type ShareLink,
+  type InsertShareLink,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -106,6 +109,15 @@ export interface IStorage {
     data: Partial<InsertProgressLog>,
   ): Promise<ProgressLog | undefined>;
   deleteProgressLog(id: string, workspaceId: string): Promise<boolean>;
+
+  // Share Links
+  getShareLinkByToken(token: string): Promise<ShareLink | undefined>;
+  getShareLinksByProject(
+    projectId: string,
+    workspaceId: string,
+  ): Promise<ShareLink[]>;
+  createShareLink(data: InsertShareLink): Promise<ShareLink>;
+  deleteShareLink(id: string, workspaceId: string): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -339,6 +351,40 @@ export class DatabaseStorage implements IStorage {
       .delete(progressLogs)
       .where(
         and(eq(progressLogs.id, id), eq(progressLogs.workspaceId, workspaceId)),
+      )
+      .returning();
+    return result.length > 0;
+  }
+
+  // Share Links
+  async getShareLinkByToken(token: string) {
+    const [row] = await db
+      .select()
+      .from(shareLinks)
+      .where(eq(shareLinks.token, token));
+    return row;
+  }
+  async getShareLinksByProject(projectId: string, workspaceId: string) {
+    return db
+      .select()
+      .from(shareLinks)
+      .where(
+        and(
+          eq(shareLinks.projectId, projectId),
+          eq(shareLinks.workspaceId, workspaceId),
+        ),
+      )
+      .orderBy(desc(shareLinks.createdAt));
+  }
+  async createShareLink(data: InsertShareLink) {
+    const [row] = await db.insert(shareLinks).values(data).returning();
+    return row;
+  }
+  async deleteShareLink(id: string, workspaceId: string) {
+    const result = await db
+      .delete(shareLinks)
+      .where(
+        and(eq(shareLinks.id, id), eq(shareLinks.workspaceId, workspaceId)),
       )
       .returning();
     return result.length > 0;
