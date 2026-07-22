@@ -85,13 +85,13 @@ export default function SharedPortal() {
   function resetView() { setScale(1); setPanX(0); setPanY(0); }
 
   function handlePointerDown(e: React.PointerEvent<HTMLDivElement>) {
-    if (scale <= 1) return;
+    e.preventDefault();
     setIsPanning(true);
     dragStart.current = { x: e.clientX, y: e.clientY, panX, panY };
-    (e.target as HTMLElement).setPointerCapture(e.pointerId);
   }
   function handlePointerMove(e: React.PointerEvent<HTMLDivElement>) {
     if (!isPanning || !dragStart.current) return;
+    e.preventDefault();
     setPanX(dragStart.current.panX + (e.clientX - dragStart.current.x));
     setPanY(dragStart.current.panY + (e.clientY - dragStart.current.y));
   }
@@ -407,8 +407,8 @@ export default function SharedPortal() {
                       </div>
                       <div
                         ref={panContainerRef}
-                        className="w-full overflow-hidden bg-slate-200 relative touch-none"
-                        style={{ minHeight: 500, cursor: scale > 1 ? (isPanning ? "grabbing" : "grab") : "crosshair" }}
+                        className="w-full overflow-hidden bg-slate-200 relative select-none"
+                        style={{ minHeight: 500, cursor: isPanning ? "grabbing" : "grab", touchAction: "none" }}
                         onPointerDown={handlePointerDown}
                         onPointerMove={handlePointerMove}
                         onPointerUp={handlePointerUp}
