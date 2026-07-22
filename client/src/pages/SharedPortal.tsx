@@ -190,6 +190,15 @@ export default function SharedPortal() {
   }
 
   const { project, reports, captures } = data;
+
+  // Capture stats
+  const allHotspots = captures.flatMap((c: any) => c.hotspots ?? []);
+  const resolvedHotspots = allHotspots.filter((h: any) => h.issueStatus === "Resolved").length;
+  const captureProgressPct = allHotspots.length > 0 ? Math.round((resolvedHotspots / allHotspots.length) * 100) : 0;
+  const capSevBreakdown = ["Major", "Cosmetic", "Minor"].map((s) => ({
+    label: s,
+    count: allHotspots.filter((h: any) => h.issueSeverity === s).length,
+  }));
   const allChecklist = reports.flatMap((r: any) => r.checklist ?? []);
   const failedItems = allChecklist.filter((c: any) => (c.triggerOn === "yes" ? c.status === "Y" : c.status === "N") && c.severity);
   const allResolvedIds = new Set(
@@ -477,7 +486,32 @@ export default function SharedPortal() {
                 )}
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+                  <div className="bg-white rounded-xl border p-4">
+                    <p className="text-2xl font-bold text-slate-900">{allHotspots.length}</p>
+                    <p className="text-xs text-slate-500 mt-1">Total Observations</p>
+                  </div>
+                  <div className="bg-white rounded-xl border p-4">
+                    <p className="text-2xl font-bold text-green-600">{captureProgressPct}%</p>
+                    <p className="text-xs text-slate-500 mt-1">Resolved</p>
+                    <div className="w-full bg-slate-100 rounded-full h-1.5 mt-2">
+                      <div className="bg-green-500 h-1.5 rounded-full transition-all" style={{ width: `${captureProgressPct}%` }} />
+                    </div>
+                  </div>
+                  <div className="bg-white rounded-xl border p-4">
+                    <div className="flex gap-3">
+                      {capSevBreakdown.map((s) => (
+                        <div key={s.label} className="text-center">
+                          <p className="text-lg font-bold text-slate-900">{s.count}</p>
+                          <p className="text-[10px] text-slate-400 uppercase">{s.label}</p>
+                        </div>
+                      ))}
+                    </div>
+                    <p className="text-xs text-slate-500 mt-1">By Severity</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {captures.map((cap: any) => (
                   <button
                     key={cap.id}
@@ -506,6 +540,7 @@ export default function SharedPortal() {
                   </button>
                 ))}
               </div>
+              </>
             )}
           </div>
         )}
