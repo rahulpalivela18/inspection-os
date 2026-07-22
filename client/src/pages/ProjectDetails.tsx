@@ -1016,14 +1016,14 @@ export default function ProjectDetails() {
 
         {/* Share Dialog */}
         <Dialog open={isShareOpen} onOpenChange={setIsShareOpen}>
-          <DialogContent className="max-w-lg">
+          <DialogContent className="max-w-lg overflow-hidden box-border w-[calc(100vw-2rem)] sm:w-full">
             <DialogHeader>
               <DialogTitle>Share Project</DialogTitle>
               <DialogDescription>
                 Create shareable links for clients to view this project. Links expire after 6 months.
               </DialogDescription>
             </DialogHeader>
-            <div className="space-y-2 py-2">
+            <div className="space-y-2 py-2 overflow-hidden">
               {shareLinks.length === 0 && (
                 <p className="text-sm text-slate-400 text-center py-4">No share links yet. Generate one below.</p>
               )}
@@ -1031,10 +1031,10 @@ export default function ProjectDetails() {
                 const url = `${window.location.origin}/shared/${link.token}`;
                 const isExpired = new Date(link.expiresAt) < new Date();
                 return (
-                  <div key={link.id} className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg border border-slate-100">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-mono text-slate-700 truncate">{url}</p>
-                      <p className="text-[11px] text-slate-400 mt-1">
+                  <div key={link.id} className="flex items-center gap-2 p-3 bg-slate-50 rounded-lg border border-slate-100 w-full box-border">
+                    <div className="min-w-0 flex-1 overflow-hidden">
+                      <p className="text-xs font-mono text-slate-700 truncate block w-full">{url}</p>
+                      <p className="text-[11px] text-slate-400 mt-1 truncate">
                         {isExpired ? (
                           <span className="text-red-500">Expired</span>
                         ) : (
@@ -1046,7 +1046,7 @@ export default function ProjectDetails() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="h-8 w-8 p-0"
+                        className="h-8 w-8 p-0 shrink-0"
                         title="Copy link"
                         onClick={() => {
                           navigator.clipboard.writeText(url);
@@ -1059,7 +1059,7 @@ export default function ProjectDetails() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="h-8 w-8 p-0 text-red-400 hover:text-red-600"
+                        className="h-8 w-8 p-0 shrink-0 text-red-400 hover:text-red-600"
                         title="Revoke link"
                         onClick={() => deleteShareLinkMutation.mutate(link.id)}
                       >
@@ -1072,7 +1072,7 @@ export default function ProjectDetails() {
             </div>
             <div className="border-t pt-4">
               <Button
-                className="w-full"
+                className="w-full shrink-0"
                 onClick={() => createShareLinkMutation.mutate()}
                 disabled={createShareLinkMutation.isPending}
               >

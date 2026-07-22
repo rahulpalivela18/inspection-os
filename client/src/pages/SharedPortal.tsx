@@ -1,9 +1,41 @@
 import { useRoute } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import { useState } from "react";
-import { FileText, Camera, ChevronDown, ChevronRight, CheckCircle2, AlertCircle, Clock, X } from "lucide-react";
+import { useState, useRef, useCallback, useEffect } from "react";
+import { FileText, Camera, ChevronDown, ChevronRight, CheckCircle2, AlertCircle, Clock, X, ZoomIn, ZoomOut, Move } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+
+function toPitchYaw(x: number, y: number) {
+  return { yaw: (x - 0.5) * 360, pitch: (0.5 - y) * 180 };
+}
+
+declare global {
+  interface Window { pannellum: any; }
+}
+
+let pannellumStyleInjected = false;
+function injectPannellumCSS() {
+  if (pannellumStyleInjected) return;
+  pannellumStyleInjected = true;
+  const link = document.createElement("link");
+  link.rel = "stylesheet";
+  link.href = "https://cdn.jsdelivr.net/npm/pannellum@2.5.6/build/pannellum.css";
+  document.head.appendChild(link);
+  const script = document.createElement("script");
+  script.src = "https://cdn.jsdelivr.net/npm/pannellum@2.5.6/build/pannellum.js";
+  script.async = true;
+  document.head.appendChild(script);
+  // Hotspot styling
+  const style = document.createElement("style");
+  style.textContent = `
+    .cap-hs { width:22px; height:22px; border-radius:50%; background:#3b82f6; border:2.5px solid #fff; cursor:pointer; box-shadow:0 2px 8px rgba(0,0,0,.35); transform:translate(-50%,-50%); transition:transform .15s; }
+    .cap-hs:hover { transform:translate(-50%,-50%) scale(1.25); }
+    .cap-hs.sev-Major    { background:#dc2626; }
+    .cap-hs.sev-Cosmetic { background:#f97316; }
+  `;
+  document.head.appendChild(style);
+}
 
 function severityColor(s?: string) {
   switch (s) {
@@ -37,12 +69,102 @@ export default function SharedPortal() {
   const [tab, setTab] = useState<"reports" | "captures">("reports");
   const [expandedReport, setExpandedReport] = useState<string | null>(null);
   const [viewCapture, setViewCapture] = useState<any>(null);
+  const [scale, setScale] = useState(1);
+  const [panX, setPanX] = useState(0);
+  const [panY, setPanY] = useState(0);
+  const [isPanning, setIsPanning] = useState(false);
+  const panContainerRef = useRef<HTMLDivElement>(null);
+  const dragStart = useRef<{ x: number; y: number; panX: number; panY: number } | null>(null);
+
+  // 360° Pannellum state
+  const panoContainerRef = useRef<HTMLDivElement>(null);
+  const viewerRef = useRef<any>(null);
+
+  function zoomIn() { setScale((s) => Math.min(s * 1.3, 5)); }
+  function zoomOut() { setScale((s) => Math.max(s / 1.3, 0.3)); }
+  function resetView() { setScale(1); setPanX(0); setPanY(0); }
+
+  function handlePointerDown(e: React.PointerEvent<HTMLDivElement>) {
+    if (scale <= 1) return;
+    setIsPanning(true);
+    dragStart.current = { x: e.clientX, y: e.clientY, panX, panY };
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+  }
+  function handlePointerMove(e: React.PointerEvent<HTMLDivElement>) {
+    if (!isPanning || !dragStart.current) return;
+    setPanX(dragStart.current.panX + (e.clientX - dragStart.current.x));
+    setPanY(dragStart.current.panY + (e.clientY - dragStart.current.y));
+  }
+  function handlePointerUp() {
+    setIsPanning(false);
+    dragStart.current = null;
+  }
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["shared", token],
     queryFn: () => api.getSharedProject(token!),
     enabled: !!token,
   });
+
+  // ── Init Pannellum for 360° captures ─────────────────────────────────────
+  useEffect(() => {
+    if (!viewCapture?.is360 || !panoContainerRef.current || !viewCapture?.imageUrl) return;
+    let destroyed = false;
+
+    injectPannellumCSS();
+
+    const panoSrc = viewCapture.imageUrl.startsWith("http") && !viewCapture.imageUrl.startsWith(location.origin)
+      ? `/api/image-proxy?url=${encodeURIComponent(viewCapture.imageUrl)}`
+      : viewCapture.imageUrl;
+
+    function initViewer() {
+      if (destroyed || !panoContainerRef.current) return;
+      if (viewerRef.current) { try { viewerRef.current.destroy(); } catch {} }
+
+      viewerRef.current = window.pannellum.viewer(panoContainerRef.current, {
+        type: "equirectangular",
+        panorama: panoSrc,
+        autoLoad: true,
+        showZoomCtrl: false,
+        showFullscreenCtrl: false,
+        showControls: false,
+        mouseZoom: true,
+        compass: false,
+      });
+
+      // Add hotspots
+      setTimeout(() => {
+        if (!viewerRef.current || !viewCapture?.hotspots) return;
+        viewCapture.hotspots.forEach((pin: any) => {
+          const { pitch, yaw } = toPitchYaw(parseFloat(pin.x), parseFloat(pin.y));
+          try {
+            viewerRef.current.addHotSpot({
+              id: pin.id,
+              pitch,
+              yaw,
+              type: "custom",
+              cssClass: `cap-hs sev-${pin.issueSeverity || ""}`,
+            });
+          } catch {}
+        });
+      }, 500);
+    }
+
+    if (window.pannellum) {
+      initViewer();
+    } else {
+      const script = document.createElement("script");
+      script.src = "https://cdn.jsdelivr.net/npm/pannellum@2.5.6/build/pannellum.js";
+      script.async = true;
+      script.onload = initViewer;
+      document.head.appendChild(script);
+    }
+
+    return () => {
+      destroyed = true;
+      if (viewerRef.current) { try { viewerRef.current.destroy(); } catch {} viewerRef.current = null; }
+    };
+  }, [viewCapture?.id, viewCapture?.is360, viewCapture?.imageUrl]);
 
   if (isLoading) {
     return (
@@ -245,36 +367,75 @@ export default function SharedPortal() {
             {viewCapture ? (
               <div>
                 <button
-                  onClick={() => setViewCapture(null)}
+                  onClick={() => { setViewCapture(null); resetView(); }}
                   className="flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700 mb-4"
                 >
                   ← Back to captures
                 </button>
                 <h2 className="text-lg font-bold text-slate-900 mb-4">{viewCapture.title}</h2>
                 <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
-                  <div className="relative overflow-auto max-h-[70vh] flex justify-center">
-                    <div className="relative inline-block">
-                      <img
-                        src={viewCapture.imageUrl}
-                        alt={viewCapture.title}
-                        style={{ width: viewCapture.width, height: viewCapture.height, maxWidth: "none" }}
-                        className="block"
-                      />
-                      {viewCapture.hotspots?.map((h: any, i: number) => (
+                  {viewCapture.is360 ? (
+                    <div
+                      ref={panoContainerRef}
+                      className="w-full"
+                      style={{ height: 500 }}
+                    />
+                  ) : (
+                    <>
+                      <div className="flex items-center gap-1 px-3 py-2 border-b bg-slate-50">
+                        <Button variant="outline" size="sm" onClick={resetView}>
+                          <Move className="h-3.5 w-3.5 mr-1" /> Reset
+                        </Button>
+                        <Button variant="outline" size="sm" onClick={zoomOut}>
+                          <ZoomOut className="h-3.5 w-3.5" />
+                        </Button>
+                        <span className="text-xs text-slate-500 w-10 text-center">
+                          {Math.round(scale * 100)}%
+                        </span>
+                        <Button variant="outline" size="sm" onClick={zoomIn}>
+                          <ZoomIn className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                      <div
+                        ref={panContainerRef}
+                        className="w-full overflow-hidden bg-slate-200 relative touch-none"
+                        style={{ minHeight: 500, cursor: scale > 1 ? (isPanning ? "grabbing" : "grab") : "crosshair" }}
+                        onPointerDown={handlePointerDown}
+                        onPointerMove={handlePointerMove}
+                        onPointerUp={handlePointerUp}
+                      >
                         <div
-                          key={h.id}
-                          className="absolute w-6 h-6 rounded-full border-2 border-white shadow-lg -translate-x-1/2 -translate-y-1/2 flex items-center justify-center text-[10px] font-bold text-white"
+                          className="absolute inset-0 flex items-center justify-center"
                           style={{
-                            left: `${parseFloat(h.x) * 100}%`,
-                            top: `${parseFloat(h.y) * 100}%`,
-                            backgroundColor: h.issueSeverity === "Major" ? "#dc2626" : h.issueSeverity === "Cosmetic" ? "#f97316" : h.issueSeverity === "Minor" ? "#22c55e" : "#3b82f6",
+                            transform: `translate(${panX}px, ${panY}px) scale(${scale})`,
+                            transformOrigin: "center center",
                           }}
                         >
-                          {i + 1}
-                        </div>
-                      ))}
+                          <div className="relative">
+                            <img
+                              src={viewCapture.imageUrl}
+                              alt={viewCapture.title}
+                              style={{ width: viewCapture.width, height: viewCapture.height, maxWidth: "none" }}
+                              draggable={false}
+                            />
+                            {viewCapture.hotspots?.map((h: any, i: number) => (
+                              <div
+                                key={h.id}
+                                className="absolute w-6 h-6 rounded-full border-2 border-white shadow-lg -translate-x-1/2 -translate-y-1/2 flex items-center justify-center text-[10px] font-bold text-white"
+                                style={{
+                                  left: `${parseFloat(h.x) * 100}%`,
+                                  top: `${parseFloat(h.y) * 100}%`,
+                                  backgroundColor: h.issueSeverity === "Major" ? "#dc2626" : h.issueSeverity === "Cosmetic" ? "#f97316" : h.issueSeverity === "Minor" ? "#22c55e" : "#3b82f6",
+                                }}
+                              >
+                                {i + 1}
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   </div>
+                  </>
+                  )}
                 </div>
                 {viewCapture.hotspots?.length > 0 && (
                   <div className="mt-4 space-y-2">
