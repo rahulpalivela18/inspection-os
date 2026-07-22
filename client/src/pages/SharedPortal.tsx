@@ -66,7 +66,7 @@ function captureSeverityColor(s?: string) {
 export default function SharedPortal() {
   const [, params] = useRoute("/shared/:token");
   const token = params?.token;
-  const [tab, setTab] = useState<"reports" | "captures">("reports");
+  const [tab, setTab] = useState<"reports" | "captures">("captures");
   const [expandedReport, setExpandedReport] = useState<string | null>(null);
   const [viewCapture, setViewCapture] = useState<any>(null);
   const [scale, setScale] = useState(1);
@@ -221,16 +221,16 @@ export default function SharedPortal() {
 
       <div className="max-w-5xl mx-auto px-4 py-6">
         {/* Tabs */}
-        <div className="flex gap-1 bg-slate-100 p-1 rounded-lg mb-6 w-fit">
+        <div className="flex gap-1 bg-slate-100 p-1 rounded-lg mb-6 w-fit max-w-full overflow-x-auto">
           <button
             onClick={() => setTab("reports")}
-            className={cn("flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors", tab === "reports" ? "bg-white shadow text-slate-900" : "text-slate-500 hover:text-slate-700")}
+            className={cn("flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap", tab === "reports" ? "bg-white shadow text-slate-900" : "text-slate-500 hover:text-slate-700")}
           >
             <FileText className="h-4 w-4" /> Reports ({reports.length})
           </button>
           <button
             onClick={() => setTab("captures")}
-            className={cn("flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors", tab === "captures" ? "bg-white shadow text-slate-900" : "text-slate-500 hover:text-slate-700")}
+            className={cn("flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap", tab === "captures" ? "bg-white shadow text-slate-900" : "text-slate-500 hover:text-slate-700")}
           >
             <Camera className="h-4 w-4" /> Captures ({captures.length})
           </button>
@@ -240,7 +240,7 @@ export default function SharedPortal() {
         {tab === "reports" && (
           <div>
             {/* Stats */}
-            <div className="grid grid-cols-3 gap-4 mb-6">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
               <div className="bg-white rounded-xl border p-4">
                 <p className="text-2xl font-bold text-slate-900">{failedItems.length}</p>
                 <p className="text-xs text-slate-500 mt-1">Total Issues</p>
@@ -282,16 +282,16 @@ export default function SharedPortal() {
                       className="w-full flex items-center justify-between p-4 text-left hover:bg-slate-50 transition-colors"
                       onClick={() => setExpandedReport(isExpanded ? null : report.id)}
                     >
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
                           <FileText className="h-5 w-5 text-primary" />
                         </div>
-                        <div>
-                          <p className="text-sm font-semibold text-slate-900">{report.title}</p>
-                          <p className="text-xs text-slate-400">{report.author} · {report.date}</p>
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold text-slate-900 truncate">{report.title}</p>
+                          <p className="text-xs text-slate-400 truncate">{report.author} · {report.date}</p>
                         </div>
                       </div>
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-3 shrink-0">
                         <div className="text-right">
                           <p className="text-sm font-bold text-slate-900">{reportPct}%</p>
                           <p className="text-[10px] text-slate-400">{reportResolved}/{reportFailed.length} resolved</p>
@@ -310,7 +310,7 @@ export default function SharedPortal() {
                                 <div key={item.id} className="flex items-start gap-2 p-2 rounded-lg bg-slate-50">
                                   {statusIcon(item.resolved ? "Resolved" : item.status)}
                                   <div className="flex-1 min-w-0">
-                                    <div className="flex items-center gap-2">
+                                    <div className="flex items-center gap-2 flex-wrap">
                                       <p className="text-sm text-slate-800 truncate">{item.point}</p>
                                       <span className={cn("text-[10px] font-semibold px-1.5 py-0.5 rounded border", severityColor(item.severity))}>
                                         {item.severity}
