@@ -65,16 +65,16 @@ function captureSeverityColor(s?: string) {
 
 function DonutChart({ title, data }: { title: string; data: { label: string; count: number; color: string }[] }) {
   const total = data.reduce((s, d) => s + d.count, 0);
-  const r = 28;
+  const r = 36;
   const circumference = 2 * Math.PI * r;
   let offset = 0;
 
   return (
     <div className="flex flex-col items-center">
       <p className="text-xs font-medium text-slate-600 mb-2">{title}</p>
-      <svg width="72" height="72" viewBox="0 0 72 72">
+      <svg width="96" height="96" viewBox="0 0 96 96">
         {total === 0 && (
-          <circle cx="36" cy="36" r={r} fill="none" stroke="#e2e8f0" strokeWidth="10" />
+          <circle cx="48" cy="48" r={r} fill="none" stroke="#e2e8f0" strokeWidth="12" />
         )}
         {data.map((d) => {
           if (d.count === 0) return null;
@@ -83,19 +83,19 @@ function DonutChart({ title, data }: { title: string; data: { label: string; cou
           const el = (
             <circle
               key={d.label}
-              cx="36" cy="36" r={r}
+              cx="48" cy="48" r={r}
               fill="none"
               stroke={d.color}
-              strokeWidth="10"
+              strokeWidth="12"
               strokeDasharray={`${dash} ${circumference - dash}`}
               strokeDashoffset={-offset}
-              transform="rotate(-90 36 36)"
+              transform="rotate(-90 48 48)"
             />
           );
           offset += dash;
           return el;
         })}
-        <text x="36" y="36" textAnchor="middle" dominantBaseline="central" className="text-xs font-bold fill-slate-900">
+        <text x="48" y="48" textAnchor="middle" dominantBaseline="central" className="text-sm font-bold fill-slate-900">
           {total}
         </text>
       </svg>
@@ -604,7 +604,7 @@ export default function SharedPortal() {
                       </table>
                     </div>
                     {/* Donut charts */}
-                    <div className="flex gap-6 shrink-0 items-start">
+                    <div className="flex flex-col items-center gap-5 shrink-0">
                       <DonutChart title="Issue Types" data={issueTypes} />
                       <DonutChart title="Resolution Status" data={resolutionStatus} />
                     </div>
