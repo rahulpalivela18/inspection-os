@@ -1,4 +1,4 @@
-import { Document, Page, Text, View, Image, StyleSheet } from "@react-pdf/renderer";
+import { Document, Page, Text, View, Image, StyleSheet, Svg, Path, G } from "@react-pdf/renderer";
 
 const PAGE_PADDING = 36;
 const PAGE_W = 595.28;
@@ -316,6 +316,63 @@ const styles = StyleSheet.create({
     borderRadius: 3,
   },
 
+  // Area summary page
+  areaTableHeader: {
+    flexDirection: "row",
+    borderBottomWidth: 1,
+    borderBottomColor: "#e2e8f0",
+    backgroundColor: "#f8fafc",
+    paddingVertical: 6,
+  },
+  areaTableRow: {
+    flexDirection: "row",
+    borderBottomWidth: 0.5,
+    borderBottomColor: "#f1f5f9",
+    paddingVertical: 5,
+  },
+  areaTableTotalRow: {
+    flexDirection: "row",
+    borderTopWidth: 1,
+    borderTopColor: "#e2e8f0",
+    paddingVertical: 5,
+    fontWeight: 700,
+  },
+  areaCell: {
+    fontSize: 8,
+    color: "#1e293b",
+  },
+  areaCellHeader: {
+    fontSize: 7,
+    fontWeight: 700,
+    color: "#64748b",
+    textTransform: "uppercase",
+  },
+  donutContainer: {
+    alignItems: "center",
+    marginLeft: 24,
+  },
+  donutLegend: {
+    flexDirection: "row",
+    gap: 6,
+    marginTop: 4,
+    flexWrap: "wrap",
+    justifyContent: "center",
+  },
+  donutLegendItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+  },
+  donutLegendDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
+  },
+  donutLegendText: {
+    fontSize: 6,
+    color: "#64748b",
+  },
+
 });
 
 interface PinPDF {
@@ -376,6 +433,227 @@ interface CapturePDFCover {
 interface CapturePDFProps {
   captures: CapturePDF[];
   cover?: CapturePDFCover;
+}
+
+interface AreaSummary {
+  area: string;
+  major: number;
+  minor: number;
+  cosmetic: number;
+  resolved: number;
+  total: number;
+}
+
+function computeAreaSummary(captures: CapturePDF[]): AreaSummary[] {
+  return captures
+    .map((c) => ({
+      area: c.title,
+      major: c.pins.filter((p) => p.severity === "Major").length,
+      minor: c.pins.filter((p) => p.severity === "Minor").length,
+      cosmetic: c.pins.filter((p) => p.severity === "Cosmetic").length,
+      resolved: c.pins.filter((p) => p.status === "Resolved").length,
+      total: c.pins.length,
+    }))
+    .filter((a) => a.total > 0);
+}
+
+function PdfPieSlice({ cx, cy, r, startAngle, endAngle, color }: {
+  cx: number; cy: number; r: number; startAngle: number; endAngle: number; color: string;
+}) {
+  if (endAngle - startAngle >= 359.99) {
+    // Full circle — just use a circle path
+    return <Path d={`M ${cx} ${cy - r} A ${r} ${r} 0 1 1 ${cx - 0.01} ${cy - r} Z`} fill={color} />;
+  }
+  const rad = (deg: number) => (deg - 90) * Math.PI / 180;
+  const x1 = cx + r * Math.cos(rad(startAngle));
+  const y1 = cy + r * Math.sin(rad(startAngle));
+  const x2 = cx + r * Math.cos(rad(endAngle));
+  const y2 = cy + r * Math.sin(rad(endAngle));
+  const largeArc = endAngle - startAngle > 180 ? 1 : 0;
+  return (
+    <Path
+      d={`M ${cx} ${cy} L ${x1} ${y1} A ${r} ${r} 0 ${largeArc} 1 ${x2} ${y2} Z`}
+      fill={color}
+    />
+  );
+}
+
+function PdfDonutChart({
+  title,
+  data,
+}: {
+  title: string;
+  data: { label: string; count: number; color: string }[];
+}) {
+  const total = data.reduce((s, d) => s + d.count, 0);
+  const cx = 30, cy = 30, r = 24;
+  let angle = 0;
+
+  return (
+    <View style={styles.donutContainer}>
+      <Text style={{ fontSize: 7, fontWeight: 700, color: "#475569", marginBottom: 6 }}>
+        {title}
+      </Text>
+      <Svg width="60" height="60" viewBox="0 0 60 60">
+        {total === 0 ? (
+          <Path d={`M ${cx} ${cy - r} A ${r} ${r} 0 1 1 ${cx - 0.01} ${cy - r} Z`} fill="#e2e8f0" />
+        ) : (
+          <G>
+            {data.map((d) => {
+              if (d.count === 0) return null;
+              const sliceAngle = (d.count / total) * 360;
+              const startAngle = angle;
+              const endAngle = angle + sliceAngle;
+              angle = endAngle;
+              return <PdfPieSlice key={d.label} cx={cx} cy={cy} r={r} startAngle={startAngle} endAngle={endAngle} color={d.color} />;
+            })}
+          </G>
+        )}
+        {/* White center circle for donut effect */}
+        <Path d={`M ${cx} ${cy - 12} A 12 12 0 1 1 ${cx - 0.01} ${cy - 12} Z`} fill="white" />
+      </Svg>
+      <Text style={{ fontSize: 11, fontWeight: 700, color: "#1e293b", marginTop: -42, marginBottom: 30 }}>
+        {total}
+      </Text>
+      <View style={styles.donutLegend}>
+        {data.map((d) => (
+          <View key={d.label} style={styles.donutLegendItem}>
+            <View style={[styles.donutLegendDot, { backgroundColor: d.color }]} />
+            <Text style={styles.donutLegendText}>
+              {d.label} ({d.count})
+            </Text>
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+}
+
+function AreaSummaryPage({
+  cover,
+  captures,
+}: {
+  cover: CapturePDFCover;
+  captures: CapturePDF[];
+}) {
+  const date = new Date().toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+
+  const summary = computeAreaSummary(captures);
+  const allPins = captures.flatMap((c) => c.pins);
+  const totals = summary.reduce(
+    (acc, a) => ({
+      major: acc.major + a.major,
+      minor: acc.minor + a.minor,
+      cosmetic: acc.cosmetic + a.cosmetic,
+      resolved: acc.resolved + a.resolved,
+      total: acc.total + a.total,
+    }),
+    { major: 0, minor: 0, cosmetic: 0, resolved: 0, total: 0 }
+  );
+
+  const issueTypes = [
+    { label: "Major", count: totals.major, color: "#dc2626" },
+    { label: "Minor", count: totals.minor, color: "#22c55e" },
+    { label: "Cosmetic", count: totals.cosmetic, color: "#f97316" },
+  ];
+  const resolutionStatus = [
+    { label: "Resolved", count: totals.resolved, color: "#22c55e" },
+    { label: "Open", count: allPins.filter((p) => p.status === "Open").length, color: "#dc2626" },
+    { label: "In Progress", count: allPins.filter((p) => p.status === "In Progress").length, color: "#f97316" },
+  ];
+
+  return (
+    <Page size="A4" style={styles.page}>
+      <View style={styles.header}>
+        {(cover.companyName || cover.companyLogoUrl) && (
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+            {cover.companyLogoUrl && (
+              <Image
+                src={cover.companyLogoUrl}
+                style={{ width: 32, height: 32, objectFit: "contain" }}
+              />
+            )}
+            {cover.companyName && (
+              <View>
+                <Text style={styles.brandName}>{cover.companyName}</Text>
+                {cover.companyAddress && (
+                  <Text style={styles.brandSub}>{cover.companyAddress}</Text>
+                )}
+              </View>
+            )}
+          </View>
+        )}
+        <View style={styles.meta}>
+          <Text style={styles.metaLabel}>Area Summary</Text>
+          <Text style={styles.metaValue}>{date}</Text>
+        </View>
+      </View>
+
+      <Text style={styles.sectionTitle}>Area Wise Defect Summary</Text>
+      <View style={styles.sectionTitleLine} />
+
+      <View style={{ flexDirection: "row" }}>
+        {/* Table */}
+        <View style={{ flex: 1 }}>
+          {/* Header row */}
+          <View style={styles.areaTableHeader}>
+            <Text style={[styles.areaCellHeader, { width: 80 }]}>Area</Text>
+            <Text style={[styles.areaCellHeader, { width: 50, textAlign: "center" }]}>Major</Text>
+            <Text style={[styles.areaCellHeader, { width: 50, textAlign: "center" }]}>Minor</Text>
+            <Text style={[styles.areaCellHeader, { width: 55, textAlign: "center" }]}>Cosmetic</Text>
+            <Text style={[styles.areaCellHeader, { width: 55, textAlign: "center" }]}>Resolved</Text>
+            <Text style={[styles.areaCellHeader, { width: 40, textAlign: "center" }]}>Total</Text>
+          </View>
+
+          {/* Data rows */}
+          {summary.map((a, i) => (
+            <View key={a.area} style={[styles.areaTableRow, i % 2 === 0 ? { backgroundColor: "#fafbfc" } : {}]}>
+              <Text style={[styles.areaCell, { width: 80 }]}>{a.area}</Text>
+              <Text style={[styles.areaCell, { width: 50, textAlign: "center" }]}>{a.major || "—"}</Text>
+              <Text style={[styles.areaCell, { width: 50, textAlign: "center" }]}>{a.minor || "—"}</Text>
+              <Text style={[styles.areaCell, { width: 55, textAlign: "center" }]}>{a.cosmetic || "—"}</Text>
+              <Text style={[styles.areaCell, { width: 55, textAlign: "center" }]}>{a.resolved || "—"}</Text>
+              <Text style={[styles.areaCell, { width: 40, textAlign: "center", fontWeight: 700 }]}>{a.total}</Text>
+            </View>
+          ))}
+
+          {/* Total row */}
+          {summary.length > 1 && (
+            <View style={styles.areaTableTotalRow}>
+              <Text style={[styles.areaCell, { width: 80, fontWeight: 700 }]}>Total</Text>
+              <Text style={[styles.areaCell, { width: 50, textAlign: "center", fontWeight: 700 }]}>{totals.major || "—"}</Text>
+              <Text style={[styles.areaCell, { width: 50, textAlign: "center", fontWeight: 700 }]}>{totals.minor || "—"}</Text>
+              <Text style={[styles.areaCell, { width: 55, textAlign: "center", fontWeight: 700 }]}>{totals.cosmetic || "—"}</Text>
+              <Text style={[styles.areaCell, { width: 55, textAlign: "center", fontWeight: 700 }]}>{totals.resolved || "—"}</Text>
+              <Text style={[styles.areaCell, { width: 40, textAlign: "center", fontWeight: 700 }]}>{totals.total}</Text>
+            </View>
+          )}
+        </View>
+
+        {/* Donut charts */}
+        <View style={{ width: 160, justifyContent: "flex-start" }}>
+          <PdfDonutChart title="Issue Types" data={issueTypes} />
+          <View style={{ height: 16 }} />
+          <PdfDonutChart title="Resolution Status" data={resolutionStatus} />
+        </View>
+      </View>
+
+      {/* Footer */}
+      <View style={[styles.header, { borderTopWidth: 1, borderTopColor: "#e2e8f0", paddingTop: 10, marginTop: 20, position: "absolute", bottom: 36, left: 36, right: 36 }]}>
+        <Text style={{ fontSize: 7, color: "#94a3b8" }}>
+          {cover.companyName || "Workspace"}
+          {cover.companyPhone ? ` · ${cover.companyPhone}` : ""}
+        </Text>
+        <Text style={{ fontSize: 7, color: "#94a3b8" }}>
+          Report generated by ReportGen &copy; {new Date().getFullYear()}
+        </Text>
+      </View>
+    </Page>
+  );
 }
 
 function CaptureCoverPage({ cover }: { cover: CapturePDFCover }) {
@@ -880,6 +1158,9 @@ export default function CapturePDF({ captures, cover }: CapturePDFProps) {
   return (
     <Document>
       {cover && <CaptureCoverPage cover={cover} />}
+      {cover && captures.length > 0 && (
+        <AreaSummaryPage cover={cover} captures={captures} />
+      )}
       {captures.map((capture) => {
         const chunks = chunkPins(capture.pins);
         const resolvedPins = capture.pins.filter((p) => p.status === "Resolved" && p.resolvedPhoto);

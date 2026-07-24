@@ -63,6 +63,54 @@ function captureSeverityColor(s?: string) {
   }
 }
 
+function DonutChart({ title, data }: { title: string; data: { label: string; count: number; color: string }[] }) {
+  const total = data.reduce((s, d) => s + d.count, 0);
+  const r = 28;
+  const circumference = 2 * Math.PI * r;
+  let offset = 0;
+
+  return (
+    <div className="flex flex-col items-center">
+      <p className="text-xs font-medium text-slate-600 mb-2">{title}</p>
+      <svg width="72" height="72" viewBox="0 0 72 72">
+        {total === 0 && (
+          <circle cx="36" cy="36" r={r} fill="none" stroke="#e2e8f0" strokeWidth="10" />
+        )}
+        {data.map((d) => {
+          if (d.count === 0) return null;
+          const pct = d.count / total;
+          const dash = pct * circumference;
+          const el = (
+            <circle
+              key={d.label}
+              cx="36" cy="36" r={r}
+              fill="none"
+              stroke={d.color}
+              strokeWidth="10"
+              strokeDasharray={`${dash} ${circumference - dash}`}
+              strokeDashoffset={-offset}
+              transform="rotate(-90 36 36)"
+            />
+          );
+          offset += dash;
+          return el;
+        })}
+        <text x="36" y="36" textAnchor="middle" dominantBaseline="central" className="text-xs font-bold fill-slate-900">
+          {total}
+        </text>
+      </svg>
+      <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-2 justify-center">
+        {data.map((d) => (
+          <div key={d.label} className="flex items-center gap-1">
+            <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: d.color }} />
+            <span className="text-[10px] text-slate-500">{d.label} ({d.count})</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function SharedPortal() {
   const [, params] = useRoute("/shared/:token");
   const token = params?.token;
@@ -193,12 +241,36 @@ export default function SharedPortal() {
 
   // Capture stats
   const allHotspots = captures.flatMap((c: any) => c.hotspots ?? []);
-  const resolvedHotspots = allHotspots.filter((h: any) => h.issueStatus === "Resolved").length;
-  const captureProgressPct = allHotspots.length > 0 ? Math.round((resolvedHotspots / allHotspots.length) * 100) : 0;
-  const capSevBreakdown = ["Major", "Cosmetic", "Minor"].map((s) => ({
-    label: s,
-    count: allHotspots.filter((h: any) => h.issueSeverity === s).length,
-  }));
+
+  // Area summary: group hotspots by capture title
+  const areaSummary = captures.map((cap: any) => {
+    const pins = cap.hotspots ?? [];
+    return {
+      area: cap.title,
+      major: pins.filter((h: any) => h.issueSeverity === "Major").length,
+      minor: pins.filter((h: any) => h.issueSeverity === "Minor").length,
+      cosmetic: pins.filter((h: any) => h.issueSeverity === "Cosmetic").length,
+      resolved: pins.filter((h: any) => h.issueStatus === "Resolved").length,
+      total: pins.length,
+    };
+  }).filter((a: any) => a.total > 0);
+
+  const areaTotals = areaSummary.reduce(
+    (acc: any, a: any) => ({ major: acc.major + a.major, minor: acc.minor + a.minor, cosmetic: acc.cosmetic + a.cosmetic, resolved: acc.resolved + a.resolved, total: acc.total + a.total }),
+    { major: 0, minor: 0, cosmetic: 0, resolved: 0, total: 0 }
+  );
+
+  // Pie chart data
+  const issueTypes = [
+    { label: "Major", count: areaTotals.major, color: "#dc2626" },
+    { label: "Minor", count: areaTotals.minor, color: "#22c55e" },
+    { label: "Cosmetic", count: areaTotals.cosmetic, color: "#f97316" },
+  ];
+  const resolutionStatus = [
+    { label: "Resolved", count: areaTotals.resolved, color: "#22c55e" },
+    { label: "Open", count: allHotspots.filter((h: any) => h.issueStatus === "Open").length, color: "#dc2626" },
+    { label: "In Progress", count: allHotspots.filter((h: any) => h.issueStatus === "In Progress").length, color: "#f97316" },
+  ];
   const allChecklist = reports.flatMap((r: any) => r.checklist ?? []);
   const failedItems = allChecklist.filter((c: any) => (c.triggerOn === "yes" ? c.status === "Y" : c.status === "N") && c.severity);
   const allResolvedIds = new Set(
@@ -487,28 +559,51 @@ export default function SharedPortal() {
               </div>
             ) : (
               <>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-                  <div className="bg-white rounded-xl border p-4">
-                    <p className="text-2xl font-bold text-slate-900">{allHotspots.length}</p>
-                    <p className="text-xs text-slate-500 mt-1">Total Observations</p>
-                  </div>
-                  <div className="bg-white rounded-xl border p-4">
-                    <p className="text-2xl font-bold text-green-600">{captureProgressPct}%</p>
-                    <p className="text-xs text-slate-500 mt-1">Resolved</p>
-                    <div className="w-full bg-slate-100 rounded-full h-1.5 mt-2">
-                      <div className="bg-green-500 h-1.5 rounded-full transition-all" style={{ width: `${captureProgressPct}%` }} />
+                <div className="bg-white rounded-xl border shadow-sm p-4 mb-6">
+                  <p className="text-sm font-semibold text-slate-900 mb-3">Area Wise Defect Summary</p>
+                  <div className="flex flex-col lg:flex-row gap-6">
+                    {/* Table */}
+                    <div className="flex-1 overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b text-left text-xs text-slate-500 uppercase">
+                            <th className="py-2 pr-4 font-semibold">Area</th>
+                            <th className="py-2 px-2 text-center font-semibold">Major</th>
+                            <th className="py-2 px-2 text-center font-semibold">Minor</th>
+                            <th className="py-2 px-2 text-center font-semibold">Cosmetic</th>
+                            <th className="py-2 px-2 text-center font-semibold">Resolved</th>
+                            <th className="py-2 pl-2 text-center font-semibold">Total</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {areaSummary.map((a: any) => (
+                            <tr key={a.area} className="border-b last:border-b-0">
+                              <td className="py-2 pr-4 font-medium text-slate-800">{a.area}</td>
+                              <td className="py-2 px-2 text-center">{a.major || "—"}</td>
+                              <td className="py-2 px-2 text-center">{a.minor || "—"}</td>
+                              <td className="py-2 px-2 text-center">{a.cosmetic || "—"}</td>
+                              <td className="py-2 px-2 text-center">{a.resolved || "—"}</td>
+                              <td className="py-2 pl-2 text-center font-medium">{a.total}</td>
+                            </tr>
+                          ))}
+                          {areaSummary.length > 1 && (
+                            <tr className="font-bold text-slate-900">
+                              <td className="py-2 pr-4">Total</td>
+                              <td className="py-2 px-2 text-center">{areaTotals.major || "—"}</td>
+                              <td className="py-2 px-2 text-center">{areaTotals.minor || "—"}</td>
+                              <td className="py-2 px-2 text-center">{areaTotals.cosmetic || "—"}</td>
+                              <td className="py-2 px-2 text-center">{areaTotals.resolved || "—"}</td>
+                              <td className="py-2 pl-2 text-center">{areaTotals.total}</td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
                     </div>
-                  </div>
-                  <div className="bg-white rounded-xl border p-4">
-                    <div className="flex gap-3">
-                      {capSevBreakdown.map((s) => (
-                        <div key={s.label} className="text-center">
-                          <p className="text-lg font-bold text-slate-900">{s.count}</p>
-                          <p className="text-[10px] text-slate-400 uppercase">{s.label}</p>
-                        </div>
-                      ))}
+                    {/* Donut charts */}
+                    <div className="flex gap-6 shrink-0 items-start">
+                      <DonutChart title="Issue Types" data={issueTypes} />
+                      <DonutChart title="Resolution Status" data={resolutionStatus} />
                     </div>
-                    <p className="text-xs text-slate-500 mt-1">By Severity</p>
                   </div>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

@@ -1,6 +1,6 @@
 import { useState, useRef } from "react";
 import Layout from "@/components/Layout";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, useQueries } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import {
@@ -45,6 +45,54 @@ import CapturePDF from "@/components/CapturePDF";
 import { pdf } from "@react-pdf/renderer";
 import { useAuth } from "@/lib/auth";
 
+function DonutChart({ title, data }: { title: string; data: { label: string; count: number; color: string }[] }) {
+  const total = data.reduce((s, d) => s + d.count, 0);
+  const r = 28;
+  const circumference = 2 * Math.PI * r;
+  let offset = 0;
+
+  return (
+    <div className="flex flex-col items-center">
+      <p className="text-xs font-medium text-slate-600 mb-2">{title}</p>
+      <svg width="72" height="72" viewBox="0 0 72 72">
+        {total === 0 && (
+          <circle cx="36" cy="36" r={r} fill="none" stroke="#e2e8f0" strokeWidth="10" />
+        )}
+        {data.map((d) => {
+          if (d.count === 0) return null;
+          const pct = d.count / total;
+          const dash = pct * circumference;
+          const el = (
+            <circle
+              key={d.label}
+              cx="36" cy="36" r={r}
+              fill="none"
+              stroke={d.color}
+              strokeWidth="10"
+              strokeDasharray={`${dash} ${circumference - dash}`}
+              strokeDashoffset={-offset}
+              transform="rotate(-90 36 36)"
+            />
+          );
+          offset += dash;
+          return el;
+        })}
+        <text x="36" y="36" textAnchor="middle" dominantBaseline="central" className="text-xs font-bold fill-slate-900">
+          {total}
+        </text>
+      </svg>
+      <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-2 justify-center">
+        {data.map((d) => (
+          <div key={d.label} className="flex items-center gap-1">
+            <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: d.color }} />
+            <span className="text-[10px] text-slate-500">{d.label} ({d.count})</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function CaptureManager() {
   const { user } = useAuth();
   const [, params] = useRoute("/project/:id/captures");
@@ -69,6 +117,50 @@ export default function CaptureManager() {
     queryFn: () => api.getCaptures(projectId!),
     enabled: !!projectId,
   });
+
+  // Fetch hotspots for each capture
+  const hotspotQueries = useQueries({
+    queries: captures.map((cap: any) => ({
+      queryKey: ["hotspots", cap.id],
+      queryFn: () => api.getHotspots(cap.id),
+      enabled: !!cap.id,
+    })),
+  });
+
+  const hotspotsLoaded = hotspotQueries.every((q) => q.isSuccess);
+  const captureHotspots = hotspotQueries.map((q, i) => ({
+    capture: captures[i],
+    hotspots: q.data ?? [],
+  }));
+
+  // Area summary
+  const areaSummary = captureHotspots
+    .map(({ capture, hotspots }) => ({
+      area: capture.title,
+      major: hotspots.filter((h: any) => h.issueSeverity === "Major").length,
+      minor: hotspots.filter((h: any) => h.issueSeverity === "Minor").length,
+      cosmetic: hotspots.filter((h: any) => h.issueSeverity === "Cosmetic").length,
+      resolved: hotspots.filter((h: any) => h.issueStatus === "Resolved").length,
+      total: hotspots.length,
+    }))
+    .filter((a) => a.total > 0);
+
+  const allPins = captureHotspots.flatMap((c) => c.hotspots);
+  const areaTotals = areaSummary.reduce(
+    (acc, a) => ({ major: acc.major + a.major, minor: acc.minor + a.minor, cosmetic: acc.cosmetic + a.cosmetic, resolved: acc.resolved + a.resolved, total: acc.total + a.total }),
+    { major: 0, minor: 0, cosmetic: 0, resolved: 0, total: 0 }
+  );
+
+  const issueTypes = [
+    { label: "Major", count: areaTotals.major, color: "#dc2626" },
+    { label: "Minor", count: areaTotals.minor, color: "#22c55e" },
+    { label: "Cosmetic", count: areaTotals.cosmetic, color: "#f97316" },
+  ];
+  const resolutionStatus = [
+    { label: "Resolved", count: areaTotals.resolved, color: "#22c55e" },
+    { label: "Open", count: allPins.filter((h: any) => h.issueStatus === "Open").length, color: "#dc2626" },
+    { label: "In Progress", count: allPins.filter((h: any) => h.issueStatus === "In Progress").length, color: "#f97316" },
+  ];
 
   const uploadMutation = useMutation({
     mutationFn: async () => {
@@ -258,7 +350,55 @@ export default function CaptureManager() {
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <>
+            {hotspotsLoaded && areaSummary.length > 0 && (
+              <div className="bg-white rounded-xl border shadow-sm p-4">
+                <p className="text-sm font-semibold text-slate-900 mb-3">Area Wise Defect Summary</p>
+                <div className="flex flex-col lg:flex-row gap-6">
+                  <div className="flex-1 overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b text-left text-xs text-slate-500 uppercase">
+                          <th className="py-2 pr-4 font-semibold">Area</th>
+                          <th className="py-2 px-2 text-center font-semibold">Major</th>
+                          <th className="py-2 px-2 text-center font-semibold">Minor</th>
+                          <th className="py-2 px-2 text-center font-semibold">Cosmetic</th>
+                          <th className="py-2 px-2 text-center font-semibold">Resolved</th>
+                          <th className="py-2 pl-2 text-center font-semibold">Total</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {areaSummary.map((a) => (
+                          <tr key={a.area} className="border-b last:border-b-0">
+                            <td className="py-2 pr-4 font-medium text-slate-800">{a.area}</td>
+                            <td className="py-2 px-2 text-center">{a.major || "—"}</td>
+                            <td className="py-2 px-2 text-center">{a.minor || "—"}</td>
+                            <td className="py-2 px-2 text-center">{a.cosmetic || "—"}</td>
+                            <td className="py-2 px-2 text-center">{a.resolved || "—"}</td>
+                            <td className="py-2 pl-2 text-center font-medium">{a.total}</td>
+                          </tr>
+                        ))}
+                        {areaSummary.length > 1 && (
+                          <tr className="font-bold text-slate-900">
+                            <td className="py-2 pr-4">Total</td>
+                            <td className="py-2 px-2 text-center">{areaTotals.major || "—"}</td>
+                            <td className="py-2 px-2 text-center">{areaTotals.minor || "—"}</td>
+                            <td className="py-2 px-2 text-center">{areaTotals.cosmetic || "—"}</td>
+                            <td className="py-2 px-2 text-center">{areaTotals.resolved || "—"}</td>
+                            <td className="py-2 pl-2 text-center">{areaTotals.total}</td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div className="flex gap-6 shrink-0 items-start">
+                    <DonutChart title="Issue Types" data={issueTypes} />
+                    <DonutChart title="Resolution Status" data={resolutionStatus} />
+                  </div>
+                </div>
+              </div>
+            )}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {captures.map((fp: any) => (
               <Card key={fp.id} className="overflow-hidden">
                 <div className="aspect-[4/3] bg-slate-100 relative overflow-hidden">
@@ -301,6 +441,7 @@ export default function CaptureManager() {
               </Card>
             ))}
           </div>
+          </>
         )}
       </div>
 
