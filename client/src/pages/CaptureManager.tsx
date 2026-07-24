@@ -30,7 +30,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  Map,
+  MapIcon,
   Plus,
   Trash2,
   Eye,
@@ -348,7 +348,7 @@ export default function CaptureManager() {
           </div>
         ) : captures.length === 0 ? (
           <div className="text-center py-20 text-slate-400">
-            <Map className="h-12 w-12 mx-auto mb-3 opacity-50" />
+            <MapIcon className="h-12 w-12 mx-auto mb-3 opacity-50" />
             <p className="text-lg font-medium">No captures yet</p>
             <p className="text-sm mt-1">
               Upload any photo or 360° image to get started
