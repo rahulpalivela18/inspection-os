@@ -1155,7 +1155,7 @@ export default function CapturePDF({ captures, cover }: CapturePDFProps) {
     for (let i = 0; i < pins.length; i += 2) {
       chunks.push(pins.slice(i, i + 2));
     }
-    return chunks.length > 0 ? chunks : [[]];
+    return chunks;
   }
 
   return (
