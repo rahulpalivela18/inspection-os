@@ -1,6 +1,6 @@
 import { useState, useRef } from "react";
 import Layout from "@/components/Layout";
-import { useQuery, useMutation, useQueryClient, useQueries } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import {
@@ -118,20 +118,21 @@ export default function CaptureManager() {
     enabled: !!projectId,
   });
 
-  // Fetch hotspots for each capture
-  const hotspotQueries = useQueries({
-    queries: captures.map((cap: any) => ({
-      queryKey: ["hotspots", cap.id],
-      queryFn: () => api.getHotspots(cap.id),
-      enabled: !!cap.id,
-    })),
+  // Fetch hotspots for all captures
+  const { data: captureHotspots = [] } = useQuery({
+    queryKey: ["allHotspots", projectId],
+    queryFn: async () => {
+      return Promise.all(
+        captures.map(async (cap: any) => {
+          const hotspots = await api.getHotspots(cap.id);
+          return { capture: cap, hotspots };
+        })
+      );
+    },
+    enabled: !!projectId && captures.length > 0,
   });
 
-  const hotspotsLoaded = hotspotQueries.every((q) => q.isSuccess);
-  const captureHotspots = hotspotQueries.map((q, i) => ({
-    capture: captures[i],
-    hotspots: q.data ?? [],
-  }));
+  const hotspotsLoaded = captureHotspots.length === captures.length && captures.length > 0;
 
   // Area summary: group by capture title (merge duplicates)
   const areaMap = new Map<string, { major: number; minor: number; cosmetic: number; resolved: number; total: number }>();
