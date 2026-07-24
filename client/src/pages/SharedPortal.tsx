@@ -242,18 +242,22 @@ export default function SharedPortal() {
   // Capture stats
   const allHotspots = captures.flatMap((c: any) => c.hotspots ?? []);
 
-  // Area summary: group hotspots by capture title
-  const areaSummary = captures.map((cap: any) => {
+  // Area summary: group hotspots by capture title (merge duplicates)
+  const areaMap = new Map<string, { major: number; minor: number; cosmetic: number; resolved: number; total: number }>();
+  for (const cap of captures) {
     const pins = cap.hotspots ?? [];
-    return {
-      area: cap.title,
-      major: pins.filter((h: any) => h.issueSeverity === "Major").length,
-      minor: pins.filter((h: any) => h.issueSeverity === "Minor").length,
-      cosmetic: pins.filter((h: any) => h.issueSeverity === "Cosmetic").length,
-      resolved: pins.filter((h: any) => h.issueStatus === "Resolved").length,
-      total: pins.length,
-    };
-  }).filter((a: any) => a.total > 0);
+    const existing = areaMap.get(cap.title) ?? { major: 0, minor: 0, cosmetic: 0, resolved: 0, total: 0 };
+    areaMap.set(cap.title, {
+      major: existing.major + pins.filter((h: any) => h.issueSeverity === "Major").length,
+      minor: existing.minor + pins.filter((h: any) => h.issueSeverity === "Minor").length,
+      cosmetic: existing.cosmetic + pins.filter((h: any) => h.issueSeverity === "Cosmetic").length,
+      resolved: existing.resolved + pins.filter((h: any) => h.issueStatus === "Resolved").length,
+      total: existing.total + pins.length,
+    });
+  }
+  const areaSummary = Array.from(areaMap.entries())
+    .map(([area, stats]) => ({ area, ...stats }))
+    .filter((a) => a.total > 0);
 
   const areaTotals = areaSummary.reduce(
     (acc: any, a: any) => ({ major: acc.major + a.major, minor: acc.minor + a.minor, cosmetic: acc.cosmetic + a.cosmetic, resolved: acc.resolved + a.resolved, total: acc.total + a.total }),

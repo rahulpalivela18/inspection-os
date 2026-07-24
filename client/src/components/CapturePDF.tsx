@@ -445,16 +445,19 @@ interface AreaSummary {
 }
 
 function computeAreaSummary(captures: CapturePDF[]): AreaSummary[] {
-  return captures
-    .map((c) => ({
+  const areaMap = new Map<string, AreaSummary>();
+  for (const c of captures) {
+    const existing = areaMap.get(c.title) ?? { area: c.title, major: 0, minor: 0, cosmetic: 0, resolved: 0, total: 0 };
+    areaMap.set(c.title, {
       area: c.title,
-      major: c.pins.filter((p) => p.severity === "Major").length,
-      minor: c.pins.filter((p) => p.severity === "Minor").length,
-      cosmetic: c.pins.filter((p) => p.severity === "Cosmetic").length,
-      resolved: c.pins.filter((p) => p.status === "Resolved").length,
-      total: c.pins.length,
-    }))
-    .filter((a) => a.total > 0);
+      major: existing.major + c.pins.filter((p) => p.severity === "Major").length,
+      minor: existing.minor + c.pins.filter((p) => p.severity === "Minor").length,
+      cosmetic: existing.cosmetic + c.pins.filter((p) => p.severity === "Cosmetic").length,
+      resolved: existing.resolved + c.pins.filter((p) => p.status === "Resolved").length,
+      total: existing.total + c.pins.length,
+    });
+  }
+  return Array.from(areaMap.values()).filter((a) => a.total > 0);
 }
 
 function PdfPieSlice({ cx, cy, r, startAngle, endAngle, color }: {

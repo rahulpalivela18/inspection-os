@@ -133,16 +133,20 @@ export default function CaptureManager() {
     hotspots: q.data ?? [],
   }));
 
-  // Area summary
-  const areaSummary = captureHotspots
-    .map(({ capture, hotspots }) => ({
-      area: capture.title,
-      major: hotspots.filter((h: any) => h.issueSeverity === "Major").length,
-      minor: hotspots.filter((h: any) => h.issueSeverity === "Minor").length,
-      cosmetic: hotspots.filter((h: any) => h.issueSeverity === "Cosmetic").length,
-      resolved: hotspots.filter((h: any) => h.issueStatus === "Resolved").length,
-      total: hotspots.length,
-    }))
+  // Area summary: group by capture title (merge duplicates)
+  const areaMap = new Map<string, { major: number; minor: number; cosmetic: number; resolved: number; total: number }>();
+  for (const { capture, hotspots } of captureHotspots) {
+    const existing = areaMap.get(capture.title) ?? { major: 0, minor: 0, cosmetic: 0, resolved: 0, total: 0 };
+    areaMap.set(capture.title, {
+      major: existing.major + hotspots.filter((h: any) => h.issueSeverity === "Major").length,
+      minor: existing.minor + hotspots.filter((h: any) => h.issueSeverity === "Minor").length,
+      cosmetic: existing.cosmetic + hotspots.filter((h: any) => h.issueSeverity === "Cosmetic").length,
+      resolved: existing.resolved + hotspots.filter((h: any) => h.issueStatus === "Resolved").length,
+      total: existing.total + hotspots.length,
+    });
+  }
+  const areaSummary = Array.from(areaMap.entries())
+    .map(([area, stats]) => ({ area, ...stats }))
     .filter((a) => a.total > 0);
 
   const allPins = captureHotspots.flatMap((c) => c.hotspots);
