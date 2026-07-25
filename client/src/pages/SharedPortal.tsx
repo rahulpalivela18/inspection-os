@@ -70,6 +70,7 @@ export default function SharedPortal() {
   const [tab, setTab] = useState<"reports" | "captures">("captures");
   const [expandedReport, setExpandedReport] = useState<string | null>(null);
   const [viewCapture, setViewCapture] = useState<any>(null);
+  const [fitScale, setFitScale] = useState(1);
   const [scale, setScale] = useState(1);
   const [panX, setPanX] = useState(0);
   const [panY, setPanY] = useState(0);
@@ -83,7 +84,29 @@ export default function SharedPortal() {
 
   function zoomIn() { setScale((s) => Math.min(s * 1.3, 5)); }
   function zoomOut() { setScale((s) => Math.max(s / 1.3, 0.3)); }
-  function resetView() { setScale(1); setPanX(0); setPanY(0); }
+  function resetView() { setScale(fitScale); setPanX(0); setPanY(0); }
+
+  // Fit image to container when viewing a capture
+  useEffect(() => {
+    if (!viewCapture || viewCapture.is360) return;
+    function updateFit() {
+      const el = panContainerRef.current;
+      if (!el || !viewCapture.width || !viewCapture.height) return;
+      const cw = el.clientWidth;
+      const ch = el.clientHeight || 500;
+      const fit = Math.min(cw / viewCapture.width, ch / viewCapture.height, 1);
+      setFitScale(fit);
+      setScale(fit);
+      setPanX(0);
+      setPanY(0);
+    }
+    const raf = requestAnimationFrame(updateFit);
+    window.addEventListener("resize", updateFit);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener("resize", updateFit);
+    };
+  }, [viewCapture]);
 
   function handlePointerDown(e: React.PointerEvent<HTMLDivElement>) {
     e.preventDefault();
@@ -463,6 +486,7 @@ export default function SharedPortal() {
                                 style={{
                                   left: `${parseFloat(h.x) * 100}%`,
                                   top: `${parseFloat(h.y) * 100}%`,
+                                  transform: `translate(-50%,-50%) scale(${1 / scale})`,
                                   backgroundColor: h.issueSeverity === "Major" ? "#dc2626" : h.issueSeverity === "Cosmetic" ? "#f97316" : h.issueSeverity === "Minor" ? "#22c55e" : "#3b82f6",
                                 }}
                               >
@@ -532,31 +556,19 @@ export default function SharedPortal() {
                             <th className="px-4 py-3 text-right text-[10.5px] font-bold text-slate-300 uppercase tracking-wider">Cosmetic</th>
                             <th className="px-4 py-3 text-right text-[10.5px] font-bold text-slate-300 uppercase tracking-wider">Resolved</th>
                             <th className="px-4 py-3 text-right text-[10.5px] font-bold text-slate-300 uppercase tracking-wider">Total</th>
-                            <th className="px-5 py-3 text-left text-[10.5px] font-bold text-slate-300 uppercase tracking-wider min-w-[140px]">Progress</th>
                           </tr>
                         </thead>
                         <tbody>
-                          {areaSummary.map((a: any, i: number) => {
-                            const pct = a.total > 0 ? Math.round((a.resolved / a.total) * 100) : 0;
-                            return (
-                              <tr key={a.area} className={`border-b border-slate-100 last:border-b-0 ${i % 2 === 0 ? "bg-white" : "bg-slate-50/60"} hover:bg-indigo-50/40 transition-colors`}>
-                                <td className="px-5 py-3 font-medium text-slate-800">{a.area}</td>
-                                <td className="px-4 py-3 text-right tabular-nums text-slate-600">{a.major || <span className="text-slate-300">—</span>}</td>
-                                <td className="px-4 py-3 text-right tabular-nums text-slate-600">{a.minor || <span className="text-slate-300">—</span>}</td>
-                                <td className="px-4 py-3 text-right tabular-nums text-slate-600">{a.cosmetic || <span className="text-slate-300">—</span>}</td>
-                                <td className="px-4 py-3 text-right tabular-nums text-slate-600">{a.resolved || <span className="text-slate-300">—</span>}</td>
-                                <td className="px-4 py-3 text-right font-semibold tabular-nums text-slate-900">{a.total}</td>
-                                <td className="px-5 py-3">
-                                  <div className="flex items-center gap-3">
-                                    <div className="flex-1 h-2.5 bg-slate-100 rounded-full overflow-hidden">
-                                      <div className="h-full rounded-full bg-emerald-500 transition-all" style={{ width: `${pct}%` }} />
-                                    </div>
-                                    <span className="text-xs font-medium text-slate-500 tabular-nums w-9 text-right">{pct}%</span>
-                                  </div>
-                                </td>
-                              </tr>
-                            );
-                          })}
+                          {areaSummary.map((a: any, i: number) => (
+                            <tr key={a.area} className={`border-b border-slate-100 last:border-b-0 ${i % 2 === 0 ? "bg-white" : "bg-slate-50/60"} hover:bg-indigo-50/40 transition-colors`}>
+                              <td className="px-5 py-3 font-medium text-slate-800">{a.area}</td>
+                              <td className="px-4 py-3 text-right tabular-nums text-slate-600">{a.major || <span className="text-slate-300">—</span>}</td>
+                              <td className="px-4 py-3 text-right tabular-nums text-slate-600">{a.minor || <span className="text-slate-300">—</span>}</td>
+                              <td className="px-4 py-3 text-right tabular-nums text-slate-600">{a.cosmetic || <span className="text-slate-300">—</span>}</td>
+                              <td className="px-4 py-3 text-right tabular-nums text-slate-600">{a.resolved || <span className="text-slate-300">—</span>}</td>
+                              <td className="px-4 py-3 text-right font-semibold tabular-nums text-slate-900">{a.total}</td>
+                            </tr>
+                          ))}
                           {areaSummary.length > 1 && (
                             <tr className="bg-slate-100 font-bold border-t-2 border-slate-200">
                               <td className="px-5 py-3 text-slate-900">Total</td>
@@ -565,14 +577,6 @@ export default function SharedPortal() {
                               <td className="px-4 py-3 text-right tabular-nums text-slate-700">{areaTotals.cosmetic || <span className="text-slate-400">—</span>}</td>
                               <td className="px-4 py-3 text-right tabular-nums text-slate-700">{areaTotals.resolved || <span className="text-slate-400">—</span>}</td>
                               <td className="px-4 py-3 text-right tabular-nums text-slate-900">{areaTotals.total}</td>
-                              <td className="px-5 py-3">
-                                <div className="flex items-center gap-3">
-                                  <div className="flex-1 h-2.5 bg-slate-200 rounded-full overflow-hidden">
-                                    <div className="h-full rounded-full bg-emerald-600 transition-all" style={{ width: `${areaTotals.total > 0 ? Math.round((areaTotals.resolved / areaTotals.total) * 100) : 0}%` }} />
-                                  </div>
-                                  <span className="text-xs font-bold text-slate-700 tabular-nums w-9 text-right">{areaTotals.total > 0 ? Math.round((areaTotals.resolved / areaTotals.total) * 100) : 0}%</span>
-                                </div>
-                              </td>
                             </tr>
                           )}
                         </tbody>
@@ -583,14 +587,14 @@ export default function SharedPortal() {
                   {/* Analytics Cards */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {/* Issue Breakdown */}
-                    <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
-                      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-4">Issue Breakdown</p>
+                    <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
+                      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Issue Breakdown</p>
                       <div className="space-y-0">
                         {issueTypes.map((s: any) => {
                           const p = areaTotals.total > 0 ? Math.round((s.count / areaTotals.total) * 100) : 0;
                           return (
                             <div key={s.label}>
-                              <div className="flex items-center justify-between py-2.5">
+                              <div className="flex items-center justify-between py-2">
                                 <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">{s.label}</span>
                                 <span className="text-sm tabular-nums">
                                   <span className="font-bold text-slate-800">{s.count}</span>
@@ -601,7 +605,7 @@ export default function SharedPortal() {
                             </div>
                           );
                         })}
-                        <div className="flex items-center justify-between py-2.5">
+                        <div className="flex items-center justify-between py-2">
                           <span className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Total</span>
                           <span className="text-sm font-bold text-slate-800 tabular-nums">{areaTotals.total}</span>
                         </div>
@@ -609,10 +613,10 @@ export default function SharedPortal() {
                     </div>
 
                     {/* Resolution Status */}
-                    <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
-                      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-4">Resolution Status</p>
-                      <StackedBar segments={resolutionStatus} height={12} />
-                      <div className="flex flex-wrap gap-x-5 gap-y-2 mt-4">
+                    <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
+                      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Resolution Status</p>
+                      <StackedBar segments={resolutionStatus} height={10} />
+                      <div className="flex flex-wrap gap-x-5 gap-y-2 mt-3">
                         {resolutionStatus.map((s: any) => (
                           <div key={s.label} className="flex items-center gap-2">
                             <span className="w-3 h-3 rounded-sm shrink-0" style={{ backgroundColor: s.color }} />
@@ -624,7 +628,9 @@ export default function SharedPortal() {
                     </div>
                   </div>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+
+                {/* Captures Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
                 {captures.map((cap: any) => (
                   <button
                     key={cap.id}
