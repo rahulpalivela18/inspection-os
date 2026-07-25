@@ -622,6 +622,7 @@ export default function CaptureManager() {
                 <AreaSummaryTable
                   areas={pagedAreas}
                   totals={areaTotals}
+                  totalCount={areaSummary.length}
                   page={safePage}
                   totalPages={totalPages}
                   safePage={safePage}

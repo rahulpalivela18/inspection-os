@@ -196,6 +196,7 @@ const numCell = (v: number) =>
 export function AreaSummaryTable({
   areas,
   totals,
+  totalCount,
   page,
   totalPages,
   safePage,
@@ -204,6 +205,7 @@ export function AreaSummaryTable({
 }: {
   areas: AreaSummaryItem[];
   totals: AreaTotals;
+  totalCount: number;
   page: number;
   totalPages: number;
   safePage: number;
@@ -368,12 +370,12 @@ export function AreaSummaryTable({
       {totalPages > 0 && (
         <div className="flex items-center justify-end gap-3 px-5 py-3.5 text-[12.5px] text-slate-500">
           <span>
-            {areas.length === 0
+            {totalCount === 0
               ? "No areas"
               : `Showing ${
                   (safePage - 1) * 8 + 1
-                } to ${Math.min(safePage * 8, areas.length)} of ${
-                  areas.length
+                } to ${Math.min(safePage * 8, totalCount)} of ${
+                  totalCount
                 } areas`}
           </span>
           <div className="flex gap-1.5">
