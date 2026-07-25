@@ -50,9 +50,6 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               <Building2 className="h-4 w-4" />
             </div>
             <div className="min-w-0">
-              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-indigo-600">
-                Your workspace
-              </p>
               <h3 className="truncate text-sm font-semibold text-slate-900">
                 {workspace?.name || "Loading..."}
               </h3>
