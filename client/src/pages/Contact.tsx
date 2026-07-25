@@ -100,15 +100,15 @@ export default function Contact() {
           transition={{ delay: 0.45, duration: 0.6 }}
           className="grid gap-4 md:grid-cols-3 mb-12 w-full max-w-3xl"
         >
-          <div className="flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm min-w-0">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-primary/10 to-indigo-500/10">
               <Mail className="h-5 w-5 text-primary" />
             </div>
-            <div>
+            <div className="min-w-0">
               <p className="text-xs font-medium text-slate-500">Email</p>
               <a
                 href="mailto:rahulpalivela18@gmail.com"
-                className="font-heading text-sm font-bold text-slate-900 hover:text-primary"
+                className="font-heading text-sm font-bold text-slate-900 hover:text-primary truncate block"
               >
                 rahulpalivela18@gmail.com
               </a>
@@ -195,13 +195,24 @@ export default function Contact() {
                   />
                 </div>
               </div>
-              <div>
-                <label className="block text-xs font-medium text-slate-500 mb-1">Company</label>
-                <input
-                  name="company"
-                  placeholder="Company name (optional)"
-                  className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/10"
-                />
+              <div className="grid gap-4 md:grid-cols-2">
+                <div>
+                  <label className="block text-xs font-medium text-slate-500 mb-1">Phone</label>
+                  <input
+                    name="phone"
+                    type="tel"
+                    placeholder="+91 98765 43210"
+                    className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/10"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-500 mb-1">Company</label>
+                  <input
+                    name="company"
+                    placeholder="Company name (optional)"
+                    className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/10"
+                  />
+                </div>
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-500 mb-1">Message</label>
