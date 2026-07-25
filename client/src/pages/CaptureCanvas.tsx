@@ -127,6 +127,7 @@ export default function CaptureCanvas() {
 
   // Flat canvas
   const containerRef = useRef<HTMLDivElement>(null);
+  const [fitScale, setFitScale] = useState(1);
   const [scale, setScale] = useState(1);
   const [panX, setPanX] = useState(0);
   const [panY, setPanY] = useState(0);
@@ -175,6 +176,29 @@ export default function CaptureCanvas() {
   useEffect(() => {
     if (capture) setIs360(!!capture.is360);
   }, [capture]);
+
+  // ── Fit image to container on load / resize ─────────────────────────────
+  useEffect(() => {
+    if (!capture || is360) return;
+    function updateFit() {
+      const el = containerRef.current;
+      if (!el || !capture.width || !capture.height) return;
+      const cw = el.clientWidth;
+      const ch = el.clientHeight;
+      const fit = Math.min(cw / capture.width, ch / capture.height, 1);
+      setFitScale(fit);
+      setScale(fit);
+      setPanX(0);
+      setPanY(0);
+    }
+    // Run after a tick so container has measured dimensions
+    const raf = requestAnimationFrame(updateFit);
+    window.addEventListener("resize", updateFit);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener("resize", updateFit);
+    };
+  }, [capture, is360]);
 
   // ── Inject hotspot CSS once ─────────────────────────────────────────────────
   useEffect(() => {
@@ -407,7 +431,7 @@ export default function CaptureCanvas() {
 
   function zoomIn() { setScale((s) => Math.min(s * 1.3, 5)); }
   function zoomOut() { setScale((s) => Math.max(s / 1.3, 0.3)); }
-  function resetView() { setScale(1); setPanX(0); setPanY(0); }
+  function resetView() { setScale(fitScale); setPanX(0); setPanY(0); }
 
   // ── PDF export ───────────────────────────────────────────────────────────────
   async function handleExportPDF() {
@@ -612,7 +636,11 @@ export default function CaptureCanvas() {
                           data-pin={pin.id}
                           type="button"
                           className="absolute -translate-x-1/2 -translate-y-1/2 group"
-                          style={{ left: `${parseFloat(pin.x) * 100}%`, top: `${parseFloat(pin.y) * 100}%` }}
+                          style={{
+                            left: `${parseFloat(pin.x) * 100}%`,
+                            top: `${parseFloat(pin.y) * 100}%`,
+                            transform: `translate(-50%,-50%) scale(${1 / scale})`,
+                          }}
                           onPointerDown={(e) => e.stopPropagation()}
                           onPointerUp={(e) => e.stopPropagation()}
                           onClick={() => setViewingPinId(isViewing ? null : pin.id)}
