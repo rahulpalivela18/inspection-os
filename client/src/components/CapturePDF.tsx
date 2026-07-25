@@ -559,15 +559,14 @@ function AreaSummaryPage({
   );
 
   const issueTypes = [
-    { label: "Major", count: totals.major, color: "#dc2626" },
-    { label: "Minor", count: totals.minor, color: "#22c55e" },
-    { label: "Cosmetic", count: totals.cosmetic, color: "#f97316" },
+    { label: "MAJOR", count: totals.major, color: "#dc2626" },
+    { label: "MINOR", count: totals.minor, color: "#22c55e" },
+    { label: "COSMETIC", count: totals.cosmetic, color: "#f97316" },
   ];
-  const resolutionStatus = [
-    { label: "Resolved", count: totals.resolved, color: "#22c55e" },
-    { label: "Open", count: allPins.filter((p) => p.status === "Open").length, color: "#dc2626" },
-    { label: "In Progress", count: allPins.filter((p) => p.status === "In Progress").length, color: "#f97316" },
-  ];
+  const openCount = allPins.filter((p) => p.status === "Open").length;
+  const inProgressCount = allPins.filter((p) => p.status === "In Progress").length;
+  const resolvedCount = totals.resolved;
+  const resolutionTotal = openCount + resolvedCount + inProgressCount;
 
   return (
     <Page size="A4" style={styles.page}>
@@ -599,49 +598,119 @@ function AreaSummaryPage({
       <Text style={styles.sectionTitle}>Area Wise Defect Summary</Text>
       <View style={styles.sectionTitleLine} />
 
-      <View style={{ flexDirection: "row" }}>
-        {/* Table */}
-        <View style={{ flex: 1 }}>
-          {/* Header row */}
-          <View style={styles.areaTableHeader}>
-            <Text style={[styles.areaCellHeader, { width: 80 }]}>Area</Text>
-            <Text style={[styles.areaCellHeader, { width: 50, textAlign: "center" }]}>Major</Text>
-            <Text style={[styles.areaCellHeader, { width: 50, textAlign: "center" }]}>Minor</Text>
-            <Text style={[styles.areaCellHeader, { width: 55, textAlign: "center" }]}>Cosmetic</Text>
-            <Text style={[styles.areaCellHeader, { width: 55, textAlign: "center" }]}>Resolved</Text>
-            <Text style={[styles.areaCellHeader, { width: 40, textAlign: "center" }]}>Total</Text>
-          </View>
-
-          {/* Data rows */}
-          {summary.map((a, i) => (
-            <View key={a.area} style={[styles.areaTableRow, i % 2 === 0 ? { backgroundColor: "#fafbfc" } : {}]}>
-              <Text style={[styles.areaCell, { width: 80 }]}>{a.area}</Text>
-              <Text style={[styles.areaCell, { width: 50, textAlign: "center" }]}>{a.major || "—"}</Text>
-              <Text style={[styles.areaCell, { width: 50, textAlign: "center" }]}>{a.minor || "—"}</Text>
-              <Text style={[styles.areaCell, { width: 55, textAlign: "center" }]}>{a.cosmetic || "—"}</Text>
-              <Text style={[styles.areaCell, { width: 55, textAlign: "center" }]}>{a.resolved || "—"}</Text>
-              <Text style={[styles.areaCell, { width: 40, textAlign: "center", fontWeight: 700 }]}>{a.total}</Text>
-            </View>
-          ))}
-
-          {/* Total row */}
-          {summary.length > 1 && (
-            <View style={styles.areaTableTotalRow}>
-              <Text style={[styles.areaCell, { width: 80, fontWeight: 700 }]}>Total</Text>
-              <Text style={[styles.areaCell, { width: 50, textAlign: "center", fontWeight: 700 }]}>{totals.major || "—"}</Text>
-              <Text style={[styles.areaCell, { width: 50, textAlign: "center", fontWeight: 700 }]}>{totals.minor || "—"}</Text>
-              <Text style={[styles.areaCell, { width: 55, textAlign: "center", fontWeight: 700 }]}>{totals.cosmetic || "—"}</Text>
-              <Text style={[styles.areaCell, { width: 55, textAlign: "center", fontWeight: 700 }]}>{totals.resolved || "—"}</Text>
-              <Text style={[styles.areaCell, { width: 40, textAlign: "center", fontWeight: 700 }]}>{totals.total}</Text>
-            </View>
-          )}
+      {/* ── Area Table ── */}
+      <View style={{ marginBottom: 20 }}>
+        {/* Table header */}
+        <View style={{ flexDirection: "row", backgroundColor: "#1e293b", paddingVertical: 6, paddingHorizontal: 8 }}>
+          <Text style={{ fontSize: 7, fontWeight: 700, color: "#cbd5e1", textTransform: "uppercase", letterSpacing: 0.5, width: 80 }}>Area</Text>
+          <Text style={{ fontSize: 7, fontWeight: 700, color: "#cbd5e1", textTransform: "uppercase", letterSpacing: 0.5, width: 50, textAlign: "right" }}>Major</Text>
+          <Text style={{ fontSize: 7, fontWeight: 700, color: "#cbd5e1", textTransform: "uppercase", letterSpacing: 0.5, width: 50, textAlign: "right" }}>Minor</Text>
+          <Text style={{ fontSize: 7, fontWeight: 700, color: "#cbd5e1", textTransform: "uppercase", letterSpacing: 0.5, width: 55, textAlign: "right" }}>Cosmetic</Text>
+          <Text style={{ fontSize: 7, fontWeight: 700, color: "#cbd5e1", textTransform: "uppercase", letterSpacing: 0.5, width: 55, textAlign: "right" }}>Resolved</Text>
+          <Text style={{ fontSize: 7, fontWeight: 700, color: "#cbd5e1", textTransform: "uppercase", letterSpacing: 0.5, width: 35, textAlign: "right" }}>Total</Text>
+          <Text style={{ fontSize: 7, fontWeight: 700, color: "#cbd5e1", textTransform: "uppercase", letterSpacing: 0.5, flex: 1, textAlign: "right" }}>Progress</Text>
         </View>
 
-        {/* Donut charts */}
-        <View style={{ width: 160, justifyContent: "flex-start" }}>
-          <PdfDonutChart title="Issue Types" data={issueTypes} />
-          <View style={{ height: 16 }} />
-          <PdfDonutChart title="Resolution Status" data={resolutionStatus} />
+        {/* Data rows */}
+        {summary.map((a, i) => {
+          const pct = a.total > 0 ? Math.round((a.resolved / a.total) * 100) : 0;
+          return (
+            <View
+              key={a.area}
+              style={{
+                flexDirection: "row",
+                paddingVertical: 6,
+                paddingHorizontal: 8,
+                borderBottomWidth: 0.5,
+                borderBottomColor: "#f1f5f9",
+                backgroundColor: i % 2 === 0 ? "#ffffff" : "#f8fafc",
+              }}
+            >
+              <Text style={{ fontSize: 8, color: "#1e293b", fontWeight: 600, width: 80 }}>{a.area}</Text>
+              <Text style={{ fontSize: 8, color: "#475569", width: 50, textAlign: "right" }}>{a.major || "—"}</Text>
+              <Text style={{ fontSize: 8, color: "#475569", width: 50, textAlign: "right" }}>{a.minor || "—"}</Text>
+              <Text style={{ fontSize: 8, color: "#475569", width: 55, textAlign: "right" }}>{a.cosmetic || "—"}</Text>
+              <Text style={{ fontSize: 8, color: "#475569", width: 55, textAlign: "right" }}>{a.resolved || "—"}</Text>
+              <Text style={{ fontSize: 8, color: "#1e293b", fontWeight: 700, width: 35, textAlign: "right" }}>{a.total}</Text>
+              <View style={{ flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "flex-end", gap: 4 }}>
+                <View style={{ width: 60, height: 4, backgroundColor: "#f1f5f9", borderRadius: 2, overflow: "hidden" }}>
+                  <View style={{ width: `${pct}%`, height: 4, backgroundColor: "#10b981", borderRadius: 2 }} />
+                </View>
+                <Text style={{ fontSize: 7, color: "#64748b", width: 28, textAlign: "right" }}>{pct}%</Text>
+              </View>
+            </View>
+          );
+        })}
+
+        {/* Total row */}
+        {summary.length > 1 && (
+          <View style={{ flexDirection: "row", paddingVertical: 6, paddingHorizontal: 8, borderTopWidth: 1, borderTopColor: "#e2e8f0", backgroundColor: "#f1f5f9" }}>
+            <Text style={{ fontSize: 8, color: "#1e293b", fontWeight: 700, width: 80 }}>Total</Text>
+            <Text style={{ fontSize: 8, color: "#1e293b", fontWeight: 700, width: 50, textAlign: "right" }}>{totals.major || "—"}</Text>
+            <Text style={{ fontSize: 8, color: "#1e293b", fontWeight: 700, width: 50, textAlign: "right" }}>{totals.minor || "—"}</Text>
+            <Text style={{ fontSize: 8, color: "#1e293b", fontWeight: 700, width: 55, textAlign: "right" }}>{totals.cosmetic || "—"}</Text>
+            <Text style={{ fontSize: 8, color: "#1e293b", fontWeight: 700, width: 55, textAlign: "right" }}>{totals.resolved || "—"}</Text>
+            <Text style={{ fontSize: 8, color: "#1e293b", fontWeight: 700, width: 35, textAlign: "right" }}>{totals.total}</Text>
+            <View style={{ flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "flex-end", gap: 4 }}>
+              <View style={{ width: 60, height: 4, backgroundColor: "#e2e8f0", borderRadius: 2, overflow: "hidden" }}>
+                <View style={{ width: `${totals.total > 0 ? Math.round((totals.resolved / totals.total) * 100) : 0}%`, height: 4, backgroundColor: "#059669", borderRadius: 2 }} />
+              </View>
+              <Text style={{ fontSize: 7, fontWeight: 700, color: "#1e293b", width: 28, textAlign: "right" }}>
+                {totals.total > 0 ? Math.round((totals.resolved / totals.total) * 100) : 0}%
+              </Text>
+            </View>
+          </View>
+        )}
+      </View>
+
+      {/* ── Analytics Cards ── */}
+      <View style={{ flexDirection: "row", gap: 12 }}>
+        {/* Issue Breakdown */}
+        <View style={{ flex: 1, borderWidth: 1, borderColor: "#e2e8f0", borderRadius: 4, padding: 12 }}>
+          <Text style={{ fontSize: 8, fontWeight: 700, color: "#1e293b", marginBottom: 10 }}>Issue Breakdown</Text>
+          {issueTypes.map((s) => {
+            const p = totals.total > 0 ? (s.count / totals.total) * 100 : 0;
+            return (
+              <View key={s.label} style={{ flexDirection: "row", alignItems: "center", marginBottom: 6, gap: 6 }}>
+                <Text style={{ fontSize: 7, fontWeight: 600, color: "#64748b", width: 52 }}>{s.label}</Text>
+                <View style={{ flex: 1, height: 6, backgroundColor: "#f1f5f9", borderRadius: 2, overflow: "hidden" }}>
+                  <View style={{ width: `${p}%`, height: 6, backgroundColor: s.color, borderRadius: 2 }} />
+                </View>
+                <Text style={{ fontSize: 7, fontWeight: 700, color: "#1e293b", width: 20, textAlign: "right" }}>{s.count}</Text>
+                <Text style={{ fontSize: 6, color: "#94a3b8", width: 28, textAlign: "right" }}>({p.toFixed(0)}%)</Text>
+              </View>
+            );
+          })}
+          <View style={{ borderTopWidth: 0.5, borderTopColor: "#e2e8f0", marginTop: 4, paddingTop: 6, flexDirection: "row", justifyContent: "space-between" }}>
+            <Text style={{ fontSize: 7, fontWeight: 700, color: "#64748b" }}>TOTAL</Text>
+            <Text style={{ fontSize: 9, fontWeight: 700, color: "#1e293b" }}>{totals.total}</Text>
+          </View>
+        </View>
+
+        {/* Resolution Status */}
+        <View style={{ flex: 1, borderWidth: 1, borderColor: "#e2e8f0", borderRadius: 4, padding: 12 }}>
+          <Text style={{ fontSize: 8, fontWeight: 700, color: "#1e293b", marginBottom: 10 }}>Resolution Status</Text>
+          {[
+            { label: "RESOLVED", count: resolvedCount, color: "#22c55e" },
+            { label: "OPEN", count: openCount, color: "#dc2626" },
+            { label: "IN PROGRESS", count: inProgressCount, color: "#f97316" },
+          ].map((s) => {
+            const p = resolutionTotal > 0 ? (s.count / resolutionTotal) * 100 : 0;
+            return (
+              <View key={s.label} style={{ flexDirection: "row", alignItems: "center", marginBottom: 6, gap: 6 }}>
+                <Text style={{ fontSize: 7, fontWeight: 600, color: "#64748b", width: 52 }}>{s.label}</Text>
+                <View style={{ flex: 1, height: 6, backgroundColor: "#f1f5f9", borderRadius: 2, overflow: "hidden" }}>
+                  <View style={{ width: `${p}%`, height: 6, backgroundColor: s.color, borderRadius: 2 }} />
+                </View>
+                <Text style={{ fontSize: 7, fontWeight: 700, color: "#1e293b", width: 20, textAlign: "right" }}>{s.count}</Text>
+                <Text style={{ fontSize: 6, color: "#94a3b8", width: 28, textAlign: "right" }}>({p.toFixed(0)}%)</Text>
+              </View>
+            );
+          })}
+          <View style={{ borderTopWidth: 0.5, borderTopColor: "#e2e8f0", marginTop: 4, paddingTop: 6, flexDirection: "row", justifyContent: "space-between" }}>
+            <Text style={{ fontSize: 7, fontWeight: 700, color: "#64748b" }}>TOTAL</Text>
+            <Text style={{ fontSize: 9, fontWeight: 700, color: "#1e293b" }}>{resolutionTotal}</Text>
+          </View>
         </View>
       </View>
 

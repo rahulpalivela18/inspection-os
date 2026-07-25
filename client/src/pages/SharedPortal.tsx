@@ -5,6 +5,7 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { FileText, Camera, ChevronDown, ChevronRight, CheckCircle2, AlertCircle, Clock, X, ZoomIn, ZoomOut, Move } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { StackedBar } from "@/components/analytics/SharedAnalytics";
 
 function toPitchYaw(x: number, y: number) {
   return { yaw: (x - 0.5) * 360, pitch: (0.5 - y) * 180 };
@@ -61,54 +62,6 @@ function captureSeverityColor(s?: string) {
     case "Minor": return "bg-green-100 text-green-700 border-green-200";
     default: return "bg-blue-100 text-blue-700 border-blue-200";
   }
-}
-
-function DonutChart({ title, data }: { title: string; data: { label: string; count: number; color: string }[] }) {
-  const total = data.reduce((s, d) => s + d.count, 0);
-  const r = 36;
-  const circumference = 2 * Math.PI * r;
-  let offset = 0;
-
-  return (
-    <div className="flex flex-col items-center">
-      <p className="text-xs font-medium text-slate-600 mb-2">{title}</p>
-      <svg width="96" height="96" viewBox="0 0 96 96">
-        {total === 0 && (
-          <circle cx="48" cy="48" r={r} fill="none" stroke="#e2e8f0" strokeWidth="12" />
-        )}
-        {data.map((d) => {
-          if (d.count === 0) return null;
-          const pct = d.count / total;
-          const dash = pct * circumference;
-          const el = (
-            <circle
-              key={d.label}
-              cx="48" cy="48" r={r}
-              fill="none"
-              stroke={d.color}
-              strokeWidth="12"
-              strokeDasharray={`${dash} ${circumference - dash}`}
-              strokeDashoffset={-offset}
-              transform="rotate(-90 48 48)"
-            />
-          );
-          offset += dash;
-          return el;
-        })}
-        <text x="48" y="48" textAnchor="middle" dominantBaseline="central" className="text-sm font-bold fill-slate-900">
-          {total}
-        </text>
-      </svg>
-      <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-2 justify-center">
-        {data.map((d) => (
-          <div key={d.label} className="flex items-center gap-1">
-            <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: d.color }} />
-            <span className="text-[10px] text-slate-500">{d.label} ({d.count})</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
 }
 
 export default function SharedPortal() {
@@ -563,50 +516,111 @@ export default function SharedPortal() {
               </div>
             ) : (
               <>
-                <div className="bg-white rounded-xl border shadow-sm p-4 mb-6">
-                  <p className="text-sm font-semibold text-slate-900 mb-3">Area Wise Defect Summary</p>
-                  <div className="flex flex-col lg:flex-row gap-6">
-                    {/* Table */}
-                    <div className="flex-1 overflow-x-auto">
+                <div className="space-y-6">
+                  {/* Area Table */}
+                  <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                    <div className="px-5 py-4 border-b border-slate-100">
+                      <p className="text-sm font-semibold text-slate-900">Area Wise Defect Summary</p>
+                    </div>
+                    <div className="overflow-x-auto">
                       <table className="w-full text-sm">
                         <thead>
-                          <tr className="border-b text-left text-xs text-slate-500 uppercase">
-                            <th className="py-2 pr-4 font-semibold">Area</th>
-                            <th className="py-2 px-2 text-center font-semibold">Major</th>
-                            <th className="py-2 px-2 text-center font-semibold">Minor</th>
-                            <th className="py-2 px-2 text-center font-semibold">Cosmetic</th>
-                            <th className="py-2 px-2 text-center font-semibold">Resolved</th>
-                            <th className="py-2 pl-2 text-center font-semibold">Total</th>
+                          <tr className="bg-slate-800">
+                            <th className="px-5 py-3 text-left text-[10.5px] font-bold text-slate-300 uppercase tracking-wider">Area</th>
+                            <th className="px-4 py-3 text-right text-[10.5px] font-bold text-slate-300 uppercase tracking-wider">Major</th>
+                            <th className="px-4 py-3 text-right text-[10.5px] font-bold text-slate-300 uppercase tracking-wider">Minor</th>
+                            <th className="px-4 py-3 text-right text-[10.5px] font-bold text-slate-300 uppercase tracking-wider">Cosmetic</th>
+                            <th className="px-4 py-3 text-right text-[10.5px] font-bold text-slate-300 uppercase tracking-wider">Resolved</th>
+                            <th className="px-4 py-3 text-right text-[10.5px] font-bold text-slate-300 uppercase tracking-wider">Total</th>
+                            <th className="px-5 py-3 text-left text-[10.5px] font-bold text-slate-300 uppercase tracking-wider min-w-[140px]">Progress</th>
                           </tr>
                         </thead>
                         <tbody>
-                          {areaSummary.map((a: any) => (
-                            <tr key={a.area} className="border-b last:border-b-0">
-                              <td className="py-2 pr-4 font-medium text-slate-800">{a.area}</td>
-                              <td className="py-2 px-2 text-center">{a.major || "—"}</td>
-                              <td className="py-2 px-2 text-center">{a.minor || "—"}</td>
-                              <td className="py-2 px-2 text-center">{a.cosmetic || "—"}</td>
-                              <td className="py-2 px-2 text-center">{a.resolved || "—"}</td>
-                              <td className="py-2 pl-2 text-center font-medium">{a.total}</td>
-                            </tr>
-                          ))}
+                          {areaSummary.map((a: any, i: number) => {
+                            const pct = a.total > 0 ? Math.round((a.resolved / a.total) * 100) : 0;
+                            return (
+                              <tr key={a.area} className={`border-b border-slate-100 last:border-b-0 ${i % 2 === 0 ? "bg-white" : "bg-slate-50/60"} hover:bg-indigo-50/40 transition-colors`}>
+                                <td className="px-5 py-3 font-medium text-slate-800">{a.area}</td>
+                                <td className="px-4 py-3 text-right tabular-nums text-slate-600">{a.major || <span className="text-slate-300">—</span>}</td>
+                                <td className="px-4 py-3 text-right tabular-nums text-slate-600">{a.minor || <span className="text-slate-300">—</span>}</td>
+                                <td className="px-4 py-3 text-right tabular-nums text-slate-600">{a.cosmetic || <span className="text-slate-300">—</span>}</td>
+                                <td className="px-4 py-3 text-right tabular-nums text-slate-600">{a.resolved || <span className="text-slate-300">—</span>}</td>
+                                <td className="px-4 py-3 text-right font-semibold tabular-nums text-slate-900">{a.total}</td>
+                                <td className="px-5 py-3">
+                                  <div className="flex items-center gap-3">
+                                    <div className="flex-1 h-2.5 bg-slate-100 rounded-full overflow-hidden">
+                                      <div className="h-full rounded-full bg-emerald-500 transition-all" style={{ width: `${pct}%` }} />
+                                    </div>
+                                    <span className="text-xs font-medium text-slate-500 tabular-nums w-9 text-right">{pct}%</span>
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })}
                           {areaSummary.length > 1 && (
-                            <tr className="font-bold text-slate-900">
-                              <td className="py-2 pr-4">Total</td>
-                              <td className="py-2 px-2 text-center">{areaTotals.major || "—"}</td>
-                              <td className="py-2 px-2 text-center">{areaTotals.minor || "—"}</td>
-                              <td className="py-2 px-2 text-center">{areaTotals.cosmetic || "—"}</td>
-                              <td className="py-2 px-2 text-center">{areaTotals.resolved || "—"}</td>
-                              <td className="py-2 pl-2 text-center">{areaTotals.total}</td>
+                            <tr className="bg-slate-100 font-bold border-t-2 border-slate-200">
+                              <td className="px-5 py-3 text-slate-900">Total</td>
+                              <td className="px-4 py-3 text-right tabular-nums text-slate-700">{areaTotals.major || <span className="text-slate-400">—</span>}</td>
+                              <td className="px-4 py-3 text-right tabular-nums text-slate-700">{areaTotals.minor || <span className="text-slate-400">—</span>}</td>
+                              <td className="px-4 py-3 text-right tabular-nums text-slate-700">{areaTotals.cosmetic || <span className="text-slate-400">—</span>}</td>
+                              <td className="px-4 py-3 text-right tabular-nums text-slate-700">{areaTotals.resolved || <span className="text-slate-400">—</span>}</td>
+                              <td className="px-4 py-3 text-right tabular-nums text-slate-900">{areaTotals.total}</td>
+                              <td className="px-5 py-3">
+                                <div className="flex items-center gap-3">
+                                  <div className="flex-1 h-2.5 bg-slate-200 rounded-full overflow-hidden">
+                                    <div className="h-full rounded-full bg-emerald-600 transition-all" style={{ width: `${areaTotals.total > 0 ? Math.round((areaTotals.resolved / areaTotals.total) * 100) : 0}%` }} />
+                                  </div>
+                                  <span className="text-xs font-bold text-slate-700 tabular-nums w-9 text-right">{areaTotals.total > 0 ? Math.round((areaTotals.resolved / areaTotals.total) * 100) : 0}%</span>
+                                </div>
+                              </td>
                             </tr>
                           )}
                         </tbody>
                       </table>
                     </div>
-                    {/* Donut charts */}
-                    <div className="flex flex-col items-center gap-5 shrink-0">
-                      <DonutChart title="Issue Types" data={issueTypes} />
-                      <DonutChart title="Resolution Status" data={resolutionStatus} />
+                  </div>
+
+                  {/* Analytics Cards */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Issue Breakdown */}
+                    <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
+                      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-4">Issue Breakdown</p>
+                      <div className="space-y-0">
+                        {issueTypes.map((s: any) => {
+                          const p = areaTotals.total > 0 ? Math.round((s.count / areaTotals.total) * 100) : 0;
+                          return (
+                            <div key={s.label}>
+                              <div className="flex items-center justify-between py-2.5">
+                                <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">{s.label}</span>
+                                <span className="text-sm tabular-nums">
+                                  <span className="font-bold text-slate-800">{s.count}</span>
+                                  <span className="text-xs font-medium text-slate-400 ml-1.5">({p}%)</span>
+                                </span>
+                              </div>
+                              <div className="border-b border-slate-100" />
+                            </div>
+                          );
+                        })}
+                        <div className="flex items-center justify-between py-2.5">
+                          <span className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Total</span>
+                          <span className="text-sm font-bold text-slate-800 tabular-nums">{areaTotals.total}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Resolution Status */}
+                    <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
+                      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-4">Resolution Status</p>
+                      <StackedBar segments={resolutionStatus} height={12} />
+                      <div className="flex flex-wrap gap-x-5 gap-y-2 mt-4">
+                        {resolutionStatus.map((s: any) => (
+                          <div key={s.label} className="flex items-center gap-2">
+                            <span className="w-3 h-3 rounded-sm shrink-0" style={{ backgroundColor: s.color }} />
+                            <span className="text-xs text-slate-500">{s.label}</span>
+                            <span className="text-xs font-bold text-slate-700">{s.count}</span>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   </div>
                 </div>
