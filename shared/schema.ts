@@ -29,6 +29,7 @@ export const workspaces = pgTable("workspaces", {
   planStatus: text("plan_status", { enum: ["active", "inactive"] })
     .notNull()
     .default("inactive"),
+  trialEndsAt: timestamp("trial_ends_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

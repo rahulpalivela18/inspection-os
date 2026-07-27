@@ -18,7 +18,7 @@ import { Receipt, Download, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 export default function Billing() {
-  const { user, workspace } = useAuth();
+  const { user, workspace, trial } = useAuth();
   const { toast } = useToast();
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
@@ -26,6 +26,8 @@ export default function Billing() {
     queryKey: ["workspace", "invoices"],
     queryFn: api.getWorkspaceInvoices,
   });
+
+  const isTrial = trial?.isTrial === true;
 
   const handleDownload = async (inv: any) => {
     setDownloadingId(inv.id);
@@ -75,22 +77,37 @@ export default function Billing() {
             <CardContent>
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-lg font-semibold text-slate-900">
-                    {workspace?.plan
-                      ? workspace.plan.charAt(0).toUpperCase() + workspace.plan.slice(1)
-                      : "Starter"}{" "}
-                    Plan
-                  </p>
-                  <p className="text-sm text-slate-500">
-                    {workspace?.plan === "starter"
-                      ? "Up to 2 inspectors"
-                      : workspace?.plan === "pro"
-                        ? "Up to 9 inspectors"
-                        : "Unlimited inspectors"}
-                  </p>
+                  {isTrial ? (
+                    <>
+                      <p className="text-lg font-semibold text-slate-900">
+                        Free Trial
+                      </p>
+                      <p className="text-sm text-slate-500">
+                        {trial.daysRemaining !== null && trial.daysRemaining > 0
+                          ? `${trial.daysRemaining} day${trial.daysRemaining === 1 ? "" : "s"} remaining — 1 project, 5 captures`
+                          : "Trial expired — contact us to upgrade"}
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-lg font-semibold text-slate-900">
+                        {workspace?.plan
+                          ? workspace.plan.charAt(0).toUpperCase() + workspace.plan.slice(1)
+                          : "Starter"}{" "}
+                        Plan
+                      </p>
+                      <p className="text-sm text-slate-500">
+                        {workspace?.plan === "starter"
+                          ? "Up to 2 inspectors"
+                          : workspace?.plan === "pro"
+                            ? "Up to 9 inspectors"
+                            : "Unlimited inspectors"}
+                      </p>
+                    </>
+                  )}
                 </div>
-                <Badge className="bg-green-50 text-green-700 border-green-200">
-                  Active
+                <Badge className={isTrial ? "bg-blue-50 text-blue-700 border-blue-200" : "bg-green-50 text-green-700 border-green-200"}>
+                  {isTrial ? "Trial" : "Active"}
                 </Badge>
               </div>
             </CardContent>

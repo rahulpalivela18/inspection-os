@@ -31,11 +31,19 @@ export default function LandingPage() {
           <div className="flex items-center gap-2">
             <Link href="/login">
               <Button
-                variant="outline"
+                variant="ghost"
                 className="rounded-xl font-semibold"
                 data-testid="button-login"
               >
                 Log In
+              </Button>
+            </Link>
+            <Link href="/register">
+              <Button
+                className="rounded-xl font-semibold"
+                data-testid="button-signup"
+              >
+                Sign Up Free
               </Button>
             </Link>
           </div>
@@ -83,13 +91,13 @@ export default function LandingPage() {
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.45, duration: 0.6 }}
         >
-          <Link href="/contact">
+          <Link href="/register">
             <Button
               size="lg"
               className="h-14 rounded-2xl px-8 text-base font-bold shadow-xl shadow-primary/20"
               data-testid="button-start-report-flow"
             >
-              Get Started <ArrowRight className="ml-2 h-5 w-5" />
+              Get Started Free <ArrowRight className="ml-2 h-5 w-5" />
             </Button>
           </Link>
         </motion.div>
@@ -322,14 +330,14 @@ export default function LandingPage() {
                 ))}
               </ul>
 
-              <Link href="/contact">
+              <Link href="/register">
                 <Button
                   className={`w-full rounded-xl font-bold ${
                     plan.popular && "shadow-lg shadow-primary/30"
                   }`}
                   variant={plan.popular ? "default" : "outline"}
                 >
-                  Get Started
+                  Start Free Trial
                 </Button>
               </Link>
             </motion.div>

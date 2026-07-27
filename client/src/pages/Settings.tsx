@@ -67,7 +67,7 @@ function isValidEmail(email: string) {
 }
 
 export default function Settings() {
-  const { user, workspace, refreshWorkspace, logout } = useAuth();
+  const { user, workspace, refreshWorkspace, refreshTrial, logout } = useAuth();
   const { toast } = useToast();
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
@@ -137,6 +137,7 @@ export default function Settings() {
     mutationFn: () => api.addTeamMember(newMember as any),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["team"] });
+      refreshTrial();
       setNewMember({ name: "", email: "", password: "", role: "inspector" });
       setMemberTouched({ name: false, email: false, password: false });
       setShowAddForm(false);

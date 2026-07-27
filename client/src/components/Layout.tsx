@@ -8,6 +8,8 @@ import {
   CheckSquare,
   Shield,
   Receipt,
+  Clock,
+  AlertTriangle,
 } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -19,7 +21,7 @@ import Footer from "@/components/Footer";
 export default function Layout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
   const [isMobileOpen, setIsMobileOpen] = useState(false);
-  const { user, workspace } = useAuth();
+  const { user, workspace, trial } = useAuth();
 
   const navigation = [
     { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
@@ -60,6 +62,61 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             </div>
           </div>
         </div>
+
+        {trial?.isTrial && (
+          <div
+            className={cn(
+              "rounded-2xl border p-3 shadow-sm",
+              trial.isExpired
+                ? "border-red-200 bg-red-50"
+                : trial.daysRemaining !== null && trial.daysRemaining <= 3
+                  ? "border-amber-200 bg-amber-50"
+                  : "border-indigo-200 bg-indigo-50"
+            )}
+          >
+            <div className="flex items-center gap-2">
+              {trial.isExpired ? (
+                <AlertTriangle className="h-4 w-4 shrink-0 text-red-600" />
+              ) : (
+                <Clock className="h-4 w-4 shrink-0 text-indigo-600" />
+              )}
+              <div className="min-w-0">
+                {trial.isExpired ? (
+                  <p className="text-xs font-semibold text-red-800">
+                    Trial expired
+                  </p>
+                ) : (
+                  <p className="text-xs font-semibold text-indigo-800">
+                    Free trial — {trial.daysRemaining} day{trial.daysRemaining === 1 ? "" : "s"} left
+                  </p>
+                )}
+                {trial.limits && trial.usage && !trial.isExpired && (
+                  <div className="mt-1.5 space-y-1">
+                    <div className="flex items-center justify-between text-[11px]">
+                      <span className="text-slate-500">Projects</span>
+                      <span className={cn("font-medium", trial.usage.projects >= trial.limits.maxProjects ? "text-amber-600" : "text-slate-700")}>
+                        {trial.usage.projects}/{trial.limits.maxProjects}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between text-[11px]">
+                      <span className="text-slate-500">Captures</span>
+                      <span className={cn("font-medium", trial.usage.captures >= trial.limits.maxCaptures ? "text-amber-600" : "text-slate-700")}>
+                        {trial.usage.captures}/{trial.limits.maxCaptures}
+                      </span>
+                    </div>
+                  </div>
+                )}
+                {trial.isExpired && (
+                  <Link href="/contact">
+                    <span className="mt-1 inline-block text-[11px] font-medium text-red-700 underline cursor-pointer hover:text-red-900">
+                      Contact us to upgrade
+                    </span>
+                  </Link>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="flex-1 space-y-1 px-4 py-4">

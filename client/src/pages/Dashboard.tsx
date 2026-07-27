@@ -39,7 +39,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth";
 
 export default function Dashboard() {
-  const { user } = useAuth();
+  const { user, refreshTrial } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [, setLocation] = useLocation();
@@ -63,6 +63,7 @@ export default function Dashboard() {
     mutationFn: (data: any) => api.createProject(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["projects"] });
+      refreshTrial();
       setIsDialogOpen(false);
       setNewProject({
         title: "",
@@ -83,6 +84,7 @@ export default function Dashboard() {
     mutationFn: (id: string) => api.deleteProject(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["projects"] });
+      refreshTrial();
       setProjectToDelete(null);
     },
     onError: (err: any) =>

@@ -64,15 +64,7 @@ function Router() {
         <PublicRoute component={Login} />
       </Route>
       <Route path="/register">
-        <div className="min-h-screen bg-gradient-to-br from-slate-50 to-indigo-50 flex items-center justify-center p-4">
-          <div className="text-center space-y-3">
-            <div className="text-4xl">🚧</div>
-            <h1 className="text-2xl font-bold text-slate-800">Coming Soon</h1>
-            <p className="text-slate-500 text-sm">
-              Registration is temporarily disabled. Check back soon!
-            </p>
-          </div>
-        </div>
+        <PublicRoute component={Register} />
       </Route>
       <Route path="/dashboard">
         <ProtectedRoute component={Dashboard} />

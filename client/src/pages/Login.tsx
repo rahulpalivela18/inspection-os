@@ -163,6 +163,14 @@ export default function Login() {
                   "Sign In"
                 )}
               </Button>
+              <p className="text-sm text-slate-500">
+                Don&apos;t have an account?{" "}
+                <Link href="/register">
+                  <span className="font-medium text-indigo-600 hover:text-indigo-500 cursor-pointer">
+                    Sign up free
+                  </span>
+                </Link>
+              </p>
               <Link href="/">
                 <button
                   type="button"

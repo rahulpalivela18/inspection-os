@@ -406,6 +406,13 @@ export class SpatialStorage {
       .orderBy(desc(captures.createdAt));
   }
 
+  async getCapturesByWorkspace(workspaceId: string) {
+    return db
+      .select()
+      .from(captures)
+      .where(eq(captures.workspaceId, workspaceId));
+  }
+
   async getCapture(id: string, workspaceId: string) {
     const [row] = await db
       .select()

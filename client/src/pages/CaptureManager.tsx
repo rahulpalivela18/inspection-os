@@ -58,7 +58,7 @@ import {
 const PAGE_SIZE = 8;
 
 export default function CaptureManager() {
-  const { user, workspace } = useAuth();
+  const { user, workspace, refreshTrial } = useAuth();
   const [, params] = useRoute("/project/:id/captures");
   const [, setLocation] = useLocation();
   const { toast } = useToast();
@@ -269,6 +269,7 @@ export default function CaptureManager() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["captures", projectId] });
+      refreshTrial();
       setIsUploadOpen(false);
       setNewTitle("");
       setSelectedFile(null);
@@ -283,6 +284,7 @@ export default function CaptureManager() {
     mutationFn: (id: string) => api.deleteCapture(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["captures", projectId] });
+      refreshTrial();
       setDeleteId(null);
     },
     onError: (err: any) =>
