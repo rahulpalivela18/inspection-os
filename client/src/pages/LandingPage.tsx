@@ -6,6 +6,9 @@ import {
   FileText,
   MapPinned,
   CheckCircle2,
+  Clock,
+  TrendingUp,
+  BadgeCheck,
 } from "lucide-react";
 import { Link } from "wouter";
 import { motion } from "framer-motion";
@@ -102,6 +105,16 @@ export default function LandingPage() {
           </Link>
         </motion.div>
 
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.7, duration: 0.6 }}
+          className="mt-6 inline-flex items-center gap-2 text-sm text-slate-500"
+        >
+          <BadgeCheck className="h-4 w-4 text-primary" />
+          Trusted by inspection companies across India
+        </motion.div>
+
         <div className="mx-auto mt-24 grid max-w-7xl gap-8 md:grid-cols-3">
           {[
             {
@@ -170,7 +183,7 @@ export default function LandingPage() {
             </p>
             <div className="flex items-center justify-center overflow-hidden rounded-xl border border-slate-100 bg-slate-50 p-2">
               <video
-                src="/videos/hotspot-demo.mp4"
+                src="/videos/hotspot-demo.mov"
                 controls
                 muted
                 playsInline
@@ -199,6 +212,80 @@ export default function LandingPage() {
             </Button>
           </a>
         </motion.div>
+      </section>
+
+      {/* ── Stats Bar ── */}
+      <section className="border-y border-slate-200 bg-white py-16 px-4">
+        <div className="mx-auto grid max-w-5xl gap-8 md:grid-cols-3">
+          {[
+            { number: "724", label: "Defects Tracked" },
+            { number: "15", label: "Projects Completed" },
+            { number: "371", label: "Site Captures" },
+          ].map((stat, i) => (
+            <motion.div
+              key={stat.label}
+              initial={{ y: 30, opacity: 0 }}
+              whileInView={{ y: 0, opacity: 1 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.2 + i * 0.15, duration: 0.6 }}
+              className="text-center"
+            >
+              <div className="text-5xl font-black text-slate-900 md:text-6xl">
+                {stat.number}
+              </div>
+              <div className="mt-2 text-sm font-medium uppercase tracking-wider text-slate-500">
+                {stat.label}
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      </section>
+
+      {/* ── Before / After ── */}
+      <section className="py-20 px-4">
+        <motion.div
+          initial={{ scale: 0.95, opacity: 0 }}
+          whileInView={{ scale: 1, opacity: 1 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.5 }}
+          className="mx-auto mb-12 flex max-w-7xl items-center justify-center"
+        >
+          <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-4 py-1.5 text-xs font-bold uppercase tracking-widest text-primary">
+            Why ReportGen?
+          </div>
+        </motion.div>
+
+        <div className="mx-auto grid max-w-4xl gap-6 md:grid-cols-2">
+          <motion.div
+            initial={{ x: -40, opacity: 0 }}
+            whileInView={{ x: 0, opacity: 1 }}
+            viewport={{ once: true }}
+            transition={{ delay: 0.2, duration: 0.6 }}
+            className="flex flex-col items-center rounded-2xl border border-red-200 bg-red-50 p-10 text-center"
+          >
+            <Clock className="mb-4 h-10 w-10 text-red-400" />
+            <div className="text-sm font-bold uppercase tracking-wider text-red-400 mb-2">
+              Before ReportGen
+            </div>
+            <div className="text-4xl font-black text-red-500">3 days</div>
+            <div className="mt-2 text-sm text-red-400">per inspection report</div>
+          </motion.div>
+
+          <motion.div
+            initial={{ x: 40, opacity: 0 }}
+            whileInView={{ x: 0, opacity: 1 }}
+            viewport={{ once: true }}
+            transition={{ delay: 0.35, duration: 0.6 }}
+            className="flex flex-col items-center rounded-2xl border border-green-200 bg-green-50 p-10 text-center"
+          >
+            <TrendingUp className="mb-4 h-10 w-10 text-green-500" />
+            <div className="text-sm font-bold uppercase tracking-wider text-green-500 mb-2">
+              After ReportGen
+            </div>
+            <div className="text-4xl font-black text-green-600">3 hours</div>
+            <div className="mt-2 text-sm text-green-500">per inspection report</div>
+          </motion.div>
+        </div>
       </section>
 
       <section className="relative py-24 md:py-32 px-4">
