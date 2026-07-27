@@ -183,7 +183,7 @@ export default function LandingPage() {
             </p>
             <div className="flex items-center justify-center overflow-hidden rounded-xl border border-slate-100 bg-slate-50 p-2">
               <video
-                src="/videos/hotspot-demo.mov"
+                src="https://storage.googleapis.com/reportgen-images-rahul/hotspot-demo-1785183126989.mp4"
                 controls
                 muted
                 playsInline
