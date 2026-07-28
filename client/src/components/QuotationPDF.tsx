@@ -111,7 +111,7 @@ function formatCurrency(amount: number) {
 interface QuotationPDFProps {
   quotation: any;
   items: any[];
-  project: any;
+  project?: any;
   workspace: any;
 }
 
@@ -145,8 +145,6 @@ export default function QuotationPDF({
             <Text style={styles.metaValue}>
               {new Date(quotation.createdAt).toLocaleDateString("en-IN")}
             </Text>
-            <Text style={[styles.metaLabel, { marginTop: 6 }]}>Status</Text>
-            <Text style={styles.metaValue}>{quotation.status}</Text>
           </View>
         </View>
 

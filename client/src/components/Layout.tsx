@@ -7,9 +7,10 @@ import {
   Building2,
   CheckSquare,
   Shield,
-  Receipt,
+  CreditCard,
   Clock,
   AlertTriangle,
+  FileText,
 } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -26,11 +27,12 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const navigation = [
     { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
     { name: "Projects", href: "/dashboard", icon: FolderOpen },
+    { name: "Quotations", href: "/quotations", icon: FileText },
     ...(user?.role !== "viewer"
       ? [{ name: "Settings", href: "/settings", icon: Settings }]
       : []),
     ...(user?.role !== "viewer"
-      ? [{ name: "Billing", href: "/billing", icon: Receipt }]
+      ? [{ name: "Subscription", href: "/billing", icon: CreditCard }]
       : []),
     ...(user?.role === "super_admin"
       ? [{ name: "Admin", href: "/admin", icon: Shield }]

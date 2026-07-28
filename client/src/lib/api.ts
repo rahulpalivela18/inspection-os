@@ -192,10 +192,11 @@ export const api = {
   getSharedProject: (token: string) => request<any>(`/api/shared/${token}`),
 
   // Quotations
+  getAllQuotations: () => request<any[]>("/api/quotations"),
   getQuotations: (projectId: string) =>
     request<any[]>(`/api/projects/${projectId}/quotations`),
-  createQuotation: (projectId: string, data: any) =>
-    request<any>(`/api/projects/${projectId}/quotations`, {
+  createQuotation: (data: any) =>
+    request<any>("/api/quotations", {
       method: "POST",
       body: JSON.stringify(data),
     }),
@@ -223,4 +224,19 @@ export const api = {
     }),
   deleteQuotationItem: (id: string) =>
     request(`/api/quotation-items/${id}`, { method: "DELETE" }),
+
+  // Workspace Rates
+  getWorkspaceRates: () => request<any[]>("/api/workspace/rates"),
+  createWorkspaceRate: (data: any) =>
+    request<any>("/api/workspace/rates", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  updateWorkspaceRate: (id: string, data: any) =>
+    request<any>(`/api/workspace/rates/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
+  deleteWorkspaceRate: (id: string) =>
+    request(`/api/workspace/rates/${id}`, { method: "DELETE" }),
 };

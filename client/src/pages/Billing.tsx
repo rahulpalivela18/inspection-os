@@ -14,7 +14,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Receipt, Download, Loader2 } from "lucide-react";
+import { CreditCard, Download, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 export default function Billing() {
@@ -71,7 +71,7 @@ export default function Billing() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Receipt className="h-5 w-5 text-primary" /> Current Plan
+                <CreditCard className="h-5 w-5 text-primary" /> Current Plan
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -125,7 +125,7 @@ export default function Billing() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
-              <Receipt className="h-4 w-4 text-primary" /> Payment History
+              <CreditCard className="h-4 w-4 text-primary" /> Payment History
             </CardTitle>
             <CardDescription>
               {invoices.length} receipt{invoices.length !== 1 ? "s" : ""} found

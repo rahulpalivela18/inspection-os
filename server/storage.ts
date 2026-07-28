@@ -1,4 +1,4 @@
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, asc } from "drizzle-orm";
 import { db } from "./db";
 import {
   users,
@@ -13,6 +13,7 @@ import {
   shareLinks,
   quotations,
   quotationItems,
+  workspaceRates,
   type User,
   type InsertUser,
   type Workspace,
@@ -37,6 +38,8 @@ import {
   type InsertQuotation,
   type QuotationItem,
   type InsertQuotationItem,
+  type WorkspaceRate,
+  type InsertWorkspaceRate,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -130,6 +133,7 @@ export interface IStorage {
     projectId: string,
     workspaceId: string,
   ): Promise<Quotation[]>;
+  getQuotationsByWorkspace(workspaceId: string): Promise<Quotation[]>;
   getQuotation(id: string, workspaceId: string): Promise<Quotation | undefined>;
   createQuotation(data: InsertQuotation): Promise<Quotation>;
   updateQuotation(
@@ -151,6 +155,16 @@ export interface IStorage {
     data: Partial<InsertQuotationItem>,
   ): Promise<QuotationItem | undefined>;
   deleteQuotationItem(id: string, workspaceId: string): Promise<boolean>;
+
+  // Workspace Rates
+  getWorkspaceRates(workspaceId: string): Promise<WorkspaceRate[]>;
+  createWorkspaceRate(data: InsertWorkspaceRate): Promise<WorkspaceRate>;
+  updateWorkspaceRate(
+    id: string,
+    workspaceId: string,
+    data: Partial<InsertWorkspaceRate>,
+  ): Promise<WorkspaceRate | undefined>;
+  deleteWorkspaceRate(id: string, workspaceId: string): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -202,7 +216,47 @@ export class DatabaseStorage implements IStorage {
     return result.length > 0;
   }
 
-  // Checklist Templates
+  // Workspace Rates
+  async getWorkspaceRates(workspaceId: string) {
+    return db
+      .select()
+      .from(workspaceRates)
+      .where(eq(workspaceRates.workspaceId, workspaceId))
+      .orderBy(desc(workspaceRates.createdAt));
+  }
+  async createWorkspaceRate(data: InsertWorkspaceRate) {
+    const [row] = await db.insert(workspaceRates).values(data).returning();
+    return row;
+  }
+  async updateWorkspaceRate(
+    id: string,
+    workspaceId: string,
+    data: Partial<InsertWorkspaceRate>,
+  ) {
+    const [row] = await db
+      .update(workspaceRates)
+      .set(data)
+      .where(
+        and(
+          eq(workspaceRates.id, id),
+          eq(workspaceRates.workspaceId, workspaceId),
+        ),
+      )
+      .returning();
+    return row;
+  }
+  async deleteWorkspaceRate(id: string, workspaceId: string) {
+    const result = await db
+      .delete(workspaceRates)
+      .where(
+        and(
+          eq(workspaceRates.id, id),
+          eq(workspaceRates.workspaceId, workspaceId),
+        ),
+      )
+      .returning();
+    return result.length > 0;
+  }
   async getChecklistTemplates(workspaceId: string, type?: string) {
     const conditions = [eq(checklistTemplates.workspaceId, workspaceId)];
     if (type) {
@@ -212,7 +266,7 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(checklistTemplates)
       .where(and(...conditions))
-      .orderBy(desc(checklistTemplates.createdAt));
+      .orderBy(asc(checklistTemplates.order));
   }
   async createChecklistTemplate(data: InsertChecklistTemplate) {
     const [row] = await db.insert(checklistTemplates).values(data).returning();
@@ -434,6 +488,13 @@ export class DatabaseStorage implements IStorage {
           eq(quotations.workspaceId, workspaceId),
         ),
       )
+      .orderBy(desc(quotations.createdAt));
+  }
+  async getQuotationsByWorkspace(workspaceId: string) {
+    return db
+      .select()
+      .from(quotations)
+      .where(eq(quotations.workspaceId, workspaceId))
       .orderBy(desc(quotations.createdAt));
   }
   async getQuotation(id: string, workspaceId: string) {

@@ -23,6 +23,7 @@ export const workspaces = pgTable("workspaces", {
   address: text("address"),
   email: text("email"),
   phone: text("phone"),
+  taxRate: text("tax_rate").default("18"),
   plan: text("plan", { enum: ["starter", "pro", "enterprise"] })
     .notNull()
     .default("starter"),
@@ -223,9 +224,9 @@ export const quotations = pgTable("quotations", {
   id: varchar("id")
     .primaryKey()
     .default(sql`gen_random_uuid()`),
-  projectId: varchar("project_id")
-    .notNull()
-    .references(() => projects.id, { onDelete: "cascade" }),
+  projectId: varchar("project_id").references(() => projects.id, {
+    onDelete: "cascade",
+  }),
   workspaceId: varchar("workspace_id")
     .notNull()
     .references(() => workspaces.id, { onDelete: "cascade" }),
@@ -281,6 +282,29 @@ export const insertQuotationItemSchema = createInsertSchema(
 });
 export type InsertQuotationItem = z.infer<typeof insertQuotationItemSchema>;
 export type QuotationItem = typeof quotationItems.$inferSelect;
+
+// ─── Workspace Rates ─────────────────────────────────────────────────────
+export const workspaceRates = pgTable("workspace_rates", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  workspaceId: varchar("workspace_id")
+    .notNull()
+    .references(() => workspaces.id, { onDelete: "cascade" }),
+  label: text("label").notNull(),
+  rate: numeric("rate").notNull().default("0"),
+  unit: text("unit").notNull().default("flat"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertWorkspaceRateSchema = createInsertSchema(
+  workspaceRates,
+).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertWorkspaceRate = z.infer<typeof insertWorkspaceRateSchema>;
+export type WorkspaceRate = typeof workspaceRates.$inferSelect;
 
 // ─── Auth schemas (used in routes) ───────────────────────────────────────────
 export const loginSchema = z.object({

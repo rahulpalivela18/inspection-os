@@ -1250,6 +1250,12 @@ export async function registerRoutes(
 
   // ── Quotations ─────────────────────────────────────────────────────────────
 
+  app.get("/api/quotations", requireAuth, async (req, res) => {
+    const user = req.user as any;
+    const quotations = await storage.getQuotationsByWorkspace(user.workspaceId);
+    res.json(quotations);
+  });
+
   app.get(
     "/api/projects/:projectId/quotations",
     requireAuth,
@@ -1260,6 +1266,50 @@ export async function registerRoutes(
         user.workspaceId,
       );
       res.json(quotations);
+    },
+  );
+
+  app.post(
+    "/api/quotations",
+    requireAuth,
+    requireWriteAccess,
+    requireActiveTrial,
+    async (req, res) => {
+      const user = req.user as any;
+      const {
+        projectId,
+        title,
+        taxRate,
+        notes,
+        validityDays,
+        clientName,
+        clientPhone,
+        clientEmail,
+        propertyAddress,
+        propertyType,
+        bedrooms,
+        bathrooms,
+        areaSqFt,
+      } = req.body;
+      if (!title)
+        return res.status(400).json({ message: "Title is required." });
+      const quotation = await storage.createQuotation({
+        projectId: projectId || null,
+        workspaceId: user.workspaceId,
+        title,
+        taxRate: taxRate ?? "18",
+        notes: notes ?? null,
+        validityDays: validityDays ?? 30,
+        clientName: clientName ?? null,
+        clientPhone: clientPhone ?? null,
+        clientEmail: clientEmail ?? null,
+        propertyAddress: propertyAddress ?? null,
+        propertyType: propertyType ?? null,
+        bedrooms: bedrooms ?? null,
+        bathrooms: bathrooms ?? null,
+        areaSqFt: areaSqFt ?? null,
+      });
+      res.status(201).json(quotation);
     },
   );
 
@@ -1432,6 +1482,64 @@ export async function registerRoutes(
       res.status(502).json({ message: "Image proxy failed" });
     }
   });
+
+  // ── Workspace Rates ──────────────────────────────────────────────────────
+
+  app.get("/api/workspace/rates", requireAuth, async (req, res) => {
+    const user = req.user as any;
+    const rates = await storage.getWorkspaceRates(user.workspaceId);
+    res.json(rates);
+  });
+
+  app.post(
+    "/api/workspace/rates",
+    requireAuth,
+    requireWriteAccess,
+    async (req, res) => {
+      const user = req.user as any;
+      const { label, rate, unit } = req.body;
+      if (!label)
+        return res.status(400).json({ message: "Label is required." });
+      const created = await storage.createWorkspaceRate({
+        workspaceId: user.workspaceId,
+        label,
+        rate: rate ?? "0",
+        unit: unit ?? "flat",
+      });
+      res.status(201).json(created);
+    },
+  );
+
+  app.patch(
+    "/api/workspace/rates/:id",
+    requireAuth,
+    requireWriteAccess,
+    async (req, res) => {
+      const user = req.user as any;
+      const updated = await storage.updateWorkspaceRate(
+        req.params.id as string,
+        user.workspaceId,
+        req.body,
+      );
+      if (!updated) return res.status(404).json({ message: "Not found" });
+      res.json(updated);
+    },
+  );
+
+  app.delete(
+    "/api/workspace/rates/:id",
+    requireAuth,
+    requireWriteAccess,
+    async (req, res) => {
+      const user = req.user as any;
+      const ok = await storage.deleteWorkspaceRate(
+        req.params.id as string,
+        user.workspaceId,
+      );
+      if (!ok) return res.status(404).json({ message: "Not found" });
+      res.json({ success: true });
+    },
+  );
 
   return httpServer;
 }
