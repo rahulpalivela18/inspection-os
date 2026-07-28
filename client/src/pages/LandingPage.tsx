@@ -85,7 +85,7 @@ export default function LandingPage() {
           transition={{ delay: 0.3, duration: 0.6 }}
           className="max-w-2xl text-xl leading-relaxed text-slate-600 mb-10"
         >
-          Add your checklists. Take photos. Mark severity. Export beautiful
+          Add your checklists. Take photos. Mark severity. Export 
           PDFs. Everything you need to run your inspections smoothly.
         </motion.p>
 
