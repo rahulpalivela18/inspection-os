@@ -66,7 +66,11 @@ export default function Quotations() {
 
   const createMutation = useMutation({
     mutationFn: () =>
-      api.createQuotation(projectId!, { title: newTitle || "Quotation" }),
+      api.createQuotation(projectId!, {
+        title: newTitle || "Quotation",
+        clientName: project?.clientName || null,
+        propertyAddress: project?.address || null,
+      }),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["quotations", projectId] });
       setIsDialogOpen(false);
@@ -193,7 +197,7 @@ export default function Quotations() {
                 <Input
                   value={newTitle}
                   onChange={(e) => setNewTitle(e.target.value)}
-                  placeholder="e.g. Repair Estimate — Phase 1"
+                  placeholder="e.g. 2 BHK Inspection Quote"
                   autoFocus
                 />
               </div>
