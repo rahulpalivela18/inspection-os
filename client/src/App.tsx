@@ -17,6 +17,8 @@ import Billing from "@/pages/Billing";
 import Login from "@/pages/Login";
 import Register from "@/pages/Register";
 import Contact from "@/pages/Contact";
+import Quotations from "@/pages/Quotations";
+import QuotationEditor from "@/pages/QuotationEditor";
 import NotFound from "@/pages/not-found";
 import SharedPortal from "@/pages/SharedPortal";
 import { Loader2 } from "lucide-react";
@@ -80,6 +82,12 @@ function Router() {
       </Route>
       <Route path="/billing">
         <ProtectedRoute component={Billing} />
+      </Route>
+      <Route path="/project/:id/quotations">
+        <ProtectedRoute component={Quotations} />
+      </Route>
+      <Route path="/quotation/:id">
+        <ProtectedRoute component={QuotationEditor} />
       </Route>
       <Route path="/project/:id">
         <ProtectedRoute component={ProjectDetails} />

@@ -218,6 +218,66 @@ export const insertShareLinkSchema = createInsertSchema(shareLinks).omit({
 export type InsertShareLink = z.infer<typeof insertShareLinkSchema>;
 export type ShareLink = typeof shareLinks.$inferSelect;
 
+// ─── Quotations ────────────────────────────────────────────────────────────
+export const quotations = pgTable("quotations", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  projectId: varchar("project_id")
+    .notNull()
+    .references(() => projects.id, { onDelete: "cascade" }),
+  workspaceId: varchar("workspace_id")
+    .notNull()
+    .references(() => workspaces.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  status: text("status", { enum: ["Draft", "Sent", "Accepted", "Rejected"] })
+    .notNull()
+    .default("Draft"),
+  taxRate: numeric("tax_rate").default("0"),
+  notes: text("notes"),
+  validityDays: integer("validity_days").default(30),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertQuotationSchema = createInsertSchema(quotations).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertQuotation = z.infer<typeof insertQuotationSchema>;
+export type Quotation = typeof quotations.$inferSelect;
+
+export const quotationItems = pgTable("quotation_items", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  quotationId: varchar("quotation_id")
+    .notNull()
+    .references(() => quotations.id, { onDelete: "cascade" }),
+  workspaceId: varchar("workspace_id")
+    .notNull()
+    .references(() => workspaces.id, { onDelete: "cascade" }),
+  hotspotId: varchar("hotspot_id"),
+  captureId: varchar("capture_id"),
+  label: text("label").notNull(),
+  description: text("description"),
+  severity: text("severity"),
+  estimatedCost: numeric("estimated_cost").default("0"),
+  quantity: integer("quantity").default(1),
+  unit: text("unit").default("nos"),
+  isManual: boolean("is_manual").notNull().default(false),
+  order: integer("order").notNull().default(0),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertQuotationItemSchema = createInsertSchema(
+  quotationItems,
+).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertQuotationItem = z.infer<typeof insertQuotationItemSchema>;
+export type QuotationItem = typeof quotationItems.$inferSelect;
+
 // ─── Auth schemas (used in routes) ───────────────────────────────────────────
 export const loginSchema = z.object({
   email: z.string().email(),

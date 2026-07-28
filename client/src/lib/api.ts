@@ -190,4 +190,37 @@ export const api = {
   deleteShareLink: (id: string) =>
     request(`/api/share-links/${id}`, { method: "DELETE" }),
   getSharedProject: (token: string) => request<any>(`/api/shared/${token}`),
+
+  // Quotations
+  getQuotations: (projectId: string) =>
+    request<any[]>(`/api/projects/${projectId}/quotations`),
+  createQuotation: (projectId: string, data: any) =>
+    request<any>(`/api/projects/${projectId}/quotations`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  getQuotation: (id: string) => request<any>(`/api/quotations/${id}`),
+  updateQuotation: (id: string, data: any) =>
+    request<any>(`/api/quotations/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
+  deleteQuotation: (id: string) =>
+    request(`/api/quotations/${id}`, { method: "DELETE" }),
+
+  // Quotation Items
+  getQuotationItems: (quotationId: string) =>
+    request<any[]>(`/api/quotations/${quotationId}/items`),
+  createQuotationItem: (quotationId: string, data: any) =>
+    request<any>(`/api/quotations/${quotationId}/items`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  updateQuotationItem: (id: string, data: any) =>
+    request<any>(`/api/quotation-items/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
+  deleteQuotationItem: (id: string) =>
+    request(`/api/quotation-items/${id}`, { method: "DELETE" }),
 };

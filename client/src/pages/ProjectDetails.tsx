@@ -415,6 +415,15 @@ export default function ProjectDetails() {
                     <Map className="mr-2 h-4 w-4" /> Captures
                   </Button>
                 </Link>
+                <Link href={`/project/${params?.id}/quotations`}>
+                  <Button
+                    variant="outline"
+                    size="lg"
+                    className="w-full sm:w-auto"
+                  >
+                    <FileText className="mr-2 h-4 w-4" /> Quotations
+                  </Button>
+                </Link>
                 {user?.role !== "viewer" && (
                 <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                   <DialogTrigger asChild>

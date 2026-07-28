@@ -1248,6 +1248,145 @@ export async function registerRoutes(
     },
   );
 
+  // ── Quotations ─────────────────────────────────────────────────────────────
+
+  app.get(
+    "/api/projects/:projectId/quotations",
+    requireAuth,
+    async (req, res) => {
+      const user = req.user as any;
+      const quotations = await storage.getQuotationsByProject(
+        req.params.projectId as string,
+        user.workspaceId,
+      );
+      res.json(quotations);
+    },
+  );
+
+  app.post(
+    "/api/projects/:projectId/quotations",
+    requireAuth,
+    requireWriteAccess,
+    requireActiveTrial,
+    async (req, res) => {
+      const user = req.user as any;
+      const { title, taxRate, notes, validityDays } = req.body;
+      if (!title)
+        return res.status(400).json({ message: "Title is required." });
+      const quotation = await storage.createQuotation({
+        projectId: req.params.projectId as string,
+        workspaceId: user.workspaceId,
+        title,
+        taxRate: taxRate ?? "0",
+        notes: notes ?? null,
+        validityDays: validityDays ?? 30,
+      });
+      res.status(201).json(quotation);
+    },
+  );
+
+  app.get("/api/quotations/:id", requireAuth, async (req, res) => {
+    const user = req.user as any;
+    const quotation = await storage.getQuotation(
+      req.params.id as string,
+      user.workspaceId,
+    );
+    if (!quotation) return res.status(404).json({ message: "Not found" });
+    res.json(quotation);
+  });
+
+  app.patch(
+    "/api/quotations/:id",
+    requireAuth,
+    requireWriteAccess,
+    async (req, res) => {
+      const user = req.user as any;
+      const updated = await storage.updateQuotation(
+        req.params.id as string,
+        user.workspaceId,
+        req.body,
+      );
+      if (!updated) return res.status(404).json({ message: "Not found" });
+      res.json(updated);
+    },
+  );
+
+  app.delete(
+    "/api/quotations/:id",
+    requireAuth,
+    requireWriteAccess,
+    async (req, res) => {
+      const user = req.user as any;
+      const ok = await storage.deleteQuotation(
+        req.params.id as string,
+        user.workspaceId,
+      );
+      if (!ok) return res.status(404).json({ message: "Not found" });
+      res.json({ success: true });
+    },
+  );
+
+  // ── Quotation Items ────────────────────────────────────────────────────────
+
+  app.get(
+    "/api/quotations/:quotationId/items",
+    requireAuth,
+    async (req, res) => {
+      const user = req.user as any;
+      const items = await storage.getQuotationItems(
+        req.params.quotationId as string,
+        user.workspaceId,
+      );
+      res.json(items);
+    },
+  );
+
+  app.post(
+    "/api/quotations/:quotationId/items",
+    requireAuth,
+    requireWriteAccess,
+    async (req, res) => {
+      const user = req.user as any;
+      const item = await storage.createQuotationItem({
+        quotationId: req.params.quotationId as string,
+        workspaceId: user.workspaceId,
+        ...req.body,
+      });
+      res.status(201).json(item);
+    },
+  );
+
+  app.patch(
+    "/api/quotation-items/:id",
+    requireAuth,
+    requireWriteAccess,
+    async (req, res) => {
+      const user = req.user as any;
+      const updated = await storage.updateQuotationItem(
+        req.params.id as string,
+        user.workspaceId,
+        req.body,
+      );
+      if (!updated) return res.status(404).json({ message: "Not found" });
+      res.json(updated);
+    },
+  );
+
+  app.delete(
+    "/api/quotation-items/:id",
+    requireAuth,
+    requireWriteAccess,
+    async (req, res) => {
+      const user = req.user as any;
+      const ok = await storage.deleteQuotationItem(
+        req.params.id as string,
+        user.workspaceId,
+      );
+      if (!ok) return res.status(404).json({ message: "Not found" });
+      res.json({ success: true });
+    },
+  );
+
   // ── Image proxy ────────────────────────────────────────────────────────────
 
   app.get("/api/image-proxy", async (req, res) => {

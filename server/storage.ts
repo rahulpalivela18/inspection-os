@@ -11,6 +11,8 @@ import {
   hotspots,
   progressLogs,
   shareLinks,
+  quotations,
+  quotationItems,
   type User,
   type InsertUser,
   type Workspace,
@@ -31,6 +33,10 @@ import {
   type InsertProgressLog,
   type ShareLink,
   type InsertShareLink,
+  type Quotation,
+  type InsertQuotation,
+  type QuotationItem,
+  type InsertQuotationItem,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -118,6 +124,33 @@ export interface IStorage {
   ): Promise<ShareLink[]>;
   createShareLink(data: InsertShareLink): Promise<ShareLink>;
   deleteShareLink(id: string, workspaceId: string): Promise<boolean>;
+
+  // Quotations
+  getQuotationsByProject(
+    projectId: string,
+    workspaceId: string,
+  ): Promise<Quotation[]>;
+  getQuotation(id: string, workspaceId: string): Promise<Quotation | undefined>;
+  createQuotation(data: InsertQuotation): Promise<Quotation>;
+  updateQuotation(
+    id: string,
+    workspaceId: string,
+    data: Partial<InsertQuotation>,
+  ): Promise<Quotation | undefined>;
+  deleteQuotation(id: string, workspaceId: string): Promise<boolean>;
+
+  // Quotation Items
+  getQuotationItems(
+    quotationId: string,
+    workspaceId: string,
+  ): Promise<QuotationItem[]>;
+  createQuotationItem(data: InsertQuotationItem): Promise<QuotationItem>;
+  updateQuotationItem(
+    id: string,
+    workspaceId: string,
+    data: Partial<InsertQuotationItem>,
+  ): Promise<QuotationItem | undefined>;
+  deleteQuotationItem(id: string, workspaceId: string): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -385,6 +418,103 @@ export class DatabaseStorage implements IStorage {
       .delete(shareLinks)
       .where(
         and(eq(shareLinks.id, id), eq(shareLinks.workspaceId, workspaceId)),
+      )
+      .returning();
+    return result.length > 0;
+  }
+
+  // Quotations
+  async getQuotationsByProject(projectId: string, workspaceId: string) {
+    return db
+      .select()
+      .from(quotations)
+      .where(
+        and(
+          eq(quotations.projectId, projectId),
+          eq(quotations.workspaceId, workspaceId),
+        ),
+      )
+      .orderBy(desc(quotations.createdAt));
+  }
+  async getQuotation(id: string, workspaceId: string) {
+    const [row] = await db
+      .select()
+      .from(quotations)
+      .where(
+        and(eq(quotations.id, id), eq(quotations.workspaceId, workspaceId)),
+      );
+    return row;
+  }
+  async createQuotation(data: InsertQuotation) {
+    const [row] = await db.insert(quotations).values(data).returning();
+    return row;
+  }
+  async updateQuotation(
+    id: string,
+    workspaceId: string,
+    data: Partial<InsertQuotation>,
+  ) {
+    const [row] = await db
+      .update(quotations)
+      .set(data)
+      .where(
+        and(eq(quotations.id, id), eq(quotations.workspaceId, workspaceId)),
+      )
+      .returning();
+    return row;
+  }
+  async deleteQuotation(id: string, workspaceId: string) {
+    const result = await db
+      .delete(quotations)
+      .where(
+        and(eq(quotations.id, id), eq(quotations.workspaceId, workspaceId)),
+      )
+      .returning();
+    return result.length > 0;
+  }
+
+  // Quotation Items
+  async getQuotationItems(quotationId: string, workspaceId: string) {
+    return db
+      .select()
+      .from(quotationItems)
+      .where(
+        and(
+          eq(quotationItems.quotationId, quotationId),
+          eq(quotationItems.workspaceId, workspaceId),
+        ),
+      )
+      .orderBy(quotationItems.order);
+  }
+  async createQuotationItem(data: InsertQuotationItem) {
+    const [row] = await db.insert(quotationItems).values(data).returning();
+    return row;
+  }
+  async updateQuotationItem(
+    id: string,
+    workspaceId: string,
+    data: Partial<InsertQuotationItem>,
+  ) {
+    const [row] = await db
+      .update(quotationItems)
+      .set(data)
+      .where(
+        and(
+          eq(quotationItems.id, id),
+          eq(quotationItems.workspaceId, workspaceId),
+        ),
+      )
+      .returning();
+    return row;
+  }
+  async deleteQuotationItem(id: string, workspaceId: string) {
+    const result = await db
+      .delete(quotationItems)
+      .where(
+        and(
+          eq(quotationItems.id, id),
+          eq(quotationItems.workspaceId, workspaceId),
+        ),
       )
       .returning();
     return result.length > 0;
