@@ -233,6 +233,14 @@ export const quotations = pgTable("quotations", {
   status: text("status", { enum: ["Draft", "Sent", "Accepted", "Rejected"] })
     .notNull()
     .default("Draft"),
+  clientName: text("client_name"),
+  clientPhone: text("client_phone"),
+  clientEmail: text("client_email"),
+  propertyAddress: text("property_address"),
+  propertyType: text("property_type"),
+  bedrooms: text("bedrooms"),
+  bathrooms: text("bathrooms"),
+  areaSqFt: text("area_sqft"),
   taxRate: numeric("tax_rate").default("0"),
   notes: text("notes"),
   validityDays: integer("validity_days").default(30),
@@ -256,15 +264,11 @@ export const quotationItems = pgTable("quotation_items", {
   workspaceId: varchar("workspace_id")
     .notNull()
     .references(() => workspaces.id, { onDelete: "cascade" }),
-  hotspotId: varchar("hotspot_id"),
-  captureId: varchar("capture_id"),
   label: text("label").notNull(),
   description: text("description"),
-  severity: text("severity"),
   estimatedCost: numeric("estimated_cost").default("0"),
   quantity: integer("quantity").default(1),
   unit: text("unit").default("nos"),
-  isManual: boolean("is_manual").notNull().default(false),
   order: integer("order").notNull().default(0),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });

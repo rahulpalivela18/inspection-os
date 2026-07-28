@@ -59,11 +59,10 @@ const styles = StyleSheet.create({
   tableRowAlt: { backgroundColor: "#f8fafc" },
   colNo: { width: 30 },
   colDesc: { flex: 1 },
-  colSeverity: { width: 60, textAlign: "center" },
   colQty: { width: 40, textAlign: "center" },
-  colUnit: { width: 40, textAlign: "center" },
-  colRate: { width: 70, textAlign: "right" },
-  colAmount: { width: 70, textAlign: "right" },
+  colUnit: { width: 50, textAlign: "center" },
+  colRate: { width: 80, textAlign: "right" },
+  colAmount: { width: 80, textAlign: "right" },
   totals: { marginTop: 12, alignItems: "flex-end" },
   totalRow: { flexDirection: "row", marginBottom: 4 },
   totalLabel: { width: 100, textAlign: "right", fontSize: 9, color: "#64748b" },
@@ -137,7 +136,7 @@ export default function QuotationPDF({
         <View style={styles.header}>
           <View>
             <Text style={styles.brandName}>{workspace?.name || "ReportGen"}</Text>
-            <Text style={styles.brandSub}>Cost Quotation</Text>
+            <Text style={styles.brandSub}>Inspection Quotation</Text>
           </View>
           <View style={styles.meta}>
             <Text style={styles.metaLabel}>Quotation</Text>
@@ -151,21 +150,62 @@ export default function QuotationPDF({
           </View>
         </View>
 
-        {/* Client Info */}
-        <Text style={styles.sectionTitle}>Client Details</Text>
-        <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>Client</Text>
-          <Text style={styles.infoValue}>{project?.clientName}</Text>
-        </View>
-        <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>Project</Text>
-          <Text style={styles.infoValue}>{project?.title}</Text>
-        </View>
-        {project?.address && (
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Address</Text>
-            <Text style={styles.infoValue}>{project.address}</Text>
-          </View>
+        {/* Client Details */}
+        {(quotation.clientName || quotation.clientPhone || quotation.clientEmail) && (
+          <>
+            <Text style={styles.sectionTitle}>Client Details</Text>
+            {quotation.clientName && (
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Name</Text>
+                <Text style={styles.infoValue}>{quotation.clientName}</Text>
+              </View>
+            )}
+            {quotation.clientPhone && (
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Phone</Text>
+                <Text style={styles.infoValue}>{quotation.clientPhone}</Text>
+              </View>
+            )}
+            {quotation.clientEmail && (
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Email</Text>
+                <Text style={styles.infoValue}>{quotation.clientEmail}</Text>
+              </View>
+            )}
+          </>
+        )}
+
+        {/* Property Details */}
+        {(quotation.propertyAddress || quotation.propertyType || quotation.bedrooms || quotation.bathrooms || quotation.areaSqFt) && (
+          <>
+            <Text style={styles.sectionTitle}>Property Details</Text>
+            {quotation.propertyAddress && (
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Address</Text>
+                <Text style={styles.infoValue}>{quotation.propertyAddress}</Text>
+              </View>
+            )}
+            {quotation.propertyType && (
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Type</Text>
+                <Text style={styles.infoValue}>{quotation.propertyType}</Text>
+              </View>
+            )}
+            {(quotation.bedrooms || quotation.bathrooms || quotation.areaSqFt) && (
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Specs</Text>
+                <Text style={styles.infoValue}>
+                  {[
+                    quotation.bedrooms && `${quotation.bedrooms} BR`,
+                    quotation.bathrooms && `${quotation.bathrooms} Bath`,
+                    quotation.areaSqFt && `${quotation.areaSqFt} sq ft`,
+                  ]
+                    .filter(Boolean)
+                    .join("  |  ")}
+                </Text>
+              </View>
+            )}
+          </>
         )}
 
         {/* Line Items Table */}
@@ -174,7 +214,6 @@ export default function QuotationPDF({
           <View style={styles.tableHeader}>
             <Text style={[styles.tableHeaderText, styles.colNo]}>#</Text>
             <Text style={[styles.tableHeaderText, styles.colDesc]}>Description</Text>
-            <Text style={[styles.tableHeaderText, styles.colSeverity]}>Severity</Text>
             <Text style={[styles.tableHeaderText, styles.colQty]}>Qty</Text>
             <Text style={[styles.tableHeaderText, styles.colUnit]}>Unit</Text>
             <Text style={[styles.tableHeaderText, styles.colRate]}>Rate</Text>
@@ -189,9 +228,6 @@ export default function QuotationPDF({
               >
                 <Text style={styles.colNo}>{i + 1}</Text>
                 <Text style={styles.colDesc}>{item.label}</Text>
-                <Text style={[styles.colSeverity, { fontSize: 8 }]}>
-                  {item.severity || "-"}
-                </Text>
                 <Text style={styles.colQty}>{item.quantity || 1}</Text>
                 <Text style={styles.colUnit}>{item.unit || "nos"}</Text>
                 <Text style={styles.colRate}>{formatCurrency(Number(item.estimatedCost) || 0)}</Text>

@@ -1270,7 +1270,20 @@ export async function registerRoutes(
     requireActiveTrial,
     async (req, res) => {
       const user = req.user as any;
-      const { title, taxRate, notes, validityDays } = req.body;
+      const {
+        title,
+        taxRate,
+        notes,
+        validityDays,
+        clientName,
+        clientPhone,
+        clientEmail,
+        propertyAddress,
+        propertyType,
+        bedrooms,
+        bathrooms,
+        areaSqFt,
+      } = req.body;
       if (!title)
         return res.status(400).json({ message: "Title is required." });
       const quotation = await storage.createQuotation({
@@ -1280,6 +1293,14 @@ export async function registerRoutes(
         taxRate: taxRate ?? "0",
         notes: notes ?? null,
         validityDays: validityDays ?? 30,
+        clientName: clientName ?? null,
+        clientPhone: clientPhone ?? null,
+        clientEmail: clientEmail ?? null,
+        propertyAddress: propertyAddress ?? null,
+        propertyType: propertyType ?? null,
+        bedrooms: bedrooms ?? null,
+        bathrooms: bathrooms ?? null,
+        areaSqFt: areaSqFt ?? null,
       });
       res.status(201).json(quotation);
     },
