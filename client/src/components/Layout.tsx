@@ -44,9 +44,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       <div className="space-y-4 p-6">
         <Link href="/" className="flex items-center gap-2 font-heading text-2xl font-bold text-primary hover:text-primary/80 transition-colors">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            R
+            IO
           </div>
-          ReportGen
+          Inspection OS
         </Link>
         <div className="rounded-2xl border border-indigo-100 bg-gradient-to-br from-indigo-50 via-white to-slate-50 p-4 shadow-sm">
           <div className="flex items-start gap-3">
@@ -185,9 +185,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       <div className="fixed left-0 right-0 top-0 z-40 flex h-14 items-center justify-between border-b border-sidebar-border bg-background px-4 md:hidden">
         <Link href="/" className="flex items-center gap-2 font-heading text-lg font-bold text-primary hover:text-primary/80 transition-colors">
           <div className="flex h-6 w-6 items-center justify-center rounded bg-primary text-[10px] text-primary-foreground">
-            R
+            IO
           </div>
-          ReportGen
+          Inspection OS
         </Link>
         <Sheet open={isMobileOpen} onOpenChange={setIsMobileOpen}>
           <SheetTrigger asChild>

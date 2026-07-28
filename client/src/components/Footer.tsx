@@ -6,9 +6,9 @@ export default function Footer() {
       <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-4 px-4 py-8 sm:flex-row sm:px-6 lg:px-8">
         <div className="flex items-center gap-2 font-heading text-lg font-bold text-slate-900">
           <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-lg shadow-primary/20">
-            R
+            IO
           </div>
-          ReportGen
+          Inspection OS
         </div>
 
         <nav className="flex items-center gap-6 text-sm text-slate-500">
@@ -27,7 +27,7 @@ export default function Footer() {
         </nav>
 
         <p className="text-xs text-slate-400">
-          &copy; {new Date().getFullYear()} ReportGen. All rights reserved.
+          &copy; {new Date().getFullYear()} Inspection OS. All rights reserved.
         </p>
       </div>
     </footer>

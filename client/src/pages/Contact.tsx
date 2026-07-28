@@ -17,8 +17,8 @@ export default function Contact() {
     const form = e.currentTarget;
     const data = new FormData(form);
     data.append("access_key", WEB3FORMS_KEY);
-    data.append("subject", "New ReportGen Contact Form Submission");
-    data.append("from_name", "ReportGen Contact Form");
+    data.append("subject", "New Inspection OS Contact Form Submission");
+    data.append("from_name", "Inspection OS Contact Form");
     try {
       const res = await fetch("https://api.web3forms.com/submit", {
         method: "POST",
@@ -44,9 +44,9 @@ export default function Contact() {
               className="flex cursor-pointer items-center gap-2 font-heading text-2xl font-bold text-primary"
             >
               <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-lg shadow-primary/20">
-                R
+                IO
               </div>
-              <span className="tracking-tight text-slate-900">ReportGen</span>
+              <span className="tracking-tight text-slate-900">Inspection OS</span>
             </motion.div>
           </Link>
           <div className="flex items-center gap-2">
@@ -90,7 +90,7 @@ export default function Contact() {
           transition={{ delay: 0.3, duration: 0.6 }}
           className="mb-12 max-w-xl text-center text-lg leading-relaxed text-slate-600"
         >
-          Reach out and we'll get you started with ReportGen.
+          Reach out and we'll get you started with Inspection OS.
         </motion.p>
 
         {/* Contact Cards */}

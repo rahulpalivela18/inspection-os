@@ -172,7 +172,7 @@ export default function QuotationEditor() {
     const client = quotation.clientName || "Client";
     const projectTitle = project?.title || "";
     const totalFormatted = `₹${total.toLocaleString("en-IN")}`;
-    const text = `Hi ${client},\n\nHere's your inspection quotation from ${workspace?.name || "ReportGen"}:\n\n*${quotation.title}*\nProject: ${projectTitle}\nTotal: ${totalFormatted}\nValid for: ${quotation.validityDays || 30} days\n\nPlease review and let us know if you have any questions.`;
+    const text = `Hi ${client},\n\nHere's your inspection quotation from ${workspace?.name || "Inspection OS"}:\n\n*${quotation.title}*\nProject: ${projectTitle}\nTotal: ${totalFormatted}\nValid for: ${quotation.validityDays || 30} days\n\nPlease review and let us know if you have any questions.`;
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
   };
 
@@ -182,7 +182,7 @@ export default function QuotationEditor() {
     const totalFormatted = `₹${total.toLocaleString("en-IN")}`;
     const subject = encodeURIComponent(`${quotation.title} — Inspection Quotation`);
     const body = encodeURIComponent(
-      `Hi ${client},\n\nHere's your inspection quotation from ${workspace?.name || "ReportGen"}:\n\n${quotation.title}\nProject: ${projectTitle}\nTotal: ${totalFormatted}\nValid for: ${quotation.validityDays || 30} days\n\nPlease review and let us know if you have any questions.\n\nRegards,\n${workspace?.name || ""}`
+      `Hi ${client},\n\nHere's your inspection quotation from ${workspace?.name || "Inspection OS"}:\n\n${quotation.title}\nProject: ${projectTitle}\nTotal: ${totalFormatted}\nValid for: ${quotation.validityDays || 30} days\n\nPlease review and let us know if you have any questions.\n\nRegards,\n${workspace?.name || ""}`
     );
     window.open(`mailto:${quotation.clientEmail || ""}?subject=${subject}&body=${body}`, "_blank");
   };

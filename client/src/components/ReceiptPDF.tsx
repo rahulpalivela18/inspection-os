@@ -163,7 +163,7 @@ export default function ReceiptPDF({
       <Page size="A4" style={styles.page}>
         <View style={styles.header}>
           <View>
-            <Text style={styles.brandName}>ReportGen</Text>
+            <Text style={styles.brandName}>Inspection OS</Text>
             <Text style={styles.brandSub}>Inspection Report Platform</Text>
           </View>
           <View style={styles.receiptMeta}>
@@ -209,7 +209,7 @@ export default function ReceiptPDF({
 
         <View style={styles.footer}>
           <Text style={styles.footerText}>
-            ReportGen — Inspection Report Platform
+            Inspection OS — Inspection Report Platform
           </Text>
         </View>
       </Page>
