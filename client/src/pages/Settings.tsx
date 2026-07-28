@@ -39,6 +39,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
+import ConfirmDialog from "@/components/ConfirmDialog";
 
 const ROLE_LABELS: Record<string, { label: string; color: string }> = {
   super_admin: {
@@ -94,6 +95,7 @@ export default function Settings() {
   const [rateForm, setRateForm] = useState({ label: "", rate: "", unit: "flat" });
   const [editingRateId, setEditingRateId] = useState<string | null>(null);
   const [editRateForm, setEditRateForm] = useState({ label: "", rate: "", unit: "flat" });
+  const [deleteRateId, setDeleteRateId] = useState<string | null>(null);
 
   const memberErrors = {
     name:
@@ -760,7 +762,7 @@ export default function Settings() {
                           variant="ghost"
                           size="sm"
                           className="h-8 w-8 p-0 text-slate-400 hover:text-red-500"
-                          onClick={() => deleteRateMutation.mutate(r.id)}
+                          onClick={() => setDeleteRateId(r.id)}
                         >
                           <Trash2 className="h-3.5 w-3.5" />
                         </Button>
@@ -773,6 +775,21 @@ export default function Settings() {
           </CardContent>
         </Card>
         )}
+
+        <ConfirmDialog
+          open={deleteRateId !== null}
+          onOpenChange={(open) => { if (!open) setDeleteRateId(null); }}
+          title="Delete Rate"
+          description="This will permanently remove this rate from your pricing list."
+          confirmLabel="Delete"
+          onConfirm={() => {
+            if (deleteRateId) {
+              deleteRateMutation.mutate(deleteRateId);
+              setDeleteRateId(null);
+            }
+          }}
+          loading={deleteRateMutation.isPending}
+        />
       </div>
     </Layout>
   );
