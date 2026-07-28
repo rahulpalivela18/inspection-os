@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Layout from "@/components/Layout";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
@@ -25,6 +25,7 @@ import {
   Trash2,
   Loader2,
   Download,
+  Save,
 } from "lucide-react";
 import { useRoute, useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
@@ -74,6 +75,10 @@ export default function QuotationEditor() {
     mutationFn: (data: any) => api.updateQuotation(quotationId!, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["quotation", quotationId] });
+      toast({ title: "Saved" });
+    },
+    onError: (err: any) => {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
     },
   });
 
@@ -204,168 +209,9 @@ export default function QuotationEditor() {
           </Button>
         </div>
 
-        {/* Client Info */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-semibold text-slate-700">
-              Client Details
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-              <div className="space-y-1">
-                <Label className="text-xs">Client Name</Label>
-                <Input
-                  value={quotation.clientName || ""}
-                  onChange={(e) => updateMutation.mutate({ clientName: e.target.value })}
-                  className="h-9"
-                  placeholder="e.g. Rajesh Kumar"
-                />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs">Phone</Label>
-                <Input
-                  value={quotation.clientPhone || ""}
-                  onChange={(e) => updateMutation.mutate({ clientPhone: e.target.value })}
-                  className="h-9"
-                  placeholder="e.g. 9876543210"
-                />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs">Email</Label>
-                <Input
-                  value={quotation.clientEmail || ""}
-                  onChange={(e) => updateMutation.mutate({ clientEmail: e.target.value })}
-                  className="h-9"
-                  placeholder="e.g. rajesh@email.com"
-                />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Property Details */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-semibold text-slate-700">
-              Property Details
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <div className="space-y-1 md:col-span-2">
-                <Label className="text-xs">Address</Label>
-                <Input
-                  value={quotation.propertyAddress || ""}
-                  onChange={(e) => updateMutation.mutate({ propertyAddress: e.target.value })}
-                  className="h-9"
-                  placeholder="e.g. Flat 402, Sunshine Heights, Andheri West, Mumbai"
-                />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs">Property Type</Label>
-                <Input
-                  value={quotation.propertyType || ""}
-                  onChange={(e) => updateMutation.mutate({ propertyType: e.target.value })}
-                  className="h-9"
-                  placeholder="e.g. 2 BHK Apartment"
-                />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs">Bedrooms</Label>
-                <Input
-                  value={quotation.bedrooms || ""}
-                  onChange={(e) => updateMutation.mutate({ bedrooms: e.target.value })}
-                  className="h-9"
-                  placeholder="e.g. 2"
-                />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs">Bathrooms</Label>
-                <Input
-                  value={quotation.bathrooms || ""}
-                  onChange={(e) => updateMutation.mutate({ bathrooms: e.target.value })}
-                  className="h-9"
-                  placeholder="e.g. 2"
-                />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs">Area (sq ft)</Label>
-                <Input
-                  value={quotation.areaSqFt || ""}
-                  onChange={(e) => updateMutation.mutate({ areaSqFt: e.target.value })}
-                  className="h-9"
-                  placeholder="e.g. 1200"
-                />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Quotation Settings */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-semibold text-slate-700">
-              Quotation Settings
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-              <div className="space-y-1">
-                <Label className="text-xs">Title</Label>
-                <Input
-                  value={quotation.title}
-                  onChange={(e) => updateMutation.mutate({ title: e.target.value })}
-                  className="h-9"
-                />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs">Status</Label>
-                <Input
-                  value={quotation.status}
-                  onChange={(e) => updateMutation.mutate({ status: e.target.value })}
-                  className="h-9"
-                  placeholder="Draft"
-                />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs">Tax Rate (%)</Label>
-                <Input
-                  type="number"
-                  value={quotation.taxRate || ""}
-                  onChange={(e) => updateMutation.mutate({ taxRate: e.target.value })}
-                  className="h-9"
-                  placeholder="0"
-                />
-              </div>
-            </div>
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <div className="space-y-1">
-                <Label className="text-xs">Valid for (days)</Label>
-                <Input
-                  type="number"
-                  value={quotation.validityDays || ""}
-                  onChange={(e) =>
-                    updateMutation.mutate({
-                      validityDays: parseInt(e.target.value) || 30,
-                    })
-                  }
-                  className="h-9"
-                  placeholder="30"
-                />
-              </div>
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs">Notes & Terms</Label>
-              <Textarea
-                value={quotation.notes || ""}
-                onChange={(e) => updateMutation.mutate({ notes: e.target.value })}
-                rows={3}
-                placeholder="Payment terms, warranty info, etc."
-              />
-            </div>
-          </CardContent>
-        </Card>
+        <ClientDetailsCard quotation={quotation} updateMutation={updateMutation} />
+        <PropertyDetailsCard quotation={quotation} updateMutation={updateMutation} />
+        <QuotationSettingsCard quotation={quotation} updateMutation={updateMutation} />
 
         {/* Line Items */}
         <Card>
@@ -411,90 +257,20 @@ export default function QuotationEditor() {
                     </tr>
                   </thead>
                   <tbody>
-                    {items.map((item: any, i: number) => {
-                      const amount =
-                        (Number(item.estimatedCost) || 0) * (item.quantity || 1);
-                      return (
-                        <tr
-                          key={item.id}
-                          className="border-b border-slate-100"
-                        >
-                          <td className="py-2 pr-2 text-slate-400 text-xs">
-                            {i + 1}
-                          </td>
-                          <td className="py-2 pr-2">
-                            <Input
-                              value={item.label}
-                              onChange={(e) =>
-                                updateItemMutation.mutate({
-                                  id: item.id,
-                                  data: { label: e.target.value },
-                                })
-                              }
-                              className="h-8 text-sm border-0 shadow-none bg-transparent px-0 focus-visible:ring-0"
-                            />
-                          </td>
-                          <td className="py-2 pr-2">
-                            <Input
-                              type="number"
-                              value={item.quantity || 1}
-                              onChange={(e) =>
-                                updateItemMutation.mutate({
-                                  id: item.id,
-                                  data: { quantity: parseInt(e.target.value) || 1 },
-                                })
-                              }
-                              className="h-8 text-xs w-14"
-                            />
-                          </td>
-                          <td className="py-2 pr-2">
-                            <Input
-                              value={item.unit || "nos"}
-                              onChange={(e) =>
-                                updateItemMutation.mutate({
-                                  id: item.id,
-                                  data: { unit: e.target.value },
-                                })
-                              }
-                              className="h-8 text-xs w-14"
-                            />
-                          </td>
-                          <td className="py-2 pr-2">
-                            <Input
-                              type="number"
-                              value={item.estimatedCost || ""}
-                              onChange={(e) =>
-                                updateItemMutation.mutate({
-                                  id: item.id,
-                                  data: { estimatedCost: e.target.value },
-                                })
-                              }
-                              className="h-8 text-xs text-right"
-                              placeholder="0"
-                            />
-                          </td>
-                          <td className="py-2 text-right font-medium text-slate-700">
-                            ₹{amount.toLocaleString("en-IN")}
-                          </td>
-                          <td className="py-2">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => setDeleteConfirmId(item.id)}
-                              className="h-7 w-7 p-0 text-slate-400 hover:text-red-500"
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </Button>
-                          </td>
-                        </tr>
-                      );
-                    })}
+                    {items.map((item: any, i: number) => (
+                      <ItemRow
+                        key={item.id}
+                        item={item}
+                        index={i}
+                        updateItemMutation={updateItemMutation}
+                        onDelete={() => setDeleteConfirmId(item.id)}
+                      />
+                    ))}
                   </tbody>
                 </table>
               </div>
             )}
 
-            {/* Totals */}
             {items.length > 0 && (
               <div className="mt-4 flex justify-end">
                 <div className="w-64 space-y-2">
@@ -611,5 +387,407 @@ export default function QuotationEditor() {
         </DialogContent>
       </Dialog>
     </Layout>
+  );
+}
+
+/* ── Saveable Section Card ──────────────────────────────────────────────── */
+
+function SaveableCard({
+  title,
+  children,
+  hasChanges,
+  saving,
+  onSave,
+}: {
+  title: string;
+  children: React.ReactNode;
+  hasChanges: boolean;
+  saving: boolean;
+  onSave: () => void;
+}) {
+  return (
+    <Card>
+      <CardHeader className="pb-3 flex flex-row items-center justify-between">
+        <CardTitle className="text-sm font-semibold text-slate-700">
+          {title}
+        </CardTitle>
+        <Button
+          size="sm"
+          onClick={onSave}
+          disabled={!hasChanges || saving}
+          className="h-8 text-xs bg-indigo-600 hover:bg-indigo-700"
+        >
+          {saving ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />
+          ) : (
+            <Save className="h-3.5 w-3.5 mr-1" />
+          )}
+          Save
+        </Button>
+      </CardHeader>
+      <CardContent>{children}</CardContent>
+    </Card>
+  );
+}
+
+/* ── Client Details ─────────────────────────────────────────────────────── */
+
+function ClientDetailsCard({
+  quotation,
+  updateMutation,
+}: {
+  quotation: any;
+  updateMutation: any;
+}) {
+  const [form, setForm] = useState({
+    clientName: quotation.clientName || "",
+    clientPhone: quotation.clientPhone || "",
+    clientEmail: quotation.clientEmail || "",
+  });
+
+  const hasChanges =
+    form.clientName !== (quotation.clientName || "") ||
+    form.clientPhone !== (quotation.clientPhone || "") ||
+    form.clientEmail !== (quotation.clientEmail || "");
+
+  const handleSave = () => {
+    updateMutation.mutate({
+      clientName: form.clientName || null,
+      clientPhone: form.clientPhone || null,
+      clientEmail: form.clientEmail || null,
+    });
+  };
+
+  return (
+    <SaveableCard
+      title="Client Details"
+      hasChanges={hasChanges}
+      saving={updateMutation.isPending}
+      onSave={handleSave}
+    >
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+        <div className="space-y-1">
+          <Label className="text-xs">Client Name</Label>
+          <Input
+            value={form.clientName}
+            onChange={(e) => setForm((f) => ({ ...f, clientName: e.target.value }))}
+            className="h-9"
+            placeholder="e.g. Rajesh Kumar"
+          />
+        </div>
+        <div className="space-y-1">
+          <Label className="text-xs">Phone</Label>
+          <Input
+            value={form.clientPhone}
+            onChange={(e) => setForm((f) => ({ ...f, clientPhone: e.target.value }))}
+            className="h-9"
+            placeholder="e.g. 9876543210"
+          />
+        </div>
+        <div className="space-y-1">
+          <Label className="text-xs">Email</Label>
+          <Input
+            value={form.clientEmail}
+            onChange={(e) => setForm((f) => ({ ...f, clientEmail: e.target.value }))}
+            className="h-9"
+            placeholder="e.g. rajesh@email.com"
+          />
+        </div>
+      </div>
+    </SaveableCard>
+  );
+}
+
+/* ── Property Details ───────────────────────────────────────────────────── */
+
+function PropertyDetailsCard({
+  quotation,
+  updateMutation,
+}: {
+  quotation: any;
+  updateMutation: any;
+}) {
+  const [form, setForm] = useState({
+    propertyAddress: quotation.propertyAddress || "",
+    propertyType: quotation.propertyType || "",
+    bedrooms: quotation.bedrooms || "",
+    bathrooms: quotation.bathrooms || "",
+    areaSqFt: quotation.areaSqFt || "",
+  });
+
+  const hasChanges =
+    form.propertyAddress !== (quotation.propertyAddress || "") ||
+    form.propertyType !== (quotation.propertyType || "") ||
+    form.bedrooms !== (quotation.bedrooms || "") ||
+    form.bathrooms !== (quotation.bathrooms || "") ||
+    form.areaSqFt !== (quotation.areaSqFt || "");
+
+  const handleSave = () => {
+    updateMutation.mutate({
+      propertyAddress: form.propertyAddress || null,
+      propertyType: form.propertyType || null,
+      bedrooms: form.bedrooms || null,
+      bathrooms: form.bathrooms || null,
+      areaSqFt: form.areaSqFt || null,
+    });
+  };
+
+  return (
+    <SaveableCard
+      title="Property Details"
+      hasChanges={hasChanges}
+      saving={updateMutation.isPending}
+      onSave={handleSave}
+    >
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <div className="space-y-1 md:col-span-2">
+          <Label className="text-xs">Address</Label>
+          <Input
+            value={form.propertyAddress}
+            onChange={(e) => setForm((f) => ({ ...f, propertyAddress: e.target.value }))}
+            className="h-9"
+            placeholder="e.g. Flat 402, Sunshine Heights, Andheri West, Mumbai"
+          />
+        </div>
+        <div className="space-y-1">
+          <Label className="text-xs">Property Type</Label>
+          <Input
+            value={form.propertyType}
+            onChange={(e) => setForm((f) => ({ ...f, propertyType: e.target.value }))}
+            className="h-9"
+            placeholder="e.g. 2 BHK Apartment"
+          />
+        </div>
+        <div className="space-y-1">
+          <Label className="text-xs">Bedrooms</Label>
+          <Input
+            value={form.bedrooms}
+            onChange={(e) => setForm((f) => ({ ...f, bedrooms: e.target.value }))}
+            className="h-9"
+            placeholder="e.g. 2"
+          />
+        </div>
+        <div className="space-y-1">
+          <Label className="text-xs">Bathrooms</Label>
+          <Input
+            value={form.bathrooms}
+            onChange={(e) => setForm((f) => ({ ...f, bathrooms: e.target.value }))}
+            className="h-9"
+            placeholder="e.g. 2"
+          />
+        </div>
+        <div className="space-y-1">
+          <Label className="text-xs">Area (sq ft)</Label>
+          <Input
+            value={form.areaSqFt}
+            onChange={(e) => setForm((f) => ({ ...f, areaSqFt: e.target.value }))}
+            className="h-9"
+            placeholder="e.g. 1200"
+          />
+        </div>
+      </div>
+    </SaveableCard>
+  );
+}
+
+/* ── Quotation Settings ─────────────────────────────────────────────────── */
+
+function QuotationSettingsCard({
+  quotation,
+  updateMutation,
+}: {
+  quotation: any;
+  updateMutation: any;
+}) {
+  const [form, setForm] = useState({
+    title: quotation.title || "",
+    status: quotation.status || "Draft",
+    taxRate: quotation.taxRate || "",
+    validityDays: quotation.validityDays ?? 30,
+    notes: quotation.notes || "",
+  });
+
+  const hasChanges =
+    form.title !== (quotation.title || "") ||
+    form.status !== (quotation.status || "Draft") ||
+    form.taxRate !== (quotation.taxRate || "") ||
+    form.validityDays !== (quotation.validityDays ?? 30) ||
+    form.notes !== (quotation.notes || "");
+
+  const handleSave = () => {
+    updateMutation.mutate({
+      title: form.title,
+      status: form.status,
+      taxRate: form.taxRate || "0",
+      validityDays: form.validityDays,
+      notes: form.notes || null,
+    });
+  };
+
+  return (
+    <SaveableCard
+      title="Quotation Settings"
+      hasChanges={hasChanges}
+      saving={updateMutation.isPending}
+      onSave={handleSave}
+    >
+      <div className="space-y-4">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+          <div className="space-y-1">
+            <Label className="text-xs">Title</Label>
+            <Input
+              value={form.title}
+              onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
+              className="h-9"
+            />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">Status</Label>
+            <Input
+              value={form.status}
+              onChange={(e) => setForm((f) => ({ ...f, status: e.target.value }))}
+              className="h-9"
+              placeholder="Draft"
+            />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">Tax Rate (%)</Label>
+            <Input
+              type="number"
+              value={form.taxRate}
+              onChange={(e) => setForm((f) => ({ ...f, taxRate: e.target.value }))}
+              className="h-9"
+              placeholder="0"
+            />
+          </div>
+        </div>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div className="space-y-1">
+            <Label className="text-xs">Valid for (days)</Label>
+            <Input
+              type="number"
+              value={form.validityDays}
+              onChange={(e) =>
+                setForm((f) => ({
+                  ...f,
+                  validityDays: parseInt(e.target.value) || 30,
+                }))
+              }
+              className="h-9"
+              placeholder="30"
+            />
+          </div>
+        </div>
+        <div className="space-y-1">
+          <Label className="text-xs">Notes & Terms</Label>
+          <Textarea
+            value={form.notes}
+            onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
+            rows={3}
+            placeholder="Payment terms, warranty info, etc."
+          />
+        </div>
+      </div>
+    </SaveableCard>
+  );
+}
+
+/* ── Line Item Row (inline save for items) ──────────────────────────────── */
+
+function ItemRow({
+  item,
+  index,
+  updateItemMutation,
+  onDelete,
+}: {
+  item: any;
+  index: number;
+  updateItemMutation: any;
+  onDelete: () => void;
+}) {
+  const [local, setLocal] = useState({
+    label: item.label,
+    quantity: item.quantity || 1,
+    unit: item.unit || "nos",
+    estimatedCost: item.estimatedCost || "",
+  });
+
+  const [dirty, setDirty] = useState(false);
+
+  const handleChange = (field: string, value: any) => {
+    setLocal((f) => ({ ...f, [field]: value }));
+    setDirty(true);
+  };
+
+  const handleBlur = () => {
+    if (!dirty) return;
+    updateItemMutation.mutate({
+      id: item.id,
+      data: {
+        label: local.label,
+        quantity: typeof local.quantity === "string" ? parseInt(local.quantity) || 1 : local.quantity,
+        unit: local.unit,
+        estimatedCost: local.estimatedCost,
+      },
+    });
+    setDirty(false);
+  };
+
+  const amount =
+    (Number(local.estimatedCost) || 0) *
+    (typeof local.quantity === "string" ? parseInt(local.quantity) || 1 : local.quantity || 1);
+
+  return (
+    <tr className="border-b border-slate-100">
+      <td className="py-2 pr-2 text-slate-400 text-xs">{index + 1}</td>
+      <td className="py-2 pr-2">
+        <Input
+          value={local.label}
+          onChange={(e) => handleChange("label", e.target.value)}
+          onBlur={handleBlur}
+          className="h-8 text-sm border-0 shadow-none bg-transparent px-0 focus-visible:ring-0"
+        />
+      </td>
+      <td className="py-2 pr-2">
+        <Input
+          type="number"
+          value={local.quantity}
+          onChange={(e) => handleChange("quantity", e.target.value)}
+          onBlur={handleBlur}
+          className="h-8 text-xs w-14"
+        />
+      </td>
+      <td className="py-2 pr-2">
+        <Input
+          value={local.unit}
+          onChange={(e) => handleChange("unit", e.target.value)}
+          onBlur={handleBlur}
+          className="h-8 text-xs w-14"
+        />
+      </td>
+      <td className="py-2 pr-2">
+        <Input
+          type="number"
+          value={local.estimatedCost}
+          onChange={(e) => handleChange("estimatedCost", e.target.value)}
+          onBlur={handleBlur}
+          className="h-8 text-xs text-right"
+          placeholder="0"
+        />
+      </td>
+      <td className="py-2 text-right font-medium text-slate-700">
+        ₹{amount.toLocaleString("en-IN")}
+      </td>
+      <td className="py-2">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onDelete}
+          className="h-7 w-7 p-0 text-slate-400 hover:text-red-500"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </Button>
+      </td>
+    </tr>
   );
 }
