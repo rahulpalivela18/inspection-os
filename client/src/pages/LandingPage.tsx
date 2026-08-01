@@ -26,9 +26,9 @@ export default function LandingPage() {
               className="flex cursor-pointer items-center gap-2 font-heading text-2xl font-bold text-primary"
             >
               <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-lg shadow-primary/20">
-                R
+                IO
               </div>
-              <span className="tracking-tight text-slate-900">ReportGen</span>
+              <span className="tracking-tight text-slate-900">Inspection OS</span>
             </motion.div>
           </Link>
           <div className="flex items-center gap-2">
@@ -205,7 +205,7 @@ export default function LandingPage() {
           <p className="text-sm font-medium text-slate-500">
             Want to see a finished report?
           </p>
-          <a href="/pdfs/ReportGen_Sample.pdf" target="_blank" download>
+          <a href="/pdfs/InspectionOS_Sample.pdf" target="_blank" download>
             <Button variant="outline" className="rounded-xl gap-2">
               <FileText className="h-4 w-4" />
               Download Sample PDF
@@ -251,7 +251,7 @@ export default function LandingPage() {
           className="mx-auto mb-12 flex max-w-7xl items-center justify-center"
         >
           <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-4 py-1.5 text-xs font-bold uppercase tracking-widest text-primary">
-            Why ReportGen?
+            Why Inspection OS?
           </div>
         </motion.div>
 
@@ -265,7 +265,7 @@ export default function LandingPage() {
           >
             <Clock className="mb-4 h-10 w-10 text-red-400" />
             <div className="text-sm font-bold uppercase tracking-wider text-red-400 mb-2">
-              Before ReportGen
+              Before Inspection OS
             </div>
             <div className="text-4xl font-black text-red-500">3 days</div>
             <div className="mt-2 text-sm text-red-400">per inspection report</div>
@@ -280,7 +280,7 @@ export default function LandingPage() {
           >
             <TrendingUp className="mb-4 h-10 w-10 text-green-500" />
             <div className="text-sm font-bold uppercase tracking-wider text-green-500 mb-2">
-              After ReportGen
+              After Inspection OS
             </div>
             <div className="text-4xl font-black text-green-600">3 hours</div>
             <div className="mt-2 text-sm text-green-500">per inspection report</div>

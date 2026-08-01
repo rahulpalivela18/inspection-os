@@ -59,11 +59,20 @@ export async function registerRoutes(
   httpServer: Server,
   app: Express,
 ): Promise<Server> {
-  // Sessions
+  // Sessions — require a real secret in production; dev-only fallback otherwise
+  const sessionSecret =
+    process.env.SESSION_SECRET ||
+    (process.env.NODE_ENV === "production"
+      ? (() => {
+          throw new Error(
+            "SESSION_SECRET environment variable is required in production",
+          );
+        })()
+      : "dev-only-insecure-session-secret");
   app.use(
     session({
       store: new PgSession({ pool, createTableIfMissing: true }),
-      secret: process.env.SESSION_SECRET || "reportgen-secret-2024",
+      secret: sessionSecret,
       resave: false,
       saveUninitialized: false,
       cookie: { maxAge: 7 * 24 * 60 * 60 * 1000 },

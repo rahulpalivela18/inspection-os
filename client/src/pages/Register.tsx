@@ -116,7 +116,7 @@ export default function Register() {
         <div className="text-center">
           <div className="inline-flex items-center gap-2 text-2xl font-bold text-indigo-600 mb-2">
             <ClipboardCheck className="h-7 w-7" />
-            ReportGen
+            Inspection OS
           </div>
           <p className="text-sm text-slate-500">Create your free workspace</p>
         </div>

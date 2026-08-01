@@ -1,4 +1,4 @@
-# Offline Support Roadmap — ReportGen
+# Offline Support Roadmap — Inspection OS
 
 ## Why This Approach?
 
@@ -55,7 +55,7 @@ The user operates on iPad in the field (under-construction buildings, remote sit
 
 ```typescript
 // client/src/lib/db.ts
-const db = new Dexie("ReportGenDB");
+const db = new Dexie("InspectionOSDB");
 db.version(1).stores({
   projects:        "id",
   reports:         "id",

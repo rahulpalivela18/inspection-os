@@ -1,6 +1,6 @@
 {
-  "name": "ReportGen",
-  "short_name": "ReportGen",
+  "name": "Inspection OS",
+  "short_name": "Inspection OS",
   "description": "Private inspection workspaces with checklist libraries, project tracking, and professional report workflows.",
   "start_url": "/",
   "display": "standalone",
