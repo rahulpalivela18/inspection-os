@@ -45,14 +45,9 @@ taking a typical inspection report from *3 days to ~3 hours*.
   <img src="client/public/og-image.png" width="640" alt="Inspection OS" />
 </p>
 
-<!--
-  Product screenshots — capture Dashboard, the 360° hotspot canvas, and a report PDF,
-  save them into docs/screenshots/ with these names, then uncomment this table:
-
-| Dashboard | 360° hotspot mapping | Report PDF |
+| 360° hotspot mapping | Defect analytics | Projects dashboard |
 |---|---|---|
-| ![Dashboard](docs/screenshots/dashboard.png) | ![Hotspots](docs/screenshots/hotspots.png) | ![Report](docs/screenshots/report.png) |
--->
+| ![Pinning defects on a 360° capture](docs/screenshots/hotspots.png) | ![Issue severity & area-wise breakdown](docs/screenshots/captures.png) | ![Project workspace dashboard](docs/screenshots/dashboard.png) |
 
 
 ## Architecture
