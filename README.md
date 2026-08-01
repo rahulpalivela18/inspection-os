@@ -41,11 +41,19 @@ taking a typical inspection report from *3 days to ~3 hours*.
 
 ## Screenshots
 
-> _Screenshots live in `docs/screenshots/`._
+<p align="center">
+  <img src="client/public/og-image.png" width="640" alt="Inspection OS" />
+</p>
+
+<!--
+  Product screenshots — capture Dashboard, the 360° hotspot canvas, and a report PDF,
+  save them into docs/screenshots/ with these names, then uncomment this table:
 
 | Dashboard | 360° hotspot mapping | Report PDF |
 |---|---|---|
 | ![Dashboard](docs/screenshots/dashboard.png) | ![Hotspots](docs/screenshots/hotspots.png) | ![Report](docs/screenshots/report.png) |
+-->
+
 
 ## Architecture
 
