@@ -162,4 +162,81 @@ export const api = {
     }),
   deleteHotspot: (id: string) =>
     request(`/api/hotspots/${id}`, { method: "DELETE" }),
+
+  // Progress Logs
+  getProgressLogs: (reportId: string) =>
+    request<any[]>(`/api/reports/${reportId}/progress-logs`),
+  createProgressLog: (reportId: string, data: any) =>
+    request<any>(`/api/reports/${reportId}/progress-logs`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  updateProgressLog: (id: string, data: any) =>
+    request<any>(`/api/progress-logs/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
+  deleteProgressLog: (id: string) =>
+    request(`/api/progress-logs/${id}`, { method: "DELETE" }),
+
+  // Share Links
+  getShareLinks: (projectId: string) =>
+    request<any[]>(`/api/projects/${projectId}/share-links`),
+  createShareLink: (projectId: string, expiresInDays?: number) =>
+    request<any>(`/api/projects/${projectId}/share-links`, {
+      method: "POST",
+      body: JSON.stringify({ expiresInDays }),
+    }),
+  deleteShareLink: (id: string) =>
+    request(`/api/share-links/${id}`, { method: "DELETE" }),
+  getSharedProject: (token: string) => request<any>(`/api/shared/${token}`),
+
+  // Quotations
+  getAllQuotations: () => request<any[]>("/api/quotations"),
+  getQuotations: (projectId: string) =>
+    request<any[]>(`/api/projects/${projectId}/quotations`),
+  createQuotation: (data: any) =>
+    request<any>("/api/quotations", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  getQuotation: (id: string) => request<any>(`/api/quotations/${id}`),
+  updateQuotation: (id: string, data: any) =>
+    request<any>(`/api/quotations/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
+  deleteQuotation: (id: string) =>
+    request(`/api/quotations/${id}`, { method: "DELETE" }),
+
+  // Quotation Items
+  getQuotationItems: (quotationId: string) =>
+    request<any[]>(`/api/quotations/${quotationId}/items`),
+  createQuotationItem: (quotationId: string, data: any) =>
+    request<any>(`/api/quotations/${quotationId}/items`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  updateQuotationItem: (id: string, data: any) =>
+    request<any>(`/api/quotation-items/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
+  deleteQuotationItem: (id: string) =>
+    request(`/api/quotation-items/${id}`, { method: "DELETE" }),
+
+  // Workspace Rates
+  getWorkspaceRates: () => request<any[]>("/api/workspace/rates"),
+  createWorkspaceRate: (data: any) =>
+    request<any>("/api/workspace/rates", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  updateWorkspaceRate: (id: string, data: any) =>
+    request<any>(`/api/workspace/rates/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
+  deleteWorkspaceRate: (id: string) =>
+    request(`/api/workspace/rates/${id}`, { method: "DELETE" }),
 };

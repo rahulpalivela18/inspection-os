@@ -7,7 +7,10 @@ import {
   Building2,
   CheckSquare,
   Shield,
-  Receipt,
+  CreditCard,
+  Clock,
+  AlertTriangle,
+  FileText,
 } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -19,16 +22,17 @@ import Footer from "@/components/Footer";
 export default function Layout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
   const [isMobileOpen, setIsMobileOpen] = useState(false);
-  const { user, workspace } = useAuth();
+  const { user, workspace, trial } = useAuth();
 
   const navigation = [
     { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
     { name: "Projects", href: "/dashboard", icon: FolderOpen },
+    { name: "Quotations", href: "/quotations", icon: FileText },
     ...(user?.role !== "viewer"
       ? [{ name: "Settings", href: "/settings", icon: Settings }]
       : []),
     ...(user?.role !== "viewer"
-      ? [{ name: "Billing", href: "/billing", icon: Receipt }]
+      ? [{ name: "Subscription", href: "/billing", icon: CreditCard }]
       : []),
     ...(user?.role === "super_admin"
       ? [{ name: "Admin", href: "/admin", icon: Shield }]
@@ -40,9 +44,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       <div className="space-y-4 p-6">
         <Link href="/" className="flex items-center gap-2 font-heading text-2xl font-bold text-primary hover:text-primary/80 transition-colors">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            R
+            IO
           </div>
-          ReportGen
+          Inspection OS
         </Link>
         <div className="rounded-2xl border border-indigo-100 bg-gradient-to-br from-indigo-50 via-white to-slate-50 p-4 shadow-sm">
           <div className="flex items-start gap-3">
@@ -50,9 +54,6 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               <Building2 className="h-4 w-4" />
             </div>
             <div className="min-w-0">
-              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-indigo-600">
-                Your workspace
-              </p>
               <h3 className="truncate text-sm font-semibold text-slate-900">
                 {workspace?.name || "Loading..."}
               </h3>
@@ -63,6 +64,61 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             </div>
           </div>
         </div>
+
+        {trial?.isTrial && (
+          <div
+            className={cn(
+              "rounded-2xl border p-3 shadow-sm",
+              trial.isExpired
+                ? "border-red-200 bg-red-50"
+                : trial.daysRemaining !== null && trial.daysRemaining <= 3
+                  ? "border-amber-200 bg-amber-50"
+                  : "border-indigo-200 bg-indigo-50"
+            )}
+          >
+            <div className="flex items-center gap-2">
+              {trial.isExpired ? (
+                <AlertTriangle className="h-4 w-4 shrink-0 text-red-600" />
+              ) : (
+                <Clock className="h-4 w-4 shrink-0 text-indigo-600" />
+              )}
+              <div className="min-w-0">
+                {trial.isExpired ? (
+                  <p className="text-xs font-semibold text-red-800">
+                    Trial expired
+                  </p>
+                ) : (
+                  <p className="text-xs font-semibold text-indigo-800">
+                    Free trial — {trial.daysRemaining} day{trial.daysRemaining === 1 ? "" : "s"} left
+                  </p>
+                )}
+                {trial.limits && trial.usage && !trial.isExpired && (
+                  <div className="mt-1.5 space-y-1">
+                    <div className="flex items-center justify-between text-[11px]">
+                      <span className="text-slate-500">Projects</span>
+                      <span className={cn("font-medium", trial.usage.projects >= trial.limits.maxProjects ? "text-amber-600" : "text-slate-700")}>
+                        {trial.usage.projects}/{trial.limits.maxProjects}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between text-[11px]">
+                      <span className="text-slate-500">Captures</span>
+                      <span className={cn("font-medium", trial.usage.captures >= trial.limits.maxCaptures ? "text-amber-600" : "text-slate-700")}>
+                        {trial.usage.captures}/{trial.limits.maxCaptures}
+                      </span>
+                    </div>
+                  </div>
+                )}
+                {trial.isExpired && (
+                  <Link href="/contact">
+                    <span className="mt-1 inline-block text-[11px] font-medium text-red-700 underline cursor-pointer hover:text-red-900">
+                      Contact us to upgrade
+                    </span>
+                  </Link>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="flex-1 space-y-1 px-4 py-4">
@@ -129,9 +185,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       <div className="fixed left-0 right-0 top-0 z-40 flex h-14 items-center justify-between border-b border-sidebar-border bg-background px-4 md:hidden">
         <Link href="/" className="flex items-center gap-2 font-heading text-lg font-bold text-primary hover:text-primary/80 transition-colors">
           <div className="flex h-6 w-6 items-center justify-center rounded bg-primary text-[10px] text-primary-foreground">
-            R
+            IO
           </div>
-          ReportGen
+          Inspection OS
         </Link>
         <Sheet open={isMobileOpen} onOpenChange={setIsMobileOpen}>
           <SheetTrigger asChild>

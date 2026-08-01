@@ -61,7 +61,7 @@ export default function Login() {
           <Link href="/">
             <div className="inline-flex cursor-pointer items-center gap-2 text-2xl font-bold text-indigo-600 mb-2">
               <ClipboardCheck className="h-7 w-7" />
-              ReportGen
+              Inspection OS
             </div>
           </Link>
           <p className="text-sm text-slate-500">Sign in to your workspace</p>
@@ -163,6 +163,14 @@ export default function Login() {
                   "Sign In"
                 )}
               </Button>
+              <p className="text-sm text-slate-500">
+                Don&apos;t have an account?{" "}
+                <Link href="/register">
+                  <span className="font-medium text-indigo-600 hover:text-indigo-500 cursor-pointer">
+                    Sign up free
+                  </span>
+                </Link>
+              </p>
               <Link href="/">
                 <button
                   type="button"

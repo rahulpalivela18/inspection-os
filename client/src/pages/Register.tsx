@@ -110,12 +110,13 @@ export default function Register() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-indigo-50 flex items-center justify-center p-4">
-      <div className="w-full max-w-md space-y-6">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-indigo-50 flex flex-col">
+      <div className="flex-1 flex items-center justify-center p-4">
+        <div className="w-full max-w-md space-y-6">
         <div className="text-center">
           <div className="inline-flex items-center gap-2 text-2xl font-bold text-indigo-600 mb-2">
             <ClipboardCheck className="h-7 w-7" />
-            ReportGen
+            Inspection OS
           </div>
           <p className="text-sm text-slate-500">Create your free workspace</p>
         </div>
@@ -319,6 +320,7 @@ export default function Register() {
             </CardFooter>
           </form>
         </Card>
+      </div>
       </div>
       <Footer />
     </div>

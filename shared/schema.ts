@@ -23,12 +23,14 @@ export const workspaces = pgTable("workspaces", {
   address: text("address"),
   email: text("email"),
   phone: text("phone"),
+  taxRate: text("tax_rate").default("18"),
   plan: text("plan", { enum: ["starter", "pro", "enterprise"] })
     .notNull()
     .default("starter"),
   planStatus: text("plan_status", { enum: ["active", "inactive"] })
     .notNull()
     .default("inactive"),
+  trialEndsAt: timestamp("trial_ends_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -166,6 +168,144 @@ export const insertInvoiceSchema = createInsertSchema(invoices).omit({
 export type InsertInvoice = z.infer<typeof insertInvoiceSchema>;
 export type Invoice = typeof invoices.$inferSelect;
 
+// ─── Progress Logs (Track work done on a report over time) ───────────────────
+export const progressLogs = pgTable("progress_logs", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  reportId: varchar("report_id")
+    .notNull()
+    .references(() => reports.id, { onDelete: "cascade" }),
+  workspaceId: varchar("workspace_id")
+    .notNull()
+    .references(() => workspaces.id, { onDelete: "cascade" }),
+  author: text("author").notNull(),
+  date: text("date").notNull(),
+  notes: text("notes"),
+  resolvedChecklistItemIds: jsonb("resolved_checklist_item_ids"),
+  afterPhotos: jsonb("after_photos"),
+  resolvedIssuePhotos: jsonb("resolved_issue_photos"),
+  newFindings: jsonb("new_findings"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertProgressLogSchema = createInsertSchema(progressLogs).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertProgressLog = z.infer<typeof insertProgressLogSchema>;
+export type ProgressLog = typeof progressLogs.$inferSelect;
+
+// ─── Share Links ─────────────────────────────────────────────────────────────
+export const shareLinks = pgTable("share_links", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  projectId: varchar("project_id")
+    .notNull()
+    .references(() => projects.id, { onDelete: "cascade" }),
+  workspaceId: varchar("workspace_id")
+    .notNull()
+    .references(() => workspaces.id, { onDelete: "cascade" }),
+  token: varchar("token").notNull().unique(),
+  expiresAt: timestamp("expires_at").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertShareLinkSchema = createInsertSchema(shareLinks).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertShareLink = z.infer<typeof insertShareLinkSchema>;
+export type ShareLink = typeof shareLinks.$inferSelect;
+
+// ─── Quotations ────────────────────────────────────────────────────────────
+export const quotations = pgTable("quotations", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  projectId: varchar("project_id").references(() => projects.id, {
+    onDelete: "cascade",
+  }),
+  workspaceId: varchar("workspace_id")
+    .notNull()
+    .references(() => workspaces.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  status: text("status", { enum: ["Draft", "Sent", "Accepted", "Rejected"] })
+    .notNull()
+    .default("Draft"),
+  clientName: text("client_name"),
+  clientPhone: text("client_phone"),
+  clientEmail: text("client_email"),
+  propertyAddress: text("property_address"),
+  propertyType: text("property_type"),
+  bedrooms: text("bedrooms"),
+  bathrooms: text("bathrooms"),
+  areaSqFt: text("area_sqft"),
+  taxRate: numeric("tax_rate").default("0"),
+  notes: text("notes"),
+  validityDays: integer("validity_days").default(30),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertQuotationSchema = createInsertSchema(quotations).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertQuotation = z.infer<typeof insertQuotationSchema>;
+export type Quotation = typeof quotations.$inferSelect;
+
+export const quotationItems = pgTable("quotation_items", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  quotationId: varchar("quotation_id")
+    .notNull()
+    .references(() => quotations.id, { onDelete: "cascade" }),
+  workspaceId: varchar("workspace_id")
+    .notNull()
+    .references(() => workspaces.id, { onDelete: "cascade" }),
+  label: text("label").notNull(),
+  description: text("description"),
+  estimatedCost: numeric("estimated_cost").default("0"),
+  quantity: integer("quantity").default(1),
+  unit: text("unit").default("nos"),
+  order: integer("order").notNull().default(0),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertQuotationItemSchema = createInsertSchema(
+  quotationItems,
+).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertQuotationItem = z.infer<typeof insertQuotationItemSchema>;
+export type QuotationItem = typeof quotationItems.$inferSelect;
+
+// ─── Workspace Rates ─────────────────────────────────────────────────────
+export const workspaceRates = pgTable("workspace_rates", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  workspaceId: varchar("workspace_id")
+    .notNull()
+    .references(() => workspaces.id, { onDelete: "cascade" }),
+  label: text("label").notNull(),
+  rate: numeric("rate").notNull().default("0"),
+  unit: text("unit").notNull().default("flat"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertWorkspaceRateSchema = createInsertSchema(
+  workspaceRates,
+).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertWorkspaceRate = z.infer<typeof insertWorkspaceRateSchema>;
+export type WorkspaceRate = typeof workspaceRates.$inferSelect;
+
 // ─── Auth schemas (used in routes) ───────────────────────────────────────────
 export const loginSchema = z.object({
   email: z.string().email(),
@@ -228,6 +368,7 @@ export const hotspots = spatial.table("hotspots", {
   issueStatus: text("issue_status"),
   issueSeverity: text("issue_severity"),
   notes: text("notes"),
+  resolvedPhoto: text("resolved_photo"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

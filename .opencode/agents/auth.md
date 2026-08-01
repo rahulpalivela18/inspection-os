@@ -24,7 +24,7 @@ Session-based authentication using Passport.js local strategy. No JWTs. Sessions
 ```ts
 app.use(session({
   store: new PgSession({ pool, createTableIfMissing: true }),
-  secret: process.env.SESSION_SECRET || "reportgen-secret-2024",
+  secret: process.env.SESSION_SECRET || "dev-only-insecure-session-secret",
   resave: false,
   saveUninitialized: false,
   cookie: { maxAge: 7 * 24 * 60 * 60 * 1000 },

@@ -1,4 +1,4 @@
-import { Document, Page, Text, View, Image, StyleSheet } from "@react-pdf/renderer";
+import { Document, Page, Text, View, Image, StyleSheet, Svg, Path, G } from "@react-pdf/renderer";
 
 const PAGE_PADDING = 36;
 const PAGE_W = 595.28;
@@ -316,6 +316,63 @@ const styles = StyleSheet.create({
     borderRadius: 3,
   },
 
+  // Area summary page
+  areaTableHeader: {
+    flexDirection: "row",
+    borderBottomWidth: 1,
+    borderBottomColor: "#e2e8f0",
+    backgroundColor: "#f8fafc",
+    paddingVertical: 6,
+  },
+  areaTableRow: {
+    flexDirection: "row",
+    borderBottomWidth: 0.5,
+    borderBottomColor: "#f1f5f9",
+    paddingVertical: 5,
+  },
+  areaTableTotalRow: {
+    flexDirection: "row",
+    borderTopWidth: 1,
+    borderTopColor: "#e2e8f0",
+    paddingVertical: 5,
+    fontWeight: 700,
+  },
+  areaCell: {
+    fontSize: 8,
+    color: "#1e293b",
+  },
+  areaCellHeader: {
+    fontSize: 7,
+    fontWeight: 700,
+    color: "#64748b",
+    textTransform: "uppercase",
+  },
+  donutContainer: {
+    alignItems: "center",
+    marginLeft: 24,
+  },
+  donutLegend: {
+    flexDirection: "row",
+    gap: 6,
+    marginTop: 4,
+    flexWrap: "wrap",
+    justifyContent: "center",
+  },
+  donutLegendItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+  },
+  donutLegendDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
+  },
+  donutLegendText: {
+    fontSize: 6,
+    color: "#64748b",
+  },
+
 });
 
 interface PinPDF {
@@ -328,6 +385,8 @@ interface PinPDF {
   status?: string;
   notes?: string;
   hasPhoto?: boolean;
+  panoUrl?: string;
+  resolvedPhoto?: string;
 }
 
 interface CapturePDF {
@@ -374,6 +433,299 @@ interface CapturePDFCover {
 interface CapturePDFProps {
   captures: CapturePDF[];
   cover?: CapturePDFCover;
+}
+
+interface AreaSummary {
+  area: string;
+  major: number;
+  minor: number;
+  cosmetic: number;
+  resolved: number;
+  total: number;
+}
+
+function computeAreaSummary(captures: CapturePDF[]): AreaSummary[] {
+  const areaMap = new Map<string, AreaSummary>();
+  for (const c of captures) {
+    const existing = areaMap.get(c.title) ?? { area: c.title, major: 0, minor: 0, cosmetic: 0, resolved: 0, total: 0 };
+    areaMap.set(c.title, {
+      area: c.title,
+      major: existing.major + c.pins.filter((p) => p.severity === "Major").length,
+      minor: existing.minor + c.pins.filter((p) => p.severity === "Minor").length,
+      cosmetic: existing.cosmetic + c.pins.filter((p) => p.severity === "Cosmetic").length,
+      resolved: existing.resolved + c.pins.filter((p) => p.status === "Resolved").length,
+      total: existing.total + c.pins.length,
+    });
+  }
+  return Array.from(areaMap.values()).filter((a) => a.total > 0);
+}
+
+function PdfPieSlice({ cx, cy, r, startAngle, endAngle, color }: {
+  cx: number; cy: number; r: number; startAngle: number; endAngle: number; color: string;
+}) {
+  if (endAngle - startAngle >= 359.99) {
+    // Full circle — just use a circle path
+    return <Path d={`M ${cx} ${cy - r} A ${r} ${r} 0 1 1 ${cx - 0.01} ${cy - r} Z`} fill={color} />;
+  }
+  const rad = (deg: number) => (deg - 90) * Math.PI / 180;
+  const x1 = cx + r * Math.cos(rad(startAngle));
+  const y1 = cy + r * Math.sin(rad(startAngle));
+  const x2 = cx + r * Math.cos(rad(endAngle));
+  const y2 = cy + r * Math.sin(rad(endAngle));
+  const largeArc = endAngle - startAngle > 180 ? 1 : 0;
+  return (
+    <Path
+      d={`M ${cx} ${cy} L ${x1} ${y1} A ${r} ${r} 0 ${largeArc} 1 ${x2} ${y2} Z`}
+      fill={color}
+    />
+  );
+}
+
+function PdfDonutChart({
+  title,
+  data,
+}: {
+  title: string;
+  data: { label: string; count: number; color: string }[];
+}) {
+  const total = data.reduce((s, d) => s + d.count, 0);
+  const cx = 30, cy = 30, r = 24;
+  let angle = 0;
+
+  return (
+    <View style={styles.donutContainer}>
+      <Text style={{ fontSize: 7, fontWeight: 700, color: "#475569", marginBottom: 6 }}>
+        {title}
+      </Text>
+      <Svg width="60" height="60" viewBox="0 0 60 60">
+        {total === 0 ? (
+          <Path d={`M ${cx} ${cy - r} A ${r} ${r} 0 1 1 ${cx - 0.01} ${cy - r} Z`} fill="#e2e8f0" />
+        ) : (
+          <G>
+            {data.map((d) => {
+              if (d.count === 0) return null;
+              const sliceAngle = (d.count / total) * 360;
+              const startAngle = angle;
+              const endAngle = angle + sliceAngle;
+              angle = endAngle;
+              return <PdfPieSlice key={d.label} cx={cx} cy={cy} r={r} startAngle={startAngle} endAngle={endAngle} color={d.color} />;
+            })}
+          </G>
+        )}
+        {/* White center circle for donut effect */}
+        <Path d={`M ${cx} ${cy - 12} A 12 12 0 1 1 ${cx - 0.01} ${cy - 12} Z`} fill="white" />
+      </Svg>
+      <Text style={{ fontSize: 11, fontWeight: 700, color: "#1e293b", marginTop: -42, marginBottom: 30 }}>
+        {total}
+      </Text>
+      <View style={styles.donutLegend}>
+        {data.map((d) => (
+          <View key={d.label} style={styles.donutLegendItem}>
+            <View style={[styles.donutLegendDot, { backgroundColor: d.color }]} />
+            <Text style={styles.donutLegendText}>
+              {d.label} ({d.count})
+            </Text>
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+}
+
+function AreaSummaryPage({
+  cover,
+  captures,
+}: {
+  cover: CapturePDFCover;
+  captures: CapturePDF[];
+}) {
+  const date = new Date().toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+
+  const summary = computeAreaSummary(captures);
+  const allPins = captures.flatMap((c) => c.pins);
+  const totals = summary.reduce(
+    (acc, a) => ({
+      major: acc.major + a.major,
+      minor: acc.minor + a.minor,
+      cosmetic: acc.cosmetic + a.cosmetic,
+      resolved: acc.resolved + a.resolved,
+      total: acc.total + a.total,
+    }),
+    { major: 0, minor: 0, cosmetic: 0, resolved: 0, total: 0 }
+  );
+
+  const issueTypes = [
+    { label: "MAJOR", count: totals.major, color: "#dc2626" },
+    { label: "MINOR", count: totals.minor, color: "#22c55e" },
+    { label: "COSMETIC", count: totals.cosmetic, color: "#f97316" },
+  ];
+  const openCount = allPins.filter((p) => p.status === "Open").length;
+  const inProgressCount = allPins.filter((p) => p.status === "In Progress").length;
+  const resolvedCount = totals.resolved;
+  const resolutionTotal = openCount + resolvedCount + inProgressCount;
+
+  return (
+    <Page size="A4" style={styles.page}>
+      <View style={styles.header}>
+        {(cover.companyName || cover.companyLogoUrl) && (
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+            {cover.companyLogoUrl && (
+              <Image
+                src={cover.companyLogoUrl}
+                style={{ width: 32, height: 32, objectFit: "contain" }}
+              />
+            )}
+            {cover.companyName && (
+              <View>
+                <Text style={styles.brandName}>{cover.companyName}</Text>
+                {cover.companyAddress && (
+                  <Text style={styles.brandSub}>{cover.companyAddress}</Text>
+                )}
+              </View>
+            )}
+          </View>
+        )}
+        <View style={styles.meta}>
+          <Text style={styles.metaLabel}>Area Summary</Text>
+          <Text style={styles.metaValue}>{date}</Text>
+        </View>
+      </View>
+
+      <Text style={styles.sectionTitle}>Area Wise Defect Summary</Text>
+      <View style={styles.sectionTitleLine} />
+
+      {/* ── Area Table ── */}
+      <View style={{ marginBottom: 20 }}>
+        {/* Table header */}
+        <View style={{ flexDirection: "row", backgroundColor: "#1e293b", paddingVertical: 6, paddingHorizontal: 8 }}>
+          <Text style={{ fontSize: 7, fontWeight: 700, color: "#cbd5e1", textTransform: "uppercase", letterSpacing: 0.5, width: 80 }}>Area</Text>
+          <Text style={{ fontSize: 7, fontWeight: 700, color: "#cbd5e1", textTransform: "uppercase", letterSpacing: 0.5, width: 50, textAlign: "right" }}>Major</Text>
+          <Text style={{ fontSize: 7, fontWeight: 700, color: "#cbd5e1", textTransform: "uppercase", letterSpacing: 0.5, width: 50, textAlign: "right" }}>Minor</Text>
+          <Text style={{ fontSize: 7, fontWeight: 700, color: "#cbd5e1", textTransform: "uppercase", letterSpacing: 0.5, width: 55, textAlign: "right" }}>Cosmetic</Text>
+          <Text style={{ fontSize: 7, fontWeight: 700, color: "#cbd5e1", textTransform: "uppercase", letterSpacing: 0.5, width: 55, textAlign: "right" }}>Resolved</Text>
+          <Text style={{ fontSize: 7, fontWeight: 700, color: "#cbd5e1", textTransform: "uppercase", letterSpacing: 0.5, width: 35, textAlign: "right" }}>Total</Text>
+          <Text style={{ fontSize: 7, fontWeight: 700, color: "#cbd5e1", textTransform: "uppercase", letterSpacing: 0.5, flex: 1, textAlign: "right" }}>Progress</Text>
+        </View>
+
+        {/* Data rows */}
+        {summary.map((a, i) => {
+          const pct = a.total > 0 ? Math.round((a.resolved / a.total) * 100) : 0;
+          return (
+            <View
+              key={a.area}
+              style={{
+                flexDirection: "row",
+                paddingVertical: 6,
+                paddingHorizontal: 8,
+                borderBottomWidth: 0.5,
+                borderBottomColor: "#f1f5f9",
+                backgroundColor: i % 2 === 0 ? "#ffffff" : "#f8fafc",
+              }}
+            >
+              <Text style={{ fontSize: 8, color: "#1e293b", fontWeight: 600, width: 80 }}>{a.area}</Text>
+              <Text style={{ fontSize: 8, color: "#475569", width: 50, textAlign: "right" }}>{a.major || "—"}</Text>
+              <Text style={{ fontSize: 8, color: "#475569", width: 50, textAlign: "right" }}>{a.minor || "—"}</Text>
+              <Text style={{ fontSize: 8, color: "#475569", width: 55, textAlign: "right" }}>{a.cosmetic || "—"}</Text>
+              <Text style={{ fontSize: 8, color: "#475569", width: 55, textAlign: "right" }}>{a.resolved || "—"}</Text>
+              <Text style={{ fontSize: 8, color: "#1e293b", fontWeight: 700, width: 35, textAlign: "right" }}>{a.total}</Text>
+              <View style={{ flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "flex-end", gap: 4 }}>
+                <View style={{ width: 60, height: 4, backgroundColor: "#f1f5f9", borderRadius: 2, overflow: "hidden" }}>
+                  <View style={{ width: `${pct}%`, height: 4, backgroundColor: "#10b981", borderRadius: 2 }} />
+                </View>
+                <Text style={{ fontSize: 7, color: "#64748b", width: 28, textAlign: "right" }}>{pct}%</Text>
+              </View>
+            </View>
+          );
+        })}
+
+        {/* Total row */}
+        {summary.length > 1 && (
+          <View style={{ flexDirection: "row", paddingVertical: 6, paddingHorizontal: 8, borderTopWidth: 1, borderTopColor: "#e2e8f0", backgroundColor: "#f1f5f9" }}>
+            <Text style={{ fontSize: 8, color: "#1e293b", fontWeight: 700, width: 80 }}>Total</Text>
+            <Text style={{ fontSize: 8, color: "#1e293b", fontWeight: 700, width: 50, textAlign: "right" }}>{totals.major || "—"}</Text>
+            <Text style={{ fontSize: 8, color: "#1e293b", fontWeight: 700, width: 50, textAlign: "right" }}>{totals.minor || "—"}</Text>
+            <Text style={{ fontSize: 8, color: "#1e293b", fontWeight: 700, width: 55, textAlign: "right" }}>{totals.cosmetic || "—"}</Text>
+            <Text style={{ fontSize: 8, color: "#1e293b", fontWeight: 700, width: 55, textAlign: "right" }}>{totals.resolved || "—"}</Text>
+            <Text style={{ fontSize: 8, color: "#1e293b", fontWeight: 700, width: 35, textAlign: "right" }}>{totals.total}</Text>
+            <View style={{ flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "flex-end", gap: 4 }}>
+              <View style={{ width: 60, height: 4, backgroundColor: "#e2e8f0", borderRadius: 2, overflow: "hidden" }}>
+                <View style={{ width: `${totals.total > 0 ? Math.round((totals.resolved / totals.total) * 100) : 0}%`, height: 4, backgroundColor: "#059669", borderRadius: 2 }} />
+              </View>
+              <Text style={{ fontSize: 7, fontWeight: 700, color: "#1e293b", width: 28, textAlign: "right" }}>
+                {totals.total > 0 ? Math.round((totals.resolved / totals.total) * 100) : 0}%
+              </Text>
+            </View>
+          </View>
+        )}
+      </View>
+
+      {/* ── Analytics Cards ── */}
+      <View style={{ flexDirection: "row", gap: 12 }}>
+        {/* Issue Breakdown */}
+        <View style={{ flex: 1, borderWidth: 1, borderColor: "#e2e8f0", borderRadius: 4, padding: 12 }}>
+          <Text style={{ fontSize: 8, fontWeight: 700, color: "#1e293b", marginBottom: 10 }}>Issue Breakdown</Text>
+          {issueTypes.map((s) => {
+            const p = totals.total > 0 ? (s.count / totals.total) * 100 : 0;
+            return (
+              <View key={s.label} style={{ flexDirection: "row", alignItems: "center", marginBottom: 6, gap: 6 }}>
+                <Text style={{ fontSize: 7, fontWeight: 600, color: "#64748b", width: 52 }}>{s.label}</Text>
+                <View style={{ flex: 1, height: 6, backgroundColor: "#f1f5f9", borderRadius: 2, overflow: "hidden" }}>
+                  <View style={{ width: `${p}%`, height: 6, backgroundColor: s.color, borderRadius: 2 }} />
+                </View>
+                <Text style={{ fontSize: 7, fontWeight: 700, color: "#1e293b", width: 20, textAlign: "right" }}>{s.count}</Text>
+                <Text style={{ fontSize: 6, color: "#94a3b8", width: 28, textAlign: "right" }}>({p.toFixed(0)}%)</Text>
+              </View>
+            );
+          })}
+          <View style={{ borderTopWidth: 0.5, borderTopColor: "#e2e8f0", marginTop: 4, paddingTop: 6, flexDirection: "row", justifyContent: "space-between" }}>
+            <Text style={{ fontSize: 7, fontWeight: 700, color: "#64748b" }}>TOTAL</Text>
+            <Text style={{ fontSize: 9, fontWeight: 700, color: "#1e293b" }}>{totals.total}</Text>
+          </View>
+        </View>
+
+        {/* Resolution Status */}
+        <View style={{ flex: 1, borderWidth: 1, borderColor: "#e2e8f0", borderRadius: 4, padding: 12 }}>
+          <Text style={{ fontSize: 8, fontWeight: 700, color: "#1e293b", marginBottom: 10 }}>Resolution Status</Text>
+          {[
+            { label: "RESOLVED", count: resolvedCount, color: "#22c55e" },
+            { label: "OPEN", count: openCount, color: "#dc2626" },
+            { label: "IN PROGRESS", count: inProgressCount, color: "#f97316" },
+          ].map((s) => {
+            const p = resolutionTotal > 0 ? (s.count / resolutionTotal) * 100 : 0;
+            return (
+              <View key={s.label} style={{ flexDirection: "row", alignItems: "center", marginBottom: 6, gap: 6 }}>
+                <Text style={{ fontSize: 7, fontWeight: 600, color: "#64748b", width: 52 }}>{s.label}</Text>
+                <View style={{ flex: 1, height: 6, backgroundColor: "#f1f5f9", borderRadius: 2, overflow: "hidden" }}>
+                  <View style={{ width: `${p}%`, height: 6, backgroundColor: s.color, borderRadius: 2 }} />
+                </View>
+                <Text style={{ fontSize: 7, fontWeight: 700, color: "#1e293b", width: 20, textAlign: "right" }}>{s.count}</Text>
+                <Text style={{ fontSize: 6, color: "#94a3b8", width: 28, textAlign: "right" }}>({p.toFixed(0)}%)</Text>
+              </View>
+            );
+          })}
+          <View style={{ borderTopWidth: 0.5, borderTopColor: "#e2e8f0", marginTop: 4, paddingTop: 6, flexDirection: "row", justifyContent: "space-between" }}>
+            <Text style={{ fontSize: 7, fontWeight: 700, color: "#64748b" }}>TOTAL</Text>
+            <Text style={{ fontSize: 9, fontWeight: 700, color: "#1e293b" }}>{resolutionTotal}</Text>
+          </View>
+        </View>
+      </View>
+
+      {/* Footer */}
+      <View style={[styles.header, { borderTopWidth: 1, borderTopColor: "#e2e8f0", paddingTop: 10, marginTop: 20, position: "absolute", bottom: 36, left: 36, right: 36 }]}>
+        <Text style={{ fontSize: 7, color: "#94a3b8" }}>
+          {cover.companyName || "Workspace"}
+          {cover.companyPhone ? ` · ${cover.companyPhone}` : ""}
+        </Text>
+        <Text style={{ fontSize: 7, color: "#94a3b8" }}>
+          Report generated by Inspection OS &copy; {new Date().getFullYear()}
+        </Text>
+      </View>
+    </Page>
+  );
 }
 
 function CaptureCoverPage({ cover }: { cover: CapturePDFCover }) {
@@ -727,7 +1079,7 @@ function CapturePageContent({
               <Text style={styles.legendText}>Info</Text>
             </View>
             <Text style={{ fontSize: 7, color: "#94a3b8", marginLeft: 4 }}>
-              📷 = Evidence photo attached
+              📷 = Evidence photo | Before/After shown for Resolved items
             </Text>
           </View>
         </>
@@ -739,7 +1091,127 @@ function CapturePageContent({
           {capture.companyPhone ? ` · ${capture.companyPhone}` : ""}
         </Text>
         <Text style={{ fontSize: 7, color: "#94a3b8" }}>
-          Report generated by ReportGen &copy; {new Date().getFullYear()}
+          Report generated by Inspection OS &copy; {new Date().getFullYear()}
+        </Text>
+      </View>
+    </Page>
+  );
+}
+
+function ResolutionEvidencePage({
+  capture,
+  resolvedPins,
+  pageNumber,
+  totalPages,
+}: {
+  capture: CapturePDF;
+  resolvedPins: PinPDF[];
+  pageNumber: number;
+  totalPages: number;
+}) {
+  const date = new Date().toLocaleDateString("en-US", {
+    year: "numeric", month: "long", day: "numeric",
+  });
+
+  const count = resolvedPins.length;
+  const imgH = count === 1 ? 340 : 220;
+
+  return (
+    <Page size="A4" style={styles.page}>
+      <View style={styles.header}>
+        {(capture.companyName || capture.companyLogoUrl) && (
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+            {capture.companyLogoUrl && (
+              <Image
+                src={capture.companyLogoUrl}
+                style={{ width: 32, height: 32, objectFit: "contain" }}
+              />
+            )}
+            {capture.companyName && (
+              <View>
+                <Text style={styles.brandName}>{capture.companyName}</Text>
+                {capture.companyAddress && (
+                  <Text style={styles.brandSub}>{capture.companyAddress}</Text>
+                )}
+              </View>
+            )}
+          </View>
+        )}
+        <View style={styles.meta}>
+          <Text style={styles.metaLabel}>Resolution Evidence</Text>
+          <Text style={styles.metaValue}>{date}</Text>
+        </View>
+      </View>
+
+      <View style={{ marginBottom: 16 }}>
+        <Text style={{ fontSize: 16, fontWeight: 700, color: "#1e293b" }}>
+          {capture.title}
+        </Text>
+        <Text style={{ fontSize: 9, color: "#64748b", marginTop: 3 }}>
+          Project: {capture.projectTitle}
+        </Text>
+        {totalPages > 1 && (
+          <Text style={{ fontSize: 8, color: "#94a3b8", marginTop: 2 }}>
+            Page {pageNumber} of {totalPages}
+          </Text>
+        )}
+      </View>
+
+      <Text style={styles.sectionTitle}>Resolution Evidence</Text>
+      <View style={styles.sectionTitleLine} />
+
+      {resolvedPins.map((pin, idx) => {
+        const pinNumber = capture.pins.indexOf(pin) + 1;
+        return (
+          <View
+            key={pin.id}
+            style={{
+              flexDirection: "row",
+              gap: 16,
+              borderWidth: 1,
+              borderColor: "#e2e8f0",
+              borderRadius: 6,
+              padding: 12,
+              marginBottom: idx < resolvedPins.length - 1 ? 12 : 0,
+            }}
+            wrap={false}
+          >
+            <View style={{ width: 140, justifyContent: "flex-start" }}>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginBottom: 4 }}>
+                <Text style={{ fontSize: 12, fontWeight: 700, color: "#1e293b" }}>
+                  #{pinNumber}
+                </Text>
+                <Text style={[styles.badge, { backgroundColor: "#f0fdf4", color: "#166534" }]}>
+                  Resolved
+                </Text>
+              </View>
+              <Text style={{ fontSize: 10, fontWeight: 600, color: "#334155", marginBottom: 4 }}>
+                {pin.label}
+              </Text>
+              {pin.notes && (
+                <Text style={{ fontSize: 7, color: "#94a3b8", lineHeight: 11 }}>
+                  {pin.notes}
+                </Text>
+              )}
+            </View>
+            <View style={{ flex: 1, borderWidth: 1, borderColor: "#d1fae5", borderRadius: 4, overflow: "hidden" }}>
+              <Image
+                src={pin.resolvedPhoto!}
+                style={{ width: "100%", height: imgH, objectFit: "contain", backgroundColor: "#f8fafc" }}
+              />
+            </View>
+          </View>
+        );
+      })}
+
+      <View style={{ flex: 1 }} />
+      <View style={{ borderTopWidth: 1, borderTopColor: "#e2e8f0", paddingTop: 8, flexDirection: "row", justifyContent: "space-between" }}>
+        <Text style={{ fontSize: 7, color: "#94a3b8" }}>
+          {capture.companyName || "Workspace"}
+          {capture.companyPhone ? ` · ${capture.companyPhone}` : ""}
+        </Text>
+        <Text style={{ fontSize: 7, color: "#94a3b8" }}>
+          Report generated by Inspection OS &copy; {new Date().getFullYear()}
         </Text>
       </View>
     </Page>
@@ -747,18 +1219,31 @@ function CapturePageContent({
 }
 
 export default function CapturePDF({ captures, cover }: CapturePDFProps) {
+  function chunkResolved(pins: PinPDF[]): PinPDF[][] {
+    const chunks: PinPDF[][] = [];
+    for (let i = 0; i < pins.length; i += 2) {
+      chunks.push(pins.slice(i, i + 2));
+    }
+    return chunks;
+  }
+
   return (
     <Document>
       {cover && <CaptureCoverPage cover={cover} />}
+      {cover && captures.length > 0 && (
+        <AreaSummaryPage cover={cover} captures={captures} />
+      )}
       {captures.map((capture) => {
         const chunks = chunkPins(capture.pins);
+        const resolvedPins = capture.pins.filter((p) => p.status === "Resolved" && p.resolvedPhoto);
+        const resolvedChunks = chunkResolved(resolvedPins);
         let runningOffset = 0;
-        return chunks.map((chunk, i) => {
+        const observationPages = chunks.map((chunk, i) => {
           const offset = runningOffset;
           runningOffset += chunk.length;
           return (
             <CapturePageContent
-              key={`${capture.title}-${i}`}
+              key={`${capture.title}-obs-${i}`}
               capture={capture}
               pinsToShow={chunk}
               pinOffset={offset}
@@ -768,6 +1253,18 @@ export default function CapturePDF({ captures, cover }: CapturePDFProps) {
             />
           );
         });
+
+        const evidencePages = resolvedChunks.map((chunk, i) => (
+          <ResolutionEvidencePage
+            key={`${capture.title}-evidence-${i}`}
+            capture={capture}
+            resolvedPins={chunk}
+            pageNumber={i + 1}
+            totalPages={resolvedChunks.length}
+          />
+        ));
+
+        return [...observationPages, ...evidencePages];
       })}
     </Document>
   );

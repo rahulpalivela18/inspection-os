@@ -25,12 +25,23 @@ type Workspace = {
   phone?: string;
   plan?: string;
   planStatus?: string;
+  trialEndsAt?: string | null;
+};
+
+type TrialInfo = {
+  isTrial: boolean;
+  daysRemaining: number | null;
+  isExpired: boolean;
+  trialEndsAt: string | null;
+  limits: { maxProjects: number; maxCaptures: number } | null;
+  usage: { projects: number; captures: number } | null;
 };
 
 type AuthContextType = {
   user: User | null;
   workspace: Workspace | null;
   isLoading: boolean;
+  trial: TrialInfo | null;
   login: (email: string, password: string) => Promise<void>;
   register: (data: {
     name: string;
@@ -40,6 +51,7 @@ type AuthContextType = {
   }) => Promise<void>;
   logout: () => Promise<void>;
   refreshWorkspace: (data: Partial<Workspace>) => void;
+  refreshTrial: () => void;
 };
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -47,25 +59,45 @@ const AuthContext = createContext<AuthContextType | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [workspace, setWorkspace] = useState<Workspace | null>(null);
+  const [trial, setTrial] = useState<TrialInfo | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  const fetchTrialStatus = async () => {
+    try {
+      const res = await fetch("/api/workspace/trial-status", { credentials: "include" });
+      if (res.ok) {
+        const data = await res.json();
+        setTrial(data);
+      }
+    } catch {
+      // ignore
+    }
+  };
 
   useEffect(() => {
     const onUnauth = () => {
       queryClient.clear();
       setUser(null);
       setWorkspace(null);
-      if (!["/", "/login", "/register", "/contact"].includes(window.location.pathname)) {
+      setTrial(null);
+      if (!["/", "/login", "/register", "/contact"].includes(window.location.pathname) && !window.location.pathname.startsWith("/shared/")) {
         window.location.href = "/";
       }
     };
     setOnUnauthorized(onUnauth);
     setQueryOnUnauthorized(onUnauth);
 
+    if (window.location.pathname.startsWith("/shared/")) {
+      setIsLoading(false);
+      return;
+    }
+
     api
       .me()
       .then(({ user, workspace }) => {
         setUser(user);
         setWorkspace(workspace);
+        fetchTrialStatus();
       })
       .catch(() => {})
       .finally(() => setIsLoading(false));
@@ -76,6 +108,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     queryClient.clear();
     setUser(data.user);
     setWorkspace(data.workspace);
+    fetchTrialStatus();
   };
 
   const register = async (formData: {
@@ -88,6 +121,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     queryClient.clear();
     setUser(data.user);
     setWorkspace(data.workspace);
+    fetchTrialStatus();
   };
 
   const logout = async () => {
@@ -97,6 +131,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       queryClient.clear();
       setUser(null);
       setWorkspace(null);
+      setTrial(null);
     }
   };
 
@@ -110,10 +145,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         user,
         workspace,
         isLoading,
+        trial,
         login,
         register,
         logout,
         refreshWorkspace,
+        refreshTrial: fetchTrialStatus,
       }}
     >
       {children}

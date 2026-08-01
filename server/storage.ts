@@ -1,4 +1,4 @@
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, asc } from "drizzle-orm";
 import { db } from "./db";
 import {
   users,
@@ -9,6 +9,11 @@ import {
   invoices,
   captures,
   hotspots,
+  progressLogs,
+  shareLinks,
+  quotations,
+  quotationItems,
+  workspaceRates,
   type User,
   type InsertUser,
   type Workspace,
@@ -25,6 +30,16 @@ import {
   type InsertCapture,
   type Hotspot,
   type InsertHotspot,
+  type ProgressLog,
+  type InsertProgressLog,
+  type ShareLink,
+  type InsertShareLink,
+  type Quotation,
+  type InsertQuotation,
+  type QuotationItem,
+  type InsertQuotationItem,
+  type WorkspaceRate,
+  type InsertWorkspaceRate,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -88,6 +103,68 @@ export interface IStorage {
   createInvoice(inv: InsertInvoice): Promise<Invoice>;
   getInvoicesByWorkspace(workspaceId: string): Promise<Invoice[]>;
   getAllInvoices(): Promise<Invoice[]>;
+
+  // Progress Logs
+  getProgressLogsByReport(
+    reportId: string,
+    workspaceId: string,
+  ): Promise<ProgressLog[]>;
+  createProgressLog(
+    p: InsertProgressLog & { afterPhotos?: any },
+  ): Promise<ProgressLog>;
+  updateProgressLog(
+    id: string,
+    workspaceId: string,
+    data: Partial<InsertProgressLog>,
+  ): Promise<ProgressLog | undefined>;
+  deleteProgressLog(id: string, workspaceId: string): Promise<boolean>;
+
+  // Share Links
+  getShareLinkByToken(token: string): Promise<ShareLink | undefined>;
+  getShareLinksByProject(
+    projectId: string,
+    workspaceId: string,
+  ): Promise<ShareLink[]>;
+  createShareLink(data: InsertShareLink): Promise<ShareLink>;
+  deleteShareLink(id: string, workspaceId: string): Promise<boolean>;
+
+  // Quotations
+  getQuotationsByProject(
+    projectId: string,
+    workspaceId: string,
+  ): Promise<Quotation[]>;
+  getQuotationsByWorkspace(workspaceId: string): Promise<Quotation[]>;
+  getQuotation(id: string, workspaceId: string): Promise<Quotation | undefined>;
+  createQuotation(data: InsertQuotation): Promise<Quotation>;
+  updateQuotation(
+    id: string,
+    workspaceId: string,
+    data: Partial<InsertQuotation>,
+  ): Promise<Quotation | undefined>;
+  deleteQuotation(id: string, workspaceId: string): Promise<boolean>;
+
+  // Quotation Items
+  getQuotationItems(
+    quotationId: string,
+    workspaceId: string,
+  ): Promise<QuotationItem[]>;
+  createQuotationItem(data: InsertQuotationItem): Promise<QuotationItem>;
+  updateQuotationItem(
+    id: string,
+    workspaceId: string,
+    data: Partial<InsertQuotationItem>,
+  ): Promise<QuotationItem | undefined>;
+  deleteQuotationItem(id: string, workspaceId: string): Promise<boolean>;
+
+  // Workspace Rates
+  getWorkspaceRates(workspaceId: string): Promise<WorkspaceRate[]>;
+  createWorkspaceRate(data: InsertWorkspaceRate): Promise<WorkspaceRate>;
+  updateWorkspaceRate(
+    id: string,
+    workspaceId: string,
+    data: Partial<InsertWorkspaceRate>,
+  ): Promise<WorkspaceRate | undefined>;
+  deleteWorkspaceRate(id: string, workspaceId: string): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -139,7 +216,47 @@ export class DatabaseStorage implements IStorage {
     return result.length > 0;
   }
 
-  // Checklist Templates
+  // Workspace Rates
+  async getWorkspaceRates(workspaceId: string) {
+    return db
+      .select()
+      .from(workspaceRates)
+      .where(eq(workspaceRates.workspaceId, workspaceId))
+      .orderBy(desc(workspaceRates.createdAt));
+  }
+  async createWorkspaceRate(data: InsertWorkspaceRate) {
+    const [row] = await db.insert(workspaceRates).values(data).returning();
+    return row;
+  }
+  async updateWorkspaceRate(
+    id: string,
+    workspaceId: string,
+    data: Partial<InsertWorkspaceRate>,
+  ) {
+    const [row] = await db
+      .update(workspaceRates)
+      .set(data)
+      .where(
+        and(
+          eq(workspaceRates.id, id),
+          eq(workspaceRates.workspaceId, workspaceId),
+        ),
+      )
+      .returning();
+    return row;
+  }
+  async deleteWorkspaceRate(id: string, workspaceId: string) {
+    const result = await db
+      .delete(workspaceRates)
+      .where(
+        and(
+          eq(workspaceRates.id, id),
+          eq(workspaceRates.workspaceId, workspaceId),
+        ),
+      )
+      .returning();
+    return result.length > 0;
+  }
   async getChecklistTemplates(workspaceId: string, type?: string) {
     const conditions = [eq(checklistTemplates.workspaceId, workspaceId)];
     if (type) {
@@ -149,7 +266,7 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(checklistTemplates)
       .where(and(...conditions))
-      .orderBy(desc(checklistTemplates.createdAt));
+      .orderBy(asc(checklistTemplates.order));
   }
   async createChecklistTemplate(data: InsertChecklistTemplate) {
     const [row] = await db.insert(checklistTemplates).values(data).returning();
@@ -281,6 +398,188 @@ export class DatabaseStorage implements IStorage {
   async getAllInvoices() {
     return db.select().from(invoices).orderBy(desc(invoices.createdAt));
   }
+
+  // Progress Logs
+  async getProgressLogsByReport(reportId: string, workspaceId: string) {
+    return db
+      .select()
+      .from(progressLogs)
+      .where(
+        and(
+          eq(progressLogs.reportId, reportId),
+          eq(progressLogs.workspaceId, workspaceId),
+        ),
+      )
+      .orderBy(desc(progressLogs.createdAt));
+  }
+  async createProgressLog(data: InsertProgressLog & { afterPhotos?: any }) {
+    const [row] = await db
+      .insert(progressLogs)
+      .values(data as any)
+      .returning();
+    return row;
+  }
+  async updateProgressLog(
+    id: string,
+    workspaceId: string,
+    data: Partial<InsertProgressLog>,
+  ) {
+    const [row] = await db
+      .update(progressLogs)
+      .set(data)
+      .where(
+        and(eq(progressLogs.id, id), eq(progressLogs.workspaceId, workspaceId)),
+      )
+      .returning();
+    return row;
+  }
+  async deleteProgressLog(id: string, workspaceId: string) {
+    const result = await db
+      .delete(progressLogs)
+      .where(
+        and(eq(progressLogs.id, id), eq(progressLogs.workspaceId, workspaceId)),
+      )
+      .returning();
+    return result.length > 0;
+  }
+
+  // Share Links
+  async getShareLinkByToken(token: string) {
+    const [row] = await db
+      .select()
+      .from(shareLinks)
+      .where(eq(shareLinks.token, token));
+    return row;
+  }
+  async getShareLinksByProject(projectId: string, workspaceId: string) {
+    return db
+      .select()
+      .from(shareLinks)
+      .where(
+        and(
+          eq(shareLinks.projectId, projectId),
+          eq(shareLinks.workspaceId, workspaceId),
+        ),
+      )
+      .orderBy(desc(shareLinks.createdAt));
+  }
+  async createShareLink(data: InsertShareLink) {
+    const [row] = await db.insert(shareLinks).values(data).returning();
+    return row;
+  }
+  async deleteShareLink(id: string, workspaceId: string) {
+    const result = await db
+      .delete(shareLinks)
+      .where(
+        and(eq(shareLinks.id, id), eq(shareLinks.workspaceId, workspaceId)),
+      )
+      .returning();
+    return result.length > 0;
+  }
+
+  // Quotations
+  async getQuotationsByProject(projectId: string, workspaceId: string) {
+    return db
+      .select()
+      .from(quotations)
+      .where(
+        and(
+          eq(quotations.projectId, projectId),
+          eq(quotations.workspaceId, workspaceId),
+        ),
+      )
+      .orderBy(desc(quotations.createdAt));
+  }
+  async getQuotationsByWorkspace(workspaceId: string) {
+    return db
+      .select()
+      .from(quotations)
+      .where(eq(quotations.workspaceId, workspaceId))
+      .orderBy(desc(quotations.createdAt));
+  }
+  async getQuotation(id: string, workspaceId: string) {
+    const [row] = await db
+      .select()
+      .from(quotations)
+      .where(
+        and(eq(quotations.id, id), eq(quotations.workspaceId, workspaceId)),
+      );
+    return row;
+  }
+  async createQuotation(data: InsertQuotation) {
+    const [row] = await db.insert(quotations).values(data).returning();
+    return row;
+  }
+  async updateQuotation(
+    id: string,
+    workspaceId: string,
+    data: Partial<InsertQuotation>,
+  ) {
+    const [row] = await db
+      .update(quotations)
+      .set(data)
+      .where(
+        and(eq(quotations.id, id), eq(quotations.workspaceId, workspaceId)),
+      )
+      .returning();
+    return row;
+  }
+  async deleteQuotation(id: string, workspaceId: string) {
+    const result = await db
+      .delete(quotations)
+      .where(
+        and(eq(quotations.id, id), eq(quotations.workspaceId, workspaceId)),
+      )
+      .returning();
+    return result.length > 0;
+  }
+
+  // Quotation Items
+  async getQuotationItems(quotationId: string, workspaceId: string) {
+    return db
+      .select()
+      .from(quotationItems)
+      .where(
+        and(
+          eq(quotationItems.quotationId, quotationId),
+          eq(quotationItems.workspaceId, workspaceId),
+        ),
+      )
+      .orderBy(quotationItems.order);
+  }
+  async createQuotationItem(data: InsertQuotationItem) {
+    const [row] = await db.insert(quotationItems).values(data).returning();
+    return row;
+  }
+  async updateQuotationItem(
+    id: string,
+    workspaceId: string,
+    data: Partial<InsertQuotationItem>,
+  ) {
+    const [row] = await db
+      .update(quotationItems)
+      .set(data)
+      .where(
+        and(
+          eq(quotationItems.id, id),
+          eq(quotationItems.workspaceId, workspaceId),
+        ),
+      )
+      .returning();
+    return row;
+  }
+  async deleteQuotationItem(id: string, workspaceId: string) {
+    const result = await db
+      .delete(quotationItems)
+      .where(
+        and(
+          eq(quotationItems.id, id),
+          eq(quotationItems.workspaceId, workspaceId),
+        ),
+      )
+      .returning();
+    return result.length > 0;
+  }
 }
 
 export class SpatialStorage {
@@ -296,6 +595,13 @@ export class SpatialStorage {
         ),
       )
       .orderBy(desc(captures.createdAt));
+  }
+
+  async getCapturesByWorkspace(workspaceId: string) {
+    return db
+      .select()
+      .from(captures)
+      .where(eq(captures.workspaceId, workspaceId));
   }
 
   async getCapture(id: string, workspaceId: string) {

@@ -66,3 +66,17 @@ export type Report = {
   checklist?: ChecklistItem[];
   issues?: Issue[];
 };
+
+export type ProgressLog = {
+  id: string;
+  reportId: string;
+  workspaceId: string;
+  author: string;
+  date: string;
+  notes?: string;
+  resolvedChecklistItemIds?: string[];
+  afterPhotos?: { [checklistItemId: string]: string[] };
+  resolvedIssuePhotos?: { [issueId: string]: string[] };
+  newFindings?: { title: string; note: string; severity: string }[];
+  createdAt: string;
+};
