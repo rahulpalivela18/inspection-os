@@ -171,6 +171,14 @@ script/      build (esbuild + vite), asset upload
 - White-label PDF branding (per-workspace logo &amp; colors).
 - PPTX export alongside PDF.
 
+## Writing
+
+More on the design and story behind Inspection OS:
+
+- [Why I built Inspection OS: from lost WhatsApp photos to a system for inspections](https://medium.com/@rahulpalivela18/why-i-built-inspection-os-from-lost-whatsapp-photos-to-a-system-for-inspections-dd11f465052e) — the origin story
+- [Pinning defects on the photo itself: building 360° hotspot mapping](https://dev.to/rahulpalivela18/pinning-defects-on-the-photo-itself-building-360deg-hotspot-mapping-3n7d) — a technical deep-dive
+- [Where I'm taking Inspection OS next](https://medium.com/@rahulpalivela18/where-im-taking-inspection-os-next-7b2180f00fda) — the roadmap (offline, voice, multilingual, AI defect detection, an LLM assistant)
+
 ## License
 
 All rights reserved. This repository is public for portfolio and reference purposes;
