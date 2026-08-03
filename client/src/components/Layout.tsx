@@ -18,6 +18,7 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth";
 import Footer from "@/components/Footer";
+import { InstallAppButton } from "@/components/InstallAppButton";
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
@@ -171,6 +172,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               View default checklist
             </Button>
           </Link>
+          <div className="mt-3">
+            <InstallAppButton />
+          </div>
         </div>
       </div>
     </div>
@@ -189,21 +193,24 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           </div>
           Inspection OS
         </Link>
-        <Sheet open={isMobileOpen} onOpenChange={setIsMobileOpen}>
-          <SheetTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-9 w-9"
-              data-testid="button-open-mobile-menu"
-            >
-              <Menu className="h-5 w-5" />
-            </Button>
-          </SheetTrigger>
-          <SheetContent side="left" className="w-[300px] border-r-0 p-0">
-            <SidebarContent />
-          </SheetContent>
-        </Sheet>
+        <div className="flex items-center gap-2">
+          <InstallAppButton />
+          <Sheet open={isMobileOpen} onOpenChange={setIsMobileOpen}>
+            <SheetTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-9 w-9"
+                data-testid="button-open-mobile-menu"
+              >
+                <Menu className="h-5 w-5" />
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="left" className="w-[300px] border-r-0 p-0">
+              <SidebarContent />
+            </SheetContent>
+          </Sheet>
+        </div>
       </div>
 
       <main className="h-full w-full flex-1 overflow-y-auto pt-14 md:pt-0">
