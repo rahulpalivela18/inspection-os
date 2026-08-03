@@ -53,7 +53,7 @@ export default function LandingPage() {
         </div>
       </nav>
 
-      <section className="relative flex flex-col items-center justify-center pt-32 pb-24 text-center px-4">
+      <section className="relative flex flex-col items-center justify-center overflow-hidden pt-32 pb-24 text-center px-4">
         <div className="pointer-events-none absolute right-0 top-0 h-[500px] w-[500px] -translate-y-1/2 translate-x-1/2 rounded-full bg-primary/5 blur-[120px] will-change-transform" />
         <div className="pointer-events-none absolute bottom-0 left-0 h-[500px] w-[500px] translate-y-1/2 -translate-x-1/2 rounded-full bg-indigo-500/5 blur-[120px] will-change-transform" />
 
