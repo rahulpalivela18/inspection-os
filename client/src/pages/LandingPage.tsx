@@ -11,8 +11,27 @@ import {
   BadgeCheck,
 } from "lucide-react";
 import { Link } from "wouter";
-import { motion } from "framer-motion";
+import { animate, motion, useInView } from "framer-motion";
+import { useEffect, useRef, useState } from "react";
 import Footer from "@/components/Footer";
+
+function Counter({ value }: { value: number }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const inView = useInView(ref, { once: true, margin: "-50px" });
+  const [display, setDisplay] = useState(0);
+
+  useEffect(() => {
+    if (!inView) return;
+    const controls = animate(0, value, {
+      duration: 1.8,
+      ease: "easeOut",
+      onUpdate: (v) => setDisplay(Math.round(v)),
+    });
+    return () => controls.stop();
+  }, [inView, value]);
+
+  return <div ref={ref}>{display.toLocaleString()}</div>;
+}
 
 export default function LandingPage() {
   return (
@@ -168,31 +187,30 @@ export default function LandingPage() {
           whileInView={{ y: 0, opacity: 1 }}
           viewport={{ once: true }}
           transition={{ delay: 0.6 + 3 * 0.15, duration: 0.6 }}
-          className="mx-auto mt-8 max-w-2xl"
+          className="mx-auto mt-8 w-full max-w-7xl"
         >
-          <div className="group rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition-all duration-300 hover:shadow-xl hover:-translate-y-1">
+          <div className="mb-8 flex flex-col items-center text-center">
             <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-primary/10 to-indigo-500/10">
               <MapPinned className="h-6 w-6 text-primary" />
             </div>
-            <h3 className="mb-2 font-heading text-xl font-bold text-slate-900">
+            <h3 className="mb-2 font-heading text-2xl font-bold text-slate-900">
               Visual Hotspot Mapping
             </h3>
-            <p className="mb-6 text-sm leading-relaxed text-slate-600">
+            <p className="max-w-2xl text-sm leading-relaxed text-slate-600">
               Pin defects directly on 360° photos with severity levels and
               status tracking. Visual inspection reporting made precise.
             </p>
-            <div className="flex items-center justify-center overflow-hidden rounded-xl border border-slate-100 bg-slate-50 p-2">
-              <video
-                src="https://storage.googleapis.com/reportgen-images-rahul/hotspot-demo-1785183126989.mp4"
-                controls
-                muted
-                playsInline
-                className="max-h-64 w-full rounded-lg"
-              >
-                Your browser does not support the video tag.
-              </video>
-            </div>
           </div>
+          <video
+            src="https://storage.googleapis.com/reportgen-images-rahul/hotspot-demo-1785183126989.mp4"
+            autoPlay
+            muted
+            loop
+            playsInline
+            className="aspect-video w-full rounded-2xl object-cover shadow-2xl shadow-primary/10"
+          >
+            Your browser does not support the video tag.
+          </video>
         </motion.div>
 
         <motion.div
@@ -231,7 +249,7 @@ export default function LandingPage() {
               className="text-center"
             >
               <div className="text-5xl font-black text-slate-900 md:text-6xl">
-                {stat.number}
+                <Counter value={parseInt(stat.number, 10)} />
               </div>
               <div className="mt-2 text-sm font-medium uppercase tracking-wider text-slate-500">
                 {stat.label}
