@@ -11,15 +11,48 @@ const httpServer = createServer(app);
 
 app.disable("x-powered-by");
 
-app.use(
-  helmet({
-    contentSecurityPolicy: false,
-    strictTransportSecurity: {
-      maxAge: 31536000,
-      includeSubDomains: true,
-    },
-  }),
-);
+if (process.env.NODE_ENV === "production") {
+  app.use(
+    helmet({
+      contentSecurityPolicy: {
+        directives: {
+          defaultSrc: ["'self'"],
+          scriptSrc: ["'self'", "https://cdn.jsdelivr.net"],
+          styleSrc: [
+            "'self'",
+            "'unsafe-inline'",
+            "https://fonts.googleapis.com",
+            "https://cdn.jsdelivr.net",
+          ],
+          fontSrc: ["'self'", "https://fonts.gstatic.com", "data:"],
+          imgSrc: [
+            "'self'",
+            "data:",
+            "blob:",
+            "https://storage.googleapis.com",
+          ],
+          mediaSrc: ["'self'", "blob:", "https://storage.googleapis.com"],
+          connectSrc: [
+            "'self'",
+            "https://api.web3forms.com",
+            "https://storage.googleapis.com",
+            "wss://inspection-os.up.railway.app",
+          ],
+          workerSrc: ["'self'", "blob:"],
+          frameSrc: ["'self'"],
+          frameAncestors: null,
+          objectSrc: ["'none'"],
+          baseUri: ["'self'"],
+          formAction: ["'self'"],
+        },
+      },
+      strictTransportSecurity: {
+        maxAge: 31536000,
+        includeSubDomains: true,
+      },
+    }),
+  );
+}
 
 declare module "http" {
   interface IncomingMessage {
