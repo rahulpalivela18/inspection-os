@@ -33,6 +33,13 @@ Path aliases: `@/*` → `client/src/*`, `@shared/*` → `shared/*`
 - Client: Vite builds to `dist/public`
 - `script/build.ts` runs both sequentially
 
+## Docs Index
+
+Planning docs, read them only when the topic matches (don't scan the repo for context):
+
+- `OFFLINE_ROADMAP.md` — Local-first PWA strategy (IndexedDB + sync engine) in 5 phases + API perf issues. Read before any offline/PWA/sync/image-storage work.
+- `docs/roles-and-plans-implementation.md` — RBAC (`admin`/`inspector`/`viewer`/`super_admin`) + plan-based inspector limits implementation guide. Read before permission/role/plan/billing work.
+
 ## Gotchas
 
 - `checklist_templates.order` column allows duplicates (default 0) — queries now use `ORDER BY created_at DESC` for deterministic ordering
