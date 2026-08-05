@@ -59,6 +59,11 @@ export default function Dashboard() {
     queryFn: api.getProjects,
   });
 
+  const { data: stats } = useQuery({
+    queryKey: ["dashboard-stats"],
+    queryFn: api.getDashboardStats,
+  });
+
   const createMutation = useMutation({
     mutationFn: (data: any) => api.createProject(data),
     onSuccess: () => {
@@ -235,7 +240,7 @@ export default function Dashboard() {
                 Total Reports
               </CardDescription>
               <CardTitle className="text-2xl" data-testid="stat-reports">
-                —
+                {stats?.reports ?? "—"}
               </CardTitle>
             </CardHeader>
           </Card>
@@ -244,7 +249,9 @@ export default function Dashboard() {
               <CardDescription className="text-[10px] uppercase font-bold tracking-wider">
                 Pending Review
               </CardDescription>
-              <CardTitle className="text-2xl">—</CardTitle>
+              <CardTitle className="text-2xl">
+                {stats?.reportsByStatus?.Review ?? 0}
+              </CardTitle>
             </CardHeader>
           </Card>
           <Card className="bg-white/50 backdrop-blur-sm border-dashed">
@@ -252,7 +259,9 @@ export default function Dashboard() {
               <CardDescription className="text-[10px] uppercase font-bold tracking-wider">
                 Completed
               </CardDescription>
-              <CardTitle className="text-2xl">—</CardTitle>
+              <CardTitle className="text-2xl">
+                {stats?.reportsByStatus?.Final ?? 0}
+              </CardTitle>
             </CardHeader>
           </Card>
         </div>

@@ -85,6 +85,9 @@ export const api = {
   deleteChecklistTemplate: (id: string) =>
     request(`/api/checklist-templates/${id}`, { method: "DELETE" }),
 
+  // Dashboard
+  getDashboardStats: () => request<any>("/api/dashboard/stats"),
+
   // Projects
   getProjects: () => request<any[]>("/api/projects"),
   getProject: (id: string) => request<any>(`/api/projects/${id}`),

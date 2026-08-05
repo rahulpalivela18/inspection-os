@@ -85,6 +85,14 @@ export interface IStorage {
   ): Promise<Project | undefined>;
   deleteProject(id: string, workspaceId: string): Promise<boolean>;
 
+  // Dashboard stats
+  getDashboardStats(workspaceId: string): Promise<{
+    projects: number;
+    captures: number;
+    reports: number;
+    reportsByStatus: { Draft: number; Review: number; Final: number };
+  }>;
+
   // Reports
   getReportsByProject(
     projectId: string,
@@ -338,6 +346,40 @@ export class DatabaseStorage implements IStorage {
       .where(and(eq(projects.id, id), eq(projects.workspaceId, workspaceId)))
       .returning();
     return result.length > 0;
+  }
+
+  // Dashboard stats
+  async getDashboardStats(workspaceId: string) {
+    const [projectRows, reportRows, captureRows] = await Promise.all([
+      db
+        .select({ id: projects.id })
+        .from(projects)
+        .where(eq(projects.workspaceId, workspaceId)),
+      db
+        .select({ id: reports.id, status: reports.status })
+        .from(reports)
+        .where(eq(reports.workspaceId, workspaceId)),
+      db
+        .select({ id: captures.id })
+        .from(captures)
+        .where(eq(captures.workspaceId, workspaceId)),
+    ]);
+
+    const reportsByStatus: { Draft: number; Review: number; Final: number } = {
+      Draft: 0,
+      Review: 0,
+      Final: 0,
+    };
+    for (const r of reportRows) {
+      if (r.status in reportsByStatus) reportsByStatus[r.status]++;
+    }
+
+    return {
+      projects: projectRows.length,
+      captures: captureRows.length,
+      reports: reportRows.length,
+      reportsByStatus,
+    };
   }
 
   // Reports

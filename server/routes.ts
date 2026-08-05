@@ -546,6 +546,14 @@ export async function registerRoutes(
     },
   );
 
+  // ── Dashboard Stats ─────────────────────────────────────────────────────────
+
+  app.get("/api/dashboard/stats", requireAuth, async (req, res) => {
+    const user = req.user as any;
+    const stats = await storage.getDashboardStats(user.workspaceId);
+    res.json(stats);
+  });
+
   // ── Project Routes ────────────────────────────────────────────────────────────
 
   app.get("/api/projects", requireAuth, async (req, res) => {

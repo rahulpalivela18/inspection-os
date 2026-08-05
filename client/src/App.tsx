@@ -1,4 +1,4 @@
-import { Switch, Route, useLocation, Redirect } from "wouter";
+import { Switch, Route, useLocation, useRoute, Redirect } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -57,6 +57,11 @@ function PublicRoute({
   return <Component />;
 }
 
+function ProjectLandingRedirect() {
+  const [, params] = useRoute("/project/:id");
+  return <Redirect to={`/project/${params?.id}/captures`} />;
+}
+
 function Router() {
   return (
     <Switch>
@@ -92,8 +97,11 @@ function Router() {
       <Route path="/quotation/:id">
         <ProtectedRoute component={QuotationEditor} />
       </Route>
-      <Route path="/project/:id">
+      <Route path="/project/:id/reports">
         <ProtectedRoute component={ProjectDetails} />
+      </Route>
+      <Route path="/project/:id">
+        <ProjectLandingRedirect />
       </Route>
       <Route path="/project/:id/captures">
         <ProtectedRoute component={CaptureManager} />
