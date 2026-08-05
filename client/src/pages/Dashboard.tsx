@@ -32,6 +32,7 @@ import {
   FolderKanban,
   BarChart3,
   Trash2,
+  Pin,
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { formatDistanceToNow } from "date-fns";
@@ -91,6 +92,20 @@ export default function Dashboard() {
       queryClient.invalidateQueries({ queryKey: ["projects"] });
       refreshTrial();
       setProjectToDelete(null);
+    },
+    onError: (err: any) =>
+      toast({
+        title: "Error",
+        description: err.message,
+        variant: "destructive",
+      }),
+  });
+
+  const pinMutation = useMutation({
+    mutationFn: ({ id, isPinned }: { id: string; isPinned: boolean }) =>
+      api.updateProject(id, { isPinned }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["projects"] });
     },
     onError: (err: any) =>
       toast({
@@ -319,6 +334,26 @@ export default function Dashboard() {
                     </CardTitle>
                     <div className="flex items-center gap-2 shrink-0">
                       {user?.role !== "viewer" && (
+                      <>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className={`h-8 w-8 -mt-1 -mr-2 transition-opacity ${
+                          project.isPinned
+                            ? "text-primary opacity-100"
+                            : "text-slate-400 hover:text-primary hover:bg-primary/5 opacity-0 group-hover:opacity-100"
+                        }`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          pinMutation.mutate({
+                            id: project.id,
+                            isPinned: !project.isPinned,
+                          });
+                        }}
+                        data-testid={`button-pin-project-${project.id}`}
+                      >
+                        <Pin className="h-4 w-4" />
+                      </Button>
                       <Button
                         variant="ghost"
                         size="icon"
@@ -331,6 +366,7 @@ export default function Dashboard() {
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
+                      </>
                       )}
                     </div>
                   </div>

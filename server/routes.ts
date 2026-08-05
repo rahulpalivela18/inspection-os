@@ -614,6 +614,23 @@ export async function registerRoutes(
     async (req, res) => {
       const user = req.user as any;
       const { id, createdAt, workspaceId, ...updates } = req.body;
+
+      if (updates.isPinned === true) {
+        const target = await storage.getProject(
+          req.params.id as string,
+          user.workspaceId,
+        );
+        if (!target) return res.status(404).json({ message: "Not found" });
+        if (!target.isPinned) {
+          const pinned = await storage.countPinnedProjects(user.workspaceId);
+          if (pinned >= 3) {
+            return res
+              .status(400)
+              .json({ message: "You can pin up to 3 projects." });
+          }
+        }
+      }
+
       const item = await storage.updateProject(
         req.params.id as string,
         user.workspaceId,

@@ -1,4 +1,4 @@
-import { eq, and, desc, asc } from "drizzle-orm";
+import { eq, and, desc, asc, sql } from "drizzle-orm";
 import { db } from "./db";
 import {
   users,
@@ -84,6 +84,7 @@ export interface IStorage {
     data: Partial<InsertProject>,
   ): Promise<Project | undefined>;
   deleteProject(id: string, workspaceId: string): Promise<boolean>;
+  countPinnedProjects(workspaceId: string): Promise<number>;
 
   // Dashboard stats
   getDashboardStats(workspaceId: string): Promise<{
@@ -315,7 +316,8 @@ export class DatabaseStorage implements IStorage {
     return db
       .select()
       .from(projects)
-      .where(eq(projects.workspaceId, workspaceId));
+      .where(eq(projects.workspaceId, workspaceId))
+      .orderBy(desc(projects.isPinned), desc(projects.createdAt));
   }
   async getProject(id: string, workspaceId: string) {
     const [row] = await db
@@ -346,6 +348,15 @@ export class DatabaseStorage implements IStorage {
       .where(and(eq(projects.id, id), eq(projects.workspaceId, workspaceId)))
       .returning();
     return result.length > 0;
+  }
+  async countPinnedProjects(workspaceId: string) {
+    const [row] = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(projects)
+      .where(
+        and(eq(projects.workspaceId, workspaceId), eq(projects.isPinned, true)),
+      );
+    return Number(row.count);
   }
 
   // Dashboard stats
