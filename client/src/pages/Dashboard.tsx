@@ -341,7 +341,7 @@ export default function Dashboard() {
                         className={`h-8 w-8 -mt-1 -mr-2 transition-opacity ${
                           project.isPinned
                             ? "text-primary opacity-100"
-                            : "text-slate-400 hover:text-primary hover:bg-primary/5 opacity-0 group-hover:opacity-100"
+                            : "text-slate-400 hover:text-primary hover:bg-primary/5 pointer-fine:opacity-0 pointer-fine:group-hover:opacity-100"
                         }`}
                         onClick={(e) => {
                           e.stopPropagation();
@@ -357,7 +357,7 @@ export default function Dashboard() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-8 w-8 text-slate-400 hover:text-red-600 hover:bg-red-50 -mt-1 -mr-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                        className="h-8 w-8 text-slate-400 hover:text-red-600 hover:bg-red-50 -mt-1 -mr-2 opacity-100 pointer-fine:opacity-0 pointer-fine:group-hover:opacity-100 transition-opacity"
                         onClick={(e) => {
                           e.stopPropagation();
                           setProjectToDelete(project.id);
