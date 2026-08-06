@@ -17,7 +17,11 @@ if (process.env.NODE_ENV === "production") {
       contentSecurityPolicy: {
         directives: {
           defaultSrc: ["'self'"],
-          scriptSrc: ["'self'", "https://cdn.jsdelivr.net"],
+          scriptSrc: [
+            "'self'",
+            "https://cdn.jsdelivr.net",
+            "'wasm-unsafe-eval'",
+          ],
           styleSrc: [
             "'self'",
             "'unsafe-inline'",
@@ -37,6 +41,7 @@ if (process.env.NODE_ENV === "production") {
             "https://api.web3forms.com",
             "https://storage.googleapis.com",
             "wss://inspection-os.up.railway.app",
+            "data:",
           ],
           workerSrc: ["'self'", "blob:"],
           frameSrc: ["'self'"],
