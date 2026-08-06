@@ -50,7 +50,7 @@ export default function LandingPage() {
               <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-lg shadow-primary/20">
                 IO
               </div>
-              <span className="tracking-tight text-slate-900">Inspection OS</span>
+              <span className="hidden tracking-tight text-slate-900 sm:inline">Inspection OS</span>
             </motion.div>
           </Link>
           <div className="flex items-center gap-2">
@@ -58,15 +58,18 @@ export default function LandingPage() {
               (user ? (
                 <>
                   <Link href="/settings">
-                    <Button variant="ghost" className="rounded-xl font-semibold">
-                      <Settings className="h-4 w-4 mr-1.5" />
-                      Settings
+                    <Button
+                      variant="ghost"
+                      className="rounded-xl px-2.5 font-semibold sm:px-4"
+                    >
+                      <Settings className="h-4 w-4" />
+                      <span className="ml-1.5 hidden sm:inline">Settings</span>
                     </Button>
                   </Link>
                   <Link href="/dashboard">
-                    <Button className="rounded-xl font-semibold">
-                      <LayoutDashboard className="h-4 w-4 mr-1.5" />
-                      Dashboard
+                    <Button className="rounded-xl px-2.5 font-semibold sm:px-4">
+                      <LayoutDashboard className="h-4 w-4" />
+                      <span className="ml-1.5 hidden sm:inline">Dashboard</span>
                     </Button>
                   </Link>
                 </>
@@ -83,10 +86,10 @@ export default function LandingPage() {
                   </Link>
                   <Link href="/register">
                     <Button
-                      className="rounded-xl font-semibold"
+                      className="rounded-xl px-3 font-semibold sm:px-4"
                       data-testid="button-signup"
                     >
-                      Sign Up Free
+                      Sign Up<span className="hidden sm:inline"> Free</span>
                     </Button>
                   </Link>
                 </>
