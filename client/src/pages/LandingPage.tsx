@@ -9,11 +9,13 @@ import {
   Clock,
   TrendingUp,
   BadgeCheck,
+  Settings,
 } from "lucide-react";
 import { Link } from "wouter";
 import { animate, motion, useInView } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
 import Footer from "@/components/Footer";
+import { useAuth } from "@/lib/auth";
 
 function Counter({ value }: { value: number }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -34,11 +36,12 @@ function Counter({ value }: { value: number }) {
 }
 
 export default function LandingPage() {
+  const { user, isLoading } = useAuth();
   return (
     <div className="min-h-screen bg-slate-50 selection:bg-primary/10">
       <nav className="sticky top-0 z-50 border-b bg-white/80 backdrop-blur-xl">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-          <Link href="/">
+          <Link href="/home">
             <motion.div
               initial={{ x: -20, opacity: 0 }}
               animate={{ x: 0, opacity: 1 }}
@@ -51,23 +54,43 @@ export default function LandingPage() {
             </motion.div>
           </Link>
           <div className="flex items-center gap-2">
-            <Link href="/login">
-              <Button
-                variant="ghost"
-                className="rounded-xl font-semibold"
-                data-testid="button-login"
-              >
-                Log In
-              </Button>
-            </Link>
-            <Link href="/register">
-              <Button
-                className="rounded-xl font-semibold"
-                data-testid="button-signup"
-              >
-                Sign Up Free
-              </Button>
-            </Link>
+            {!isLoading &&
+              (user ? (
+                <>
+                  <Link href="/settings">
+                    <Button variant="ghost" className="rounded-xl font-semibold">
+                      <Settings className="h-4 w-4 mr-1.5" />
+                      Settings
+                    </Button>
+                  </Link>
+                  <Link href="/dashboard">
+                    <Button className="rounded-xl font-semibold">
+                      <LayoutDashboard className="h-4 w-4 mr-1.5" />
+                      Dashboard
+                    </Button>
+                  </Link>
+                </>
+              ) : (
+                <>
+                  <Link href="/login">
+                    <Button
+                      variant="ghost"
+                      className="rounded-xl font-semibold"
+                      data-testid="button-login"
+                    >
+                      Log In
+                    </Button>
+                  </Link>
+                  <Link href="/register">
+                    <Button
+                      className="rounded-xl font-semibold"
+                      data-testid="button-signup"
+                    >
+                      Sign Up Free
+                    </Button>
+                  </Link>
+                </>
+              ))}
           </div>
         </div>
       </nav>

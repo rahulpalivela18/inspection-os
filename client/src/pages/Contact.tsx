@@ -37,7 +37,7 @@ export default function Contact() {
     <div className="min-h-screen bg-slate-50 selection:bg-primary/10">
       <nav className="sticky top-0 z-50 border-b bg-white/80 backdrop-blur-xl">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-          <Link href="/">
+          <Link href="/home">
             <motion.div
               initial={{ x: -20, opacity: 0 }}
               animate={{ x: 0, opacity: 1 }}
@@ -247,7 +247,7 @@ export default function Contact() {
           transition={{ delay: 0.8, duration: 0.5 }}
           className="mt-12"
         >
-          <Link href="/">
+          <Link href="/home">
             <Button variant="outline" className="rounded-xl gap-2">
               <ArrowLeft className="h-4 w-4" /> Back to Home
             </Button>
