@@ -68,6 +68,7 @@ function Router() {
       <Route path="/">
         <PublicRoute component={LandingPage} />
       </Route>
+      <Route path="/home" component={LandingPage} />
       <Route path="/contact" component={Contact} />
       <Route path="/login">
         <PublicRoute component={Login} />
