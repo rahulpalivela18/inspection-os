@@ -65,7 +65,9 @@ function ProjectLandingRedirect() {
 function Router() {
   return (
     <Switch>
-      <Route path="/" component={LandingPage} />
+      <Route path="/">
+        <PublicRoute component={LandingPage} />
+      </Route>
       <Route path="/contact" component={Contact} />
       <Route path="/login">
         <PublicRoute component={Login} />
