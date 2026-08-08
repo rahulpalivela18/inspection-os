@@ -51,10 +51,11 @@ workspaces (company: Vaisakhi, AP31 — one subscription, one roster, one brand)
 | `blocks` | NEW — `id, workspace_id, project_id FK, title, deleted_at, ...` |
 | `floors` | NEW — `id, workspace_id, project_id (denorm), block_id FK, title, deleted_at, ...` |
 | `units` | NEW — `id, workspace_id, project_id (denorm), floor_id FK, title, deleted_at, ...` |
-| `reports` | + nullable `block_id`/`floor_id`/`unit_id` (immediate parent). `project_id` stays **NOT NULL** as the scope anchor. **CHECK: at most one of the three is set.** |
-| `captures` (spatial) | + nullable `report_id`/`block_id`/`floor_id`/`unit_id`. `project_id`/`workspace_id` already present, stay NOT NULL. **CHECK: at most one container FK set.** |
+| `entities` | NEW — `id, workspace_id, project_id (denorm), block_id? / floor_id? / unit_id?` (exactly **one** parent via CHECK), `title`, `deleted_at`, `deleted_batch_id` |
+| `reports` | + nullable **legacy** `block_id`/`floor_id`/`unit_id` columns (keep old cols for rollback/backfill), but new writes require `entity_id` (FK → `entities`). `project_id` stays **NOT NULL** as the scope anchor. |
+| `captures` (spatial) | + nullable **legacy** `report_id`/`block_id`/`floor_id`/`unit_id` columns (keep old cols for rollback/backfill), but new writes require `entity_id` (FK → `entities`). `project_id`/`workspace_id` stay NOT NULL. |
 | `project_members` | NEW — `project_id, user_id, role: owner/admin/member/viewer, deleted_at`, partial UNIQUE(project_id, user_id) WHERE deleted_at IS NULL |
-| projects/blocks/floors/units/reports/captures | + `deleted_at` (soft-delete) |
+| projects/blocks/floors/units/entities/reports/captures | + `deleted_at` + (batch) `deleted_batch_id` (soft-delete + restore) |
 
 No polymorphism: 4 separate tables, one FK per level, simple indexed joins.
 
@@ -113,13 +114,13 @@ super_admin (us — platform, all workspaces, excluded from plan limits)
 **Cascade the timestamp yourself — FK `cascade` does NOT fire on soft-delete.** A
 soft-delete is an `UPDATE`, so the FK `onDelete: cascade` never triggers; only the target
 row would be stamped, orphaning its descendants (alive but parent-less = ghost data).
-So deleting a container stamps the node **and its whole subtree** in one transaction.
+So deleting a container stamps the node **and its whole subtree** in one transaction (blocks/floors/units, plus `entities` under that subtree, plus their `reports`/`captures`).
 Cheap because `project_id` is denormalized on every level (see §3):
 
 ```sql
-UPDATE {blocks,floors,units,reports,captures}
-   SET deleted_at = now(), deleted_batch_id = :batch
- WHERE project_id = :projectId AND deleted_at IS NULL;   -- whole project subtree
+UPDATE {blocks,floors,units,entities,reports,captures}
+    SET deleted_at = now(), deleted_batch_id = :batch
+    WHERE project_id = :projectId AND deleted_at IS NULL;   -- whole project subtree
 ```
 For a narrower delete (a single block/floor/unit), scope the WHERE to that node + its
 descendants (same idea, tighter filter) instead of the whole `project_id`.
