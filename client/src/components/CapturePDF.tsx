@@ -22,6 +22,15 @@ function severityLabel(severity?: string) {
 const SEVERITIES = ["Major", "Cosmetic", "Minor", "Info"] as const;
 const STATUSES = ["Open", "In Progress", "Resolved"] as const;
 
+const MAX_NOTES_CHARS = 500;
+const MAX_LABEL_CHARS = 200;
+const MAX_EVIDENCE_NOTES_CHARS = 250;
+
+function clampText(text: string, maxChars: number): string {
+  if (text.length <= maxChars) return text;
+  return text.slice(0, maxChars).trimEnd() + "…";
+}
+
 function statusColor(s?: string) {
   switch (s) {
     case "Open": return "#991b1b";
@@ -856,17 +865,20 @@ function CaptureCoverPage({ cover }: { cover: CapturePDFCover }) {
 const rowAvailableH = 90;
 
 function estimateRowHeight(note?: string | null, label?: string | null): number {
+  const safeNote = note ? clampText(note, MAX_NOTES_CHARS) : null;
+  const safeLabel = label ? clampText(label, MAX_LABEL_CHARS) : null;
+
   const labelColW = IMAGE_W * 0.26;
   const labelCharsPerLine = Math.floor(labelColW / 5);
-  const labelLines = label
-    ? Math.max(1, ...label.split('\n').map(s => Math.ceil(s.length / Math.max(1, labelCharsPerLine))))
+  const labelLines = safeLabel
+    ? Math.max(1, ...safeLabel.split('\n').map(s => Math.ceil(s.length / Math.max(1, labelCharsPerLine))))
     : 0;
 
   const notesColW = IMAGE_W * 0.3;
   const notesCharsPerLine = Math.floor(notesColW / 4.2);
   let notesLines = 0;
-  if (note) {
-    const segments = note.split('\n');
+  if (safeNote) {
+    const segments = safeNote.split('\n');
     for (const seg of segments) {
       notesLines += Math.max(1, Math.ceil(seg.length / Math.max(1, notesCharsPerLine)));
     }
@@ -1017,7 +1029,8 @@ function CapturePageContent({
               <View key={pin.id} wrap={false} style={styles.tableRow}>
                 <Text style={[{ width: "8%" }, styles.tableCell]}>{pin.number}</Text>
                 <Text style={[{ width: "26%" }, styles.tableCell]}>
-                  {pin.label}{pin.hasPhoto ? " 📷" : ""}
+                  {clampText(pin.label ?? "", MAX_LABEL_CHARS)}
+                  {pin.hasPhoto ? " 📷" : ""}
                 </Text>
                 <View style={{ width: "18%", flexDirection: "row", alignItems: "center" }}>
                   <View style={[styles.sevDot, { backgroundColor: severityColor(pin.severity) }]} />
@@ -1047,7 +1060,7 @@ function CapturePageContent({
                   )}
                 </View>
                 <Text style={[{ width: "30%" }, styles.tableCellSmall]}>
-                  {pin.notes ? pin.notes : "—"}
+                  {pin.notes ? clampText(pin.notes, MAX_NOTES_CHARS) : "—"}
                 </Text>
               </View>
             ))}
@@ -1190,7 +1203,7 @@ function ResolutionEvidencePage({
               </Text>
               {pin.notes && (
                 <Text style={{ fontSize: 7, color: "#94a3b8", lineHeight: 11 }}>
-                  {pin.notes}
+                  {clampText(pin.notes, MAX_EVIDENCE_NOTES_CHARS)}
                 </Text>
               )}
             </View>
