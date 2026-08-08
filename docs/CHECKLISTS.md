@@ -38,7 +38,9 @@ See `docs/PLAN.md` for full detail. Status tracking below.
 ### 2. Backend — not started
 - [ ] Storage: membership CRUD (`getProjectMembers`, `addProjectMember`, `updateMemberRole`, `removeMember`, `listProjectsForUser`)
 - [ ] Storage: hierarchy CRUD (blocks/floors/units)
-- [ ] Storage: soft-delete (trash/restore/purge)
+- [ ] Storage: soft-delete — cascade `deleted_at` + `deleted_batch_id` over the subtree (by denormalized `project_id`) in one txn; restore by batch id; central `deleted_at IS NULL` read filter
+- [ ] `deleteObjectFromGCP(url)` helper in `gcp-storage.ts` (does not exist today)
+- [ ] Scheduled purge job (Railway cron): after 30 days, delete GCP objects for captures/hotspots → then hard-delete rows
 - [ ] Routes: `GET/POST /api/projects/:id/members`, `PATCH/DELETE /api/projects/:id/members/:userId`
 - [ ] Routes: blocks/floors/units CRUD (scoped by project membership)
 - [ ] `GET /api/projects` scoped to membership (workspace admin + super_admin bypass)
@@ -78,3 +80,7 @@ See `docs/PLAN.md` for full detail. Status tracking below.
   — low priority, but fix before relying on frequent template edits.
 - `GET /api/team` uses `requireAuth` (viewers can see the team list) though the roles doc
   suggested `requireAdmin` — decide intended behavior.
+- **GCP objects are never deleted.** No delete logic exists anywhere; every capture/hotspot
+  delete (even today's hard-delete cascades) orphans the image in `reportgen-images-rahul`
+  forever — storage cost grows and "deleted" images physically persist. Fixed by the purge
+  job + `deleteObjectFromGCP` above (`docs/PLAN.md` §6).
