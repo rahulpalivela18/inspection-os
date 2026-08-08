@@ -55,6 +55,7 @@ import {
   Check,
 } from "lucide-react";
 import { Link, useRoute, useLocation } from "wouter";
+import { ProjectTabs } from "@/components/ProjectTabs";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth";
@@ -77,7 +78,7 @@ const getStatusColor = (status: string) => {
 
 export default function ProjectDetails() {
   const { user } = useAuth();
-  const [match, params] = useRoute("/project/:id");
+  const [match, params] = useRoute("/project/:id/reports");
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -357,12 +358,15 @@ export default function ProjectDetails() {
         {/* Project Header */}
         <div className="bg-white border-b border-border py-6 md:py-8 px-4 md:px-8">
           <div className="max-w-7xl mx-auto">
-            <Link
-              href="/dashboard"
-              className="inline-flex items-center text-sm text-muted-foreground hover:text-primary mb-4 transition-colors"
-            >
-              <ArrowLeft className="mr-1 h-4 w-4" /> Back to Projects
-            </Link>
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+              <Link
+                href="/dashboard"
+                className="inline-flex items-center text-sm text-muted-foreground hover:text-primary transition-colors"
+              >
+                <ArrowLeft className="mr-1 h-4 w-4" /> All Projects
+              </Link>
+              <ProjectTabs projectId={params.id} active="reports" />
+            </div>
             <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-6">
               <div className="flex-1">
                 <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground">
@@ -406,15 +410,6 @@ export default function ProjectDetails() {
                 )}
               </div>
               <div className="flex flex-col gap-3 shrink-0">
-                <Link href={`/project/${params?.id}/captures`}>
-                  <Button
-                    variant="outline"
-                    size="lg"
-                    className="w-full sm:w-auto"
-                  >
-                    <Map className="mr-2 h-4 w-4" /> Captures
-                  </Button>
-                </Link>
                 {user?.role !== "viewer" && (
                 <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                   <DialogTrigger asChild>

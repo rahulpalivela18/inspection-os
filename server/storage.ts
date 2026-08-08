@@ -1,4 +1,4 @@
-import { eq, and, desc, asc } from "drizzle-orm";
+import { eq, and, desc, asc, sql } from "drizzle-orm";
 import { db } from "./db";
 import {
   users,
@@ -84,6 +84,15 @@ export interface IStorage {
     data: Partial<InsertProject>,
   ): Promise<Project | undefined>;
   deleteProject(id: string, workspaceId: string): Promise<boolean>;
+  countPinnedProjects(workspaceId: string): Promise<number>;
+
+  // Dashboard stats
+  getDashboardStats(workspaceId: string): Promise<{
+    projects: number;
+    captures: number;
+    reports: number;
+    reportsByStatus: { Draft: number; Review: number; Final: number };
+  }>;
 
   // Reports
   getReportsByProject(
@@ -307,7 +316,8 @@ export class DatabaseStorage implements IStorage {
     return db
       .select()
       .from(projects)
-      .where(eq(projects.workspaceId, workspaceId));
+      .where(eq(projects.workspaceId, workspaceId))
+      .orderBy(desc(projects.isPinned), desc(projects.createdAt));
   }
   async getProject(id: string, workspaceId: string) {
     const [row] = await db
@@ -338,6 +348,49 @@ export class DatabaseStorage implements IStorage {
       .where(and(eq(projects.id, id), eq(projects.workspaceId, workspaceId)))
       .returning();
     return result.length > 0;
+  }
+  async countPinnedProjects(workspaceId: string) {
+    const [row] = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(projects)
+      .where(
+        and(eq(projects.workspaceId, workspaceId), eq(projects.isPinned, true)),
+      );
+    return Number(row.count);
+  }
+
+  // Dashboard stats
+  async getDashboardStats(workspaceId: string) {
+    const [projectRows, reportRows, captureRows] = await Promise.all([
+      db
+        .select({ id: projects.id })
+        .from(projects)
+        .where(eq(projects.workspaceId, workspaceId)),
+      db
+        .select({ id: reports.id, status: reports.status })
+        .from(reports)
+        .where(eq(reports.workspaceId, workspaceId)),
+      db
+        .select({ id: captures.id })
+        .from(captures)
+        .where(eq(captures.workspaceId, workspaceId)),
+    ]);
+
+    const reportsByStatus: { Draft: number; Review: number; Final: number } = {
+      Draft: 0,
+      Review: 0,
+      Final: 0,
+    };
+    for (const r of reportRows) {
+      if (r.status in reportsByStatus) reportsByStatus[r.status]++;
+    }
+
+    return {
+      projects: projectRows.length,
+      captures: captureRows.length,
+      reports: reportRows.length,
+      reportsByStatus,
+    };
   }
 
   // Reports

@@ -20,7 +20,7 @@ export default function NotFound() {
           </p>
 
           <div className="mt-6 flex flex-col sm:flex-row gap-3">
-            <Link href="/">
+            <Link href="/home">
               <Button variant="outline" className="w-full sm:w-auto">
                 <Home className="mr-2 h-4 w-4" /> Home
               </Button>

@@ -58,7 +58,7 @@ export default function Login() {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-indigo-50 flex items-center justify-center p-4">
       <div className="w-full max-w-md space-y-6">
         <div className="text-center">
-          <Link href="/">
+          <Link href="/home">
             <div className="inline-flex cursor-pointer items-center gap-2 text-2xl font-bold text-indigo-600 mb-2">
               <ClipboardCheck className="h-7 w-7" />
               Inspection OS
@@ -171,7 +171,7 @@ export default function Login() {
                   </span>
                 </Link>
               </p>
-              <Link href="/">
+              <Link href="/home">
                 <button
                   type="button"
                   className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700"

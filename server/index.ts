@@ -1,12 +1,63 @@
 import "dotenv/config";
 
 import express, { type Request, Response, NextFunction } from "express";
+import helmet from "helmet";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
 
 const app = express();
 const httpServer = createServer(app);
+
+app.disable("x-powered-by");
+
+if (process.env.NODE_ENV === "production") {
+  app.use(
+    helmet({
+      contentSecurityPolicy: {
+        directives: {
+          defaultSrc: ["'self'"],
+          scriptSrc: [
+            "'self'",
+            "https://cdn.jsdelivr.net",
+            "'wasm-unsafe-eval'",
+          ],
+          styleSrc: [
+            "'self'",
+            "'unsafe-inline'",
+            "https://fonts.googleapis.com",
+            "https://cdn.jsdelivr.net",
+          ],
+          fontSrc: ["'self'", "https://fonts.gstatic.com", "data:"],
+          imgSrc: [
+            "'self'",
+            "data:",
+            "blob:",
+            "https://storage.googleapis.com",
+          ],
+          mediaSrc: ["'self'", "blob:", "https://storage.googleapis.com"],
+          connectSrc: [
+            "'self'",
+            "https://api.web3forms.com",
+            "https://storage.googleapis.com",
+            "wss://inspection-os.up.railway.app",
+            "data:",
+          ],
+          workerSrc: ["'self'", "blob:"],
+          frameSrc: ["'self'"],
+          frameAncestors: null,
+          objectSrc: ["'none'"],
+          baseUri: ["'self'"],
+          formAction: ["'self'"],
+        },
+      },
+      strictTransportSecurity: {
+        maxAge: 31536000,
+        includeSubDomains: true,
+      },
+    }),
+  );
+}
 
 declare module "http" {
   interface IncomingMessage {

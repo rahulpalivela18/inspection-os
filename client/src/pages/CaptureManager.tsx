@@ -38,8 +38,10 @@ import {
   Search,
   Clock,
   ArrowLeft,
+  FileText,
 } from "lucide-react";
 import { useRoute, useLocation } from "wouter";
+import { ProjectTabs } from "@/components/ProjectTabs";
 import { useToast } from "@/hooks/use-toast";
 import { ensureJpeg } from "@/lib/utils";
 import CapturePDF from "@/components/CapturePDF";
@@ -445,14 +447,17 @@ export default function CaptureManager() {
   return (
     <Layout>
       <div className="p-6 lg:p-8 space-y-6 max-w-[1440px] mx-auto">
-        {/* ── Back link ── */}
-        <button
-          onClick={() => setLocation(`/project/${projectId}`)}
-          className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-slate-700"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Back to Project
-        </button>
+        {/* ── Back link + tabs ── */}
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <button
+            onClick={() => setLocation("/dashboard")}
+            className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-slate-700"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            All Projects
+          </button>
+          <ProjectTabs projectId={projectId!} active="captures" />
+        </div>
 
         {/* ── Header ── */}
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
@@ -506,12 +511,32 @@ export default function CaptureManager() {
             <Loader2 className="h-8 w-8 animate-spin text-indigo-500" />
           </div>
         ) : captures.length === 0 ? (
-          <div className="text-center py-20 text-slate-400">
-            <MapIcon className="h-12 w-12 mx-auto mb-3 opacity-50" />
-            <p className="text-lg font-medium">No captures yet</p>
-            <p className="text-sm mt-1">
-              Upload any photo or 360° image to get started
+          <div className="text-center py-20">
+            <MapIcon className="h-12 w-12 mx-auto mb-3 opacity-50 text-slate-400" />
+            <p className="text-lg font-medium text-slate-700">No captures yet</p>
+            <p className="text-sm mt-1 text-slate-400">
+              Add your first photo or 360° capture, or create a report to get
+              started
             </p>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mt-7">
+              {user?.role !== "viewer" && (
+                <Button
+                  size="lg"
+                  className="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-600/20"
+                  onClick={() => setIsUploadOpen(true)}
+                >
+                  <Plus className="h-4 w-4 mr-2" /> Add Capture
+                </Button>
+              )}
+              <Button
+                size="lg"
+                variant="outline"
+                className="w-full sm:w-auto"
+                onClick={() => setLocation(`/project/${projectId}/reports`)}
+              >
+                <FileText className="h-4 w-4 mr-2" /> Add Report
+              </Button>
+            </div>
           </div>
         ) : (
           <>

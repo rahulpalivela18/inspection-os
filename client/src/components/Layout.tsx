@@ -18,6 +18,7 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth";
 import Footer from "@/components/Footer";
+import { InstallAppButton } from "@/components/InstallAppButton";
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
@@ -42,7 +43,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const SidebarContent = () => (
     <div className="flex h-full flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground">
       <div className="space-y-4 p-6">
-        <Link href="/" className="flex items-center gap-2 font-heading text-2xl font-bold text-primary hover:text-primary/80 transition-colors">
+        <Link href="/home" className="flex items-center gap-2 font-heading text-2xl font-bold text-primary hover:text-primary/80 transition-colors">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
             IO
           </div>
@@ -171,6 +172,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               View default checklist
             </Button>
           </Link>
+          <div className="mt-3">
+            <InstallAppButton />
+          </div>
         </div>
       </div>
     </div>
@@ -183,27 +187,30 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       </div>
 
       <div className="fixed left-0 right-0 top-0 z-40 flex h-14 items-center justify-between border-b border-sidebar-border bg-background px-4 md:hidden">
-        <Link href="/" className="flex items-center gap-2 font-heading text-lg font-bold text-primary hover:text-primary/80 transition-colors">
+        <Link href="/home" className="flex items-center gap-2 font-heading text-lg font-bold text-primary hover:text-primary/80 transition-colors">
           <div className="flex h-6 w-6 items-center justify-center rounded bg-primary text-[10px] text-primary-foreground">
             IO
           </div>
           Inspection OS
         </Link>
-        <Sheet open={isMobileOpen} onOpenChange={setIsMobileOpen}>
-          <SheetTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-9 w-9"
-              data-testid="button-open-mobile-menu"
-            >
-              <Menu className="h-5 w-5" />
-            </Button>
-          </SheetTrigger>
-          <SheetContent side="left" className="w-[300px] border-r-0 p-0">
-            <SidebarContent />
-          </SheetContent>
-        </Sheet>
+        <div className="flex items-center gap-2">
+          <InstallAppButton />
+          <Sheet open={isMobileOpen} onOpenChange={setIsMobileOpen}>
+            <SheetTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-9 w-9"
+                data-testid="button-open-mobile-menu"
+              >
+                <Menu className="h-5 w-5" />
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="left" className="w-[300px] border-r-0 p-0">
+              <SidebarContent />
+            </SheetContent>
+          </Sheet>
+        </div>
       </div>
 
       <main className="h-full w-full flex-1 overflow-y-auto pt-14 md:pt-0">

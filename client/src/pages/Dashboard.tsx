@@ -32,6 +32,7 @@ import {
   FolderKanban,
   BarChart3,
   Trash2,
+  Pin,
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { formatDistanceToNow } from "date-fns";
@@ -57,6 +58,11 @@ export default function Dashboard() {
   const { data: projects = [], isLoading } = useQuery({
     queryKey: ["projects"],
     queryFn: api.getProjects,
+  });
+
+  const { data: stats } = useQuery({
+    queryKey: ["dashboard-stats"],
+    queryFn: api.getDashboardStats,
   });
 
   const createMutation = useMutation({
@@ -86,6 +92,20 @@ export default function Dashboard() {
       queryClient.invalidateQueries({ queryKey: ["projects"] });
       refreshTrial();
       setProjectToDelete(null);
+    },
+    onError: (err: any) =>
+      toast({
+        title: "Error",
+        description: err.message,
+        variant: "destructive",
+      }),
+  });
+
+  const pinMutation = useMutation({
+    mutationFn: ({ id, isPinned }: { id: string; isPinned: boolean }) =>
+      api.updateProject(id, { isPinned }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["projects"] });
     },
     onError: (err: any) =>
       toast({
@@ -235,7 +255,7 @@ export default function Dashboard() {
                 Total Reports
               </CardDescription>
               <CardTitle className="text-2xl" data-testid="stat-reports">
-                —
+                {stats?.reports ?? "—"}
               </CardTitle>
             </CardHeader>
           </Card>
@@ -244,7 +264,9 @@ export default function Dashboard() {
               <CardDescription className="text-[10px] uppercase font-bold tracking-wider">
                 Pending Review
               </CardDescription>
-              <CardTitle className="text-2xl">—</CardTitle>
+              <CardTitle className="text-2xl">
+                {stats?.reportsByStatus?.Review ?? 0}
+              </CardTitle>
             </CardHeader>
           </Card>
           <Card className="bg-white/50 backdrop-blur-sm border-dashed">
@@ -252,7 +274,9 @@ export default function Dashboard() {
               <CardDescription className="text-[10px] uppercase font-bold tracking-wider">
                 Completed
               </CardDescription>
-              <CardTitle className="text-2xl">—</CardTitle>
+              <CardTitle className="text-2xl">
+                {stats?.reportsByStatus?.Final ?? 0}
+              </CardTitle>
             </CardHeader>
           </Card>
         </div>
@@ -310,10 +334,30 @@ export default function Dashboard() {
                     </CardTitle>
                     <div className="flex items-center gap-2 shrink-0">
                       {user?.role !== "viewer" && (
+                      <>
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-8 w-8 text-slate-400 hover:text-red-600 hover:bg-red-50 -mt-1 -mr-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                        className={`h-8 w-8 -mt-1 -mr-2 transition-opacity ${
+                          project.isPinned
+                            ? "text-primary opacity-100"
+                            : "text-slate-400 hover:text-primary hover:bg-primary/5 pointer-fine:opacity-0 pointer-fine:group-hover:opacity-100"
+                        }`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          pinMutation.mutate({
+                            id: project.id,
+                            isPinned: !project.isPinned,
+                          });
+                        }}
+                        data-testid={`button-pin-project-${project.id}`}
+                      >
+                        <Pin className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-slate-400 hover:text-red-600 hover:bg-red-50 -mt-1 -mr-2 opacity-100 pointer-fine:opacity-0 pointer-fine:group-hover:opacity-100 transition-opacity"
                         onClick={(e) => {
                           e.stopPropagation();
                           setProjectToDelete(project.id);
@@ -322,6 +366,7 @@ export default function Dashboard() {
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
+                      </>
                       )}
                     </div>
                   </div>

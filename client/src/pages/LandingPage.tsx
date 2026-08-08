@@ -9,17 +9,39 @@ import {
   Clock,
   TrendingUp,
   BadgeCheck,
+  Settings,
 } from "lucide-react";
 import { Link } from "wouter";
-import { motion } from "framer-motion";
+import { animate, motion, useInView } from "framer-motion";
+import { useEffect, useRef, useState } from "react";
 import Footer from "@/components/Footer";
+import { useAuth } from "@/lib/auth";
+
+function Counter({ value }: { value: number }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const inView = useInView(ref, { once: true, margin: "-50px" });
+  const [display, setDisplay] = useState(0);
+
+  useEffect(() => {
+    if (!inView) return;
+    const controls = animate(0, value, {
+      duration: 1.8,
+      ease: "easeOut",
+      onUpdate: (v) => setDisplay(Math.round(v)),
+    });
+    return () => controls.stop();
+  }, [inView, value]);
+
+  return <div ref={ref}>{display.toLocaleString()}</div>;
+}
 
 export default function LandingPage() {
+  const { user, isLoading } = useAuth();
   return (
     <div className="min-h-screen bg-slate-50 selection:bg-primary/10">
       <nav className="sticky top-0 z-50 border-b bg-white/80 backdrop-blur-xl">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-          <Link href="/">
+          <Link href="/home">
             <motion.div
               initial={{ x: -20, opacity: 0 }}
               animate={{ x: 0, opacity: 1 }}
@@ -28,32 +50,55 @@ export default function LandingPage() {
               <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-lg shadow-primary/20">
                 IO
               </div>
-              <span className="tracking-tight text-slate-900">Inspection OS</span>
+              <span className="hidden tracking-tight text-slate-900 sm:inline">Inspection OS</span>
             </motion.div>
           </Link>
           <div className="flex items-center gap-2">
-            <Link href="/login">
-              <Button
-                variant="ghost"
-                className="rounded-xl font-semibold"
-                data-testid="button-login"
-              >
-                Log In
-              </Button>
-            </Link>
-            <Link href="/register">
-              <Button
-                className="rounded-xl font-semibold"
-                data-testid="button-signup"
-              >
-                Sign Up Free
-              </Button>
-            </Link>
+            {!isLoading &&
+              (user ? (
+                <>
+                  <Link href="/settings">
+                    <Button
+                      variant="ghost"
+                      className="rounded-xl px-2.5 font-semibold sm:px-4"
+                    >
+                      <Settings className="h-4 w-4" />
+                      <span className="ml-1.5 hidden sm:inline">Settings</span>
+                    </Button>
+                  </Link>
+                  <Link href="/dashboard">
+                    <Button className="rounded-xl px-2.5 font-semibold sm:px-4">
+                      <LayoutDashboard className="h-4 w-4" />
+                      <span className="ml-1.5 hidden sm:inline">Dashboard</span>
+                    </Button>
+                  </Link>
+                </>
+              ) : (
+                <>
+                  <Link href="/login">
+                    <Button
+                      variant="ghost"
+                      className="rounded-xl font-semibold"
+                      data-testid="button-login"
+                    >
+                      Log In
+                    </Button>
+                  </Link>
+                  <Link href="/register">
+                    <Button
+                      className="rounded-xl px-3 font-semibold sm:px-4"
+                      data-testid="button-signup"
+                    >
+                      Sign Up<span className="hidden sm:inline"> Free</span>
+                    </Button>
+                  </Link>
+                </>
+              ))}
           </div>
         </div>
       </nav>
 
-      <section className="relative flex flex-col items-center justify-center pt-32 pb-24 text-center px-4">
+      <section className="relative flex flex-col items-center justify-center overflow-hidden pt-32 pb-24 text-center px-4">
         <div className="pointer-events-none absolute right-0 top-0 h-[500px] w-[500px] -translate-y-1/2 translate-x-1/2 rounded-full bg-primary/5 blur-[120px] will-change-transform" />
         <div className="pointer-events-none absolute bottom-0 left-0 h-[500px] w-[500px] translate-y-1/2 -translate-x-1/2 rounded-full bg-indigo-500/5 blur-[120px] will-change-transform" />
 
@@ -168,31 +213,30 @@ export default function LandingPage() {
           whileInView={{ y: 0, opacity: 1 }}
           viewport={{ once: true }}
           transition={{ delay: 0.6 + 3 * 0.15, duration: 0.6 }}
-          className="mx-auto mt-8 max-w-2xl"
+          className="mx-auto mt-8 w-full max-w-7xl"
         >
-          <div className="group rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition-all duration-300 hover:shadow-xl hover:-translate-y-1">
+          <div className="mb-8 flex flex-col items-center text-center">
             <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-primary/10 to-indigo-500/10">
               <MapPinned className="h-6 w-6 text-primary" />
             </div>
-            <h3 className="mb-2 font-heading text-xl font-bold text-slate-900">
+            <h3 className="mb-2 font-heading text-2xl font-bold text-slate-900">
               Visual Hotspot Mapping
             </h3>
-            <p className="mb-6 text-sm leading-relaxed text-slate-600">
+            <p className="max-w-2xl text-sm leading-relaxed text-slate-600">
               Pin defects directly on 360° photos with severity levels and
               status tracking. Visual inspection reporting made precise.
             </p>
-            <div className="flex items-center justify-center overflow-hidden rounded-xl border border-slate-100 bg-slate-50 p-2">
-              <video
-                src="https://storage.googleapis.com/reportgen-images-rahul/hotspot-demo-1785183126989.mp4"
-                controls
-                muted
-                playsInline
-                className="max-h-64 w-full rounded-lg"
-              >
-                Your browser does not support the video tag.
-              </video>
-            </div>
           </div>
+          <video
+            src="https://storage.googleapis.com/reportgen-images-rahul/hotspot-demo-1785183126989.mp4"
+            autoPlay
+            muted
+            loop
+            playsInline
+            className="aspect-video w-full rounded-2xl object-cover shadow-2xl shadow-primary/10"
+          >
+            Your browser does not support the video tag.
+          </video>
         </motion.div>
 
         <motion.div
@@ -205,10 +249,13 @@ export default function LandingPage() {
           <p className="text-sm font-medium text-slate-500">
             Want to see a finished report?
           </p>
-          <a href="/pdfs/InspectionOS_Sample.pdf" target="_blank" download>
+          <a
+            href="https://storage.googleapis.com/reportgen-images-rahul/SkyPark_-_Unit_12B_captures.pdf"
+            target="_blank"
+          >
             <Button variant="outline" className="rounded-xl gap-2">
               <FileText className="h-4 w-4" />
-              Download Sample PDF
+              See Sample Report
             </Button>
           </a>
         </motion.div>
@@ -231,7 +278,7 @@ export default function LandingPage() {
               className="text-center"
             >
               <div className="text-5xl font-black text-slate-900 md:text-6xl">
-                {stat.number}
+                <Counter value={parseInt(stat.number, 10)} />
               </div>
               <div className="mt-2 text-sm font-medium uppercase tracking-wider text-slate-500">
                 {stat.label}

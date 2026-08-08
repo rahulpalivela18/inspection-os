@@ -101,6 +101,7 @@ export const projects = pgTable("projects", {
   clientName: text("client_name").notNull(),
   address: text("address"),
   description: text("description"),
+  isPinned: boolean("is_pinned").notNull().default(false),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
