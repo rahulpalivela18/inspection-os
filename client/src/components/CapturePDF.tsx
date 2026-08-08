@@ -1098,7 +1098,21 @@ function CapturePageContent({
         </>
       )}
 
-      <View style={{ borderTopWidth: 1, borderTopColor: "#e2e8f0", paddingTop: 8, marginTop: 16, flexDirection: "row", justifyContent: "space-between" }}>
+      <View style={{ height: 24 }} />
+
+      <View
+        style={{
+          position: "absolute",
+          left: PAGE_PADDING,
+          right: PAGE_PADDING,
+          bottom: PAGE_PADDING,
+          borderTopWidth: 1,
+          borderTopColor: "#e2e8f0",
+          paddingTop: 8,
+          flexDirection: "row",
+          justifyContent: "space-between",
+        }}
+      >
         <Text style={{ fontSize: 7, color: "#94a3b8" }}>
           {capture.companyName || "Workspace"}
           {capture.companyPhone ? ` · ${capture.companyPhone}` : ""}
@@ -1218,7 +1232,21 @@ function ResolutionEvidencePage({
       })}
 
       <View style={{ flex: 1 }} />
-      <View style={{ borderTopWidth: 1, borderTopColor: "#e2e8f0", paddingTop: 8, flexDirection: "row", justifyContent: "space-between" }}>
+      <View style={{ height: 24 }} />
+
+      <View
+        style={{
+          position: "absolute",
+          left: PAGE_PADDING,
+          right: PAGE_PADDING,
+          bottom: PAGE_PADDING,
+          borderTopWidth: 1,
+          borderTopColor: "#e2e8f0",
+          paddingTop: 8,
+          flexDirection: "row",
+          justifyContent: "space-between",
+        }}
+      >
         <Text style={{ fontSize: 7, color: "#94a3b8" }}>
           {capture.companyName || "Workspace"}
           {capture.companyPhone ? ` · ${capture.companyPhone}` : ""}
