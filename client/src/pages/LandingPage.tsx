@@ -249,10 +249,13 @@ export default function LandingPage() {
           <p className="text-sm font-medium text-slate-500">
             Want to see a finished report?
           </p>
-          <a href="/pdfs/InspectionOS_Sample.pdf" target="_blank" download>
+          <a
+            href="https://storage.googleapis.com/reportgen-images-rahul/SkyPark_-_Unit_12B_captures.pdf"
+            target="_blank"
+          >
             <Button variant="outline" className="rounded-xl gap-2">
               <FileText className="h-4 w-4" />
-              Download Sample PDF
+              See Sample Report
             </Button>
           </a>
         </motion.div>

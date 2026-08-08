@@ -3,7 +3,6 @@ import { Download } from "lucide-react";
 import Layout from "@/components/Layout";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import { buildChecklistWithPreservedResponses } from "@/lib/checklist";
 import type { ReportDimension, ChecklistItem, Issue, ProgressLog } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,7 +18,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import {
   Sheet,
@@ -89,7 +87,6 @@ export default function ReportEditor() {
     "checklist" | "dimensions" | "issues" | "progress" | "preview"
   >("checklist");
   const [pdfMode, setPdfMode] = useState<"initial" | "progress" | "completion">("initial");
-  const [isSyncConfirmOpen, setIsSyncConfirmOpen] = useState(false);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [editingIssue, setEditingIssue] = useState<Issue | null>(null);
   const [formData, setFormData] = useState<{
@@ -118,7 +115,6 @@ export default function ReportEditor() {
   const {
     data: report,
     isLoading,
-    refetch,
   } = useQuery({
     queryKey: ["report", params?.id],
     queryFn: () => api.getReport(params!.id),
@@ -130,14 +126,6 @@ export default function ReportEditor() {
     queryFn: () => api.getProject(report!.projectId),
     enabled: !!report?.projectId,
   });
-
-  const { data: checklistTemplates = [], refetch: refetchTemplates } = useQuery(
-    {
-      queryKey: ["checklist-templates"],
-      queryFn: () => api.getChecklistTemplates(),
-      staleTime: Infinity,
-    },
-  );
 
   const { data: progressLogs = [] } = useQuery({
     queryKey: ["progress-logs", params?.id],
@@ -200,28 +188,6 @@ export default function ReportEditor() {
     },
     [flushSave],
   );
-
-  const handleSync = async () => {
-    const freshReport = await refetch();
-    const freshTemplates = await refetchTemplates();
-    const updatedReport = freshReport.data;
-    const updatedTemplates = freshTemplates.data ?? [];
-    if (!updatedReport) return;
-
-    const reportTypes = updatedReport.inspectionType ?? [];
-    const filteredTemplates = updatedTemplates.filter(
-      (t: any) => reportTypes.includes(t.checklistType),
-    );
-    const syncedChecklist = buildChecklistWithPreservedResponses(
-      filteredTemplates,
-      updatedReport.checklist ?? [],
-      updatedReport.spaceCounts ?? { bedrooms: 1, bathrooms: 1, balconies: 1 },
-    );
-
-    checklistRef.current = syncedChecklist;
-    saveReport({ checklist: syncedChecklist });
-    setIsSyncConfirmOpen(false);
-  };
 
   const handlePrint = useReactToPrint({
     contentRef: componentRef,
@@ -557,35 +523,6 @@ export default function ReportEditor() {
         </div>
 
         {/* Dialogs and Sheets */}
-        <AlertDialog
-          open={isSyncConfirmOpen}
-          onOpenChange={setIsSyncConfirmOpen}
-        >
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Sync Checklist?</AlertDialogTitle>
-              <AlertDialogDescription>
-                {report.status === "Final" ? (
-                  <span className="text-amber-600 font-semibold">
-                    ⚠️ This report is Final - syncing may cause data loss!
-                  </span>
-                ) : (
-                  "This will update your checklist from templates."
-                )}
-                New points will be added, deleted points will be removed, but
-                your existing responses (Yes/No, photos, severity) will be
-                preserved.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={handleSync}>
-                Sync Now
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-
         <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
           <SheetContent className="sm:max-w-lg overflow-y-auto">
             <SheetHeader>
