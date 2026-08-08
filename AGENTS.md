@@ -39,6 +39,8 @@ Planning docs, read them only when the topic matches (don't scan the repo for co
 
 - `OFFLINE_ROADMAP.md` — Local-first PWA strategy (IndexedDB + sync engine) in 5 phases + API perf issues. Read before any offline/PWA/sync/image-storage work.
 - `docs/roles-and-plans-implementation.md` — RBAC (`admin`/`inspector`/`viewer`/`super_admin`) + plan-based inspector limits implementation guide. Read before permission/role/plan/billing work.
+- `docs/CHECKLISTS.md` — **READ FIRST.** Where the project stands: done items, prod data snapshot, planned multi-user hierarchy work (tracked), later phases, known issues.
+- `docs/PLAN.md` — Multi-User Hierarchy & Access plan for ALL plans: Project→Block→Floor→Unit tree, per-project membership, plan profile caps, soft-delete. Read before any hierarchy/membership/roles/schema work.
 
 ## Gotchas
 
