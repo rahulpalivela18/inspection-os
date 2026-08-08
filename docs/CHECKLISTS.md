@@ -1,7 +1,9 @@
 # CHECKLISTS — Where Inspection OS stands
 
-> Companion to `docs/PLAN.md`. New agents/chats: read this first to know exactly
-> where we are, then read `docs/PLAN.md` for the target architecture.
+> Companion to `docs/PLAN.md` (the design/why) and `docs/FLOW.md` (the
+> step-by-step build guide/how, written for whoever picks up this ticket).
+> New agents/chats: read this first to know exactly where we are, then
+> `docs/PLAN.md` for the target architecture, then `docs/FLOW.md` to build it.
 
 ## ✅ Done (committed to `feat/pwa-app`)
 
@@ -23,49 +25,93 @@
 
 ## 🔲 PLANNED — Multi-User Hierarchy & Access (for ALL plans)
 
-See `docs/PLAN.md` for full detail. Status tracking below.
+See `docs/PLAN.md` for the design and `docs/FLOW.md` for the exact build
+steps (phases below map 1:1 to `FLOW.md`'s phases). Status tracking below.
 
-### 1. Schema — not started
+### Phase 0. Local dev environment — not started
+- [ ] Local Postgres installed, `inspection_os_dev` DB created
+- [ ] `$LOCAL_DB` env var set; confirmed it does NOT point at Railway
+
+### Phase 1. Schema — not started
 - [ ] `blocks` table (`project_id` FK)
-- [ ] `floors` table (`block_id` FK)
-- [ ] `units` table (`floor_id` FK)
-- [ ] `project_members` table (project_id, user_id, role owner/admin/member/viewer, UNIQUE)
-- [ ] `reports` + nullable `block_id`/`floor_id`/`unit_id`
-- [ ] `captures` (spatial) + nullable `report_id`/`block_id`/`floor_id`/`unit_id`
-- [ ] `deleted_at` on projects/blocks/floors/units/reports/captures
-- [ ] `npm run db:push`
+- [ ] `floors` table (`project_id` denorm + `block_id` FK)
+- [ ] `units` table (`project_id` denorm + `floor_id` FK)
+- [ ] `entities` table — the polymorphic "Item" (`project_id` denorm anchor +
+      exactly one of `block_id`/`floor_id`/`unit_id`, or none = direct-under-project;
+      enforced by a CHECK constraint)
+- [ ] `project_members` table (`project_id`, `user_id`, role owner/admin/member/viewer,
+      partial-UNIQUE where not deleted)
+- [ ] `reports` + nullable `entity_id` (FK → entities) + `deleted_at`/`deleted_batch_id`
+- [ ] `captures` (spatial) + nullable `entity_id` (FK → entities) + nullable `report_id`
+      (FK → reports, for per-report photo grouping) + `deleted_at`/`deleted_batch_id`
+- [ ] `deleted_at`/`deleted_batch_id` on projects/blocks/floors/units/entities/reports/captures
+- [ ] `npm run check` passes
+- [ ] `DATABASE_URL=$LOCAL_DB npm run db:push` — verified against LOCAL db only
 
-### 2. Backend — not started
-- [ ] Storage: membership CRUD (`getProjectMembers`, `addProjectMember`, `updateMemberRole`, `removeMember`, `listProjectsForUser`)
-- [ ] Storage: hierarchy CRUD (blocks/floors/units)
-- [ ] Storage: soft-delete — cascade `deleted_at` + `deleted_batch_id` over the subtree (by denormalized `project_id`) in one txn; restore by batch id; central `deleted_at IS NULL` read filter
+> Note: earlier drafts of this plan had reports/captures attach via 3 separate
+> nullable `block_id`/`floor_id`/`unit_id` columns. Superseded by the single
+> `entities` resolver table (§3 of `PLAN.md`) — one attach point (`entity_id`)
+> instead of duplicating the "which level" ambiguity onto both tables.
+
+### Phase 2. Storage layer — not started
+- [ ] Project members CRUD (`getProjectMembers`, `getProjectMember`,
+      `listProjectIdsForUser`, `addProjectMember`, `updateProjectMemberRole`,
+      `removeProjectMember`)
+- [ ] Blocks/Floors/Units CRUD
+- [ ] Entities CRUD + `getEntitiesByParent` (polymorphic lookup) +
+      `getOrCreateDefaultEntity` (the "General" auto-item for simple/flat projects)
+- [ ] Soft-delete: `softDeleteProject`/`Block`/`Floor`/`Unit`/`Entity`/`Report` —
+      cascade `deleted_at` + shared `deleted_batch_id` over the subtree (by
+      denormalized `project_id`) in one txn; `restoreBatch`; every list query
+      filters `deleted_at IS NULL`
 - [ ] `deleteObjectFromGCP(url)` helper in `gcp-storage.ts` (does not exist today)
-- [ ] Scheduled purge job (Railway cron): after 30 days, delete GCP objects for captures/hotspots → then hard-delete rows
+- [ ] `purgeExpiredTrash()`: after 30 days, delete GCP objects for captures/hotspots
+      → then hard-delete rows (route: `POST /api/admin/trash/purge`, super_admin only;
+      wire to a Railway cron once verified manually)
+
+### Phase 3. Routes — not started
+- [ ] `getEffectiveProjectAccess` resolver (single source of truth for
+      super_admin / workspace admin / project owner-admin-member-viewer) +
+      `requireProjectAccess` (404 if not a member) / `requireProjectWrite` /
+      `requireProjectDelete` middleware
+- [ ] `GET /api/projects` scoped to membership (workspace admin + super_admin bypass)
+- [ ] `POST /api/projects` auto-adds the creator as project `owner`
 - [ ] Routes: `GET/POST /api/projects/:id/members`, `PATCH/DELETE /api/projects/:id/members/:userId`
 - [ ] Routes: blocks/floors/units CRUD (scoped by project membership)
-- [ ] `GET /api/projects` scoped to membership (workspace admin + super_admin bypass)
-- [ ] Report/capture routes → attach point (block/floor/unit) + membership check
-- [ ] `requireProjectAccess` / `requireProjectAdmin` middleware
+- [ ] Routes: entities CRUD under project/block/floor/unit ("Items" in API responses'
+      user-facing context, `entities` internally)
+- [ ] Report/capture creation routes auto-resolve `entityId` via
+      `getOrCreateDefaultEntity` when the client omits it — existing "New Report"/
+      "New Capture" flows keep working with zero client changes
 - [ ] Plan profile caps (starter 3 / pro 10 / unlimited; super_admin excluded) on `POST /api/team`
-- [ ] Destructive deletes → `requireAdmin` + soft-delete
+- [ ] Destructive deletes → `requireProjectDelete` / `requireAdmin` + soft-delete
+      (not hard delete)
 
-### 3. Client — not started
-- [ ] Dashboard filters to your projects; "not assigned" state
-- [ ] Breadcrumb navigation: Project / Block / Floor / Unit
-- [ ] Context buttons: Add Block / Add Floor / Add Unit / New Report
-- [ ] Per-project Team tab (assign roster via dropdowns, set roles)
+### Phase 4. Client — not started
+- [ ] Dashboard already filters correctly once `GET /api/projects` is scoped
+      (no client change needed there)
+- [ ] New "Structure" tab (`ProjectTabs.tsx`) + `ProjectStructure.tsx` page —
+      breadcrumb: Project / Block / Floor / Unit, "+ Add Item" at every level
+- [ ] **UI label check: the word "Entity" must never appear in any user-facing
+      string — always "Item".** See `docs/FLOW.md` §0.5 for the full word map.
+- [ ] New "Team" tab + `ProjectTeam.tsx` page (assign roster via dropdowns, set roles)
+- [ ] `client/src/lib/api.ts` — thin wrappers for members/blocks/floors/units/entities
 - [ ] Role gating uses effective access (workspace admin OR project role)
 - [ ] Trash/restore UI
 - [ ] Profiles page (name, avatar, password)
 - [ ] Settings read-only for non-admins; Subscription admin-only
 
-### 4. Data migration — not started
+### Phase 5. Data migration — not started
 - [ ] AP31 sort: 9 sites stay top-level; KOMMADI phases → blocks; Utkarsha Capital Towers → block; MVV GV 512 + TUNI FLAT-301/302 → units
 - [ ] Membership backfill (all current users → member of every project in their workspace)
 - [ ] Temp workspaces (MK BUILDERS, ECCC) — leave as-is
+- [ ] Full `pg_dump` backup before touching AP31's real data — see `docs/PLAN.md` §7
 
 ## 🧭 Later phases (not this batch)
 
+- [ ] Per-record membership checks on `/api/reports/:id`, `/api/captures/:id`,
+      `/api/hotspots/:id`, etc. (this batch only gates the project-level and
+      hierarchy routes — see `docs/FLOW.md`'s "deliberately NOT in this phase" note)
 - [ ] Reports JSONB normalization (checklist/dimensions/issues + base64 images) — `OFFLINE_ROADMAP.md`
 - [ ] Pagination on all list endpoints — `OFFLINE_ROADMAP.md`
 - [ ] Shared-login abuse controls (session/device limits)
