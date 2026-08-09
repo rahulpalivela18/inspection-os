@@ -38,13 +38,13 @@ import {
   Search,
   Clock,
   ArrowLeft,
-  FileText,
   Camera,
   CalendarPlus,
   Tags,
   CheckSquare,
+  Pencil,
 } from "lucide-react";
-import { useRoute, useLocation } from "wouter";
+import { useRoute, useLocation, useSearchParams } from "wouter";
 import { ProjectTabs } from "@/components/ProjectTabs";
 import { useToast } from "@/hooks/use-toast";
 import { ensureJpeg, cn } from "@/lib/utils";
@@ -67,7 +67,7 @@ import {
   StackedBar,
   IssueBreakdownCard,
   ResolutionStatusCard,
-  AreaSummaryTable,
+  DefectsTable,
 } from "@/components/analytics/SharedAnalytics";
 
 const PAGE_SIZE = 8;
@@ -75,7 +75,34 @@ const PAGE_SIZE = 8;
 export default function CaptureManager() {
   const { user, workspace, refreshTrial } = useAuth();
   const [, params] = useRoute("/project/:id/captures");
-  const [, setLocation] = useLocation();
+  const [location, setLocation] = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const setUrlParam = (key: string, value: string | null) => {
+    setSearchParams(
+      (prev) => {
+        const p = new URLSearchParams(prev);
+        if (value === null || value === "" || value === "all") p.delete(key);
+        else p.set(key, value);
+        return p;
+      },
+      { replace: true }
+    );
+  };
+  // Tag filters are one ?tag=cat:id each; rewrite the whole set together.
+  const setUrlTags = (filters: Partial<Record<TagCategory, string>>) => {
+    setSearchParams(
+      (prev) => {
+        const p = new URLSearchParams(prev);
+        p.delete("tag");
+        for (const cat of TAG_CATEGORIES.map((t) => t.key)) {
+          const id = filters[cat];
+          if (id) p.append("tag", `${cat}:${id}`);
+        }
+        return p;
+      },
+      { replace: true }
+    );
+  };
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -111,18 +138,60 @@ export default function CaptureManager() {
     Partial<Record<TagCategory, string>>
   >({});
 
+  // Per-capture tag editing: which capture is being tagged later + its tags.
+  const [tagEditCapture, setTagEditCapture] = useState<any | null>(null);
+  const [tagEditIds, setTagEditIds] = useState<
+    Partial<Record<TagCategory, string>>
+  >({});
+
+  // Per-capture rename.
+  const [renameCapture, setRenameCapture] = useState<any | null>(null);
+  const [renameTitle, setRenameTitle] = useState("");
+
   /* ── Filters — visible the moment captures load, not gated behind
-     analytics/hotspot loading. Search is the primary tool here. ── */
-  const [areaFilter, setAreaFilter] = useState("all");
-  const [severityFilter, setSeverityFilter] = useState("all");
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [search, setSearch] = useState("");
+     analytics/hotspot loading. Search is the primary tool here. Values live
+     in the URL (?area=&severity=&status=&q=&visit=&untagged=&tag=cat:val) so
+     leaving and returning keeps the exact view. ── */
+  const [areaFilter, setAreaFilter] = useState(
+    () => searchParams.get("area") ?? "all"
+  );
+  const [severityFilter, setSeverityFilter] = useState(
+    () => searchParams.get("severity") ?? "all"
+  );
+  const [statusFilter, setStatusFilter] = useState(
+    () => searchParams.get("status") ?? "all"
+  );
+  const [search, setSearch] = useState(() => searchParams.get("q") ?? "");
   const [page, setPage] = useState(1);
   const [tagFilters, setTagFilters] = useState<
     Partial<Record<TagCategory, string>>
-  >({});
-  const [visitFilter, setVisitFilter] = useState<string>("all");
-  const [untaggedOnly, setUntaggedOnly] = useState(false);
+  >(() => {
+    const out: Partial<Record<TagCategory, string>> = {};
+    for (const tag of searchParams.getAll("tag")) {
+      const [cat, val] = tag.split(":");
+      if (cat && val) (out as any)[cat] = val;
+    }
+    return out;
+  });
+  const [visitFilter, setVisitFilter] = useState<string>(
+    () => searchParams.get("visit") ?? "all"
+  );
+  const [untaggedOnly, setUntaggedOnly] = useState(
+    () => searchParams.get("untagged") === "1"
+  );
+
+  const [resultsView, setResultsView] = useState<"captures" | "issues">(
+    () => (searchParams.get("view") === "issues" ? "issues" : "captures")
+  );
+
+  const hasActiveFilters =
+    areaFilter !== "all" ||
+    severityFilter !== "all" ||
+    statusFilter !== "all" ||
+    !!search ||
+    visitFilter !== "all" ||
+    untaggedOnly ||
+    Object.values(tagFilters).some(Boolean);
 
   const projectId = params?.id;
 
@@ -189,22 +258,56 @@ export default function CaptureManager() {
   const hotspotsLoaded =
     captureHotspots.length === captures.length && captures.length > 0;
 
-  /* ── Overall (unfiltered) project totals — power the KPI + analytics cards ── */
-  const allPins = captureHotspots.flatMap((c) => c.hotspots);
-  const overall = {
-    major: allPins.filter((h: any) => h.issueSeverity === "Major").length,
-    minor: allPins.filter((h: any) => h.issueSeverity === "Minor").length,
-    cosmetic: allPins.filter((h: any) => h.issueSeverity === "Cosmetic").length,
-    resolved: allPins.filter((h: any) => h.issueStatus === "Resolved").length,
-    open: allPins.filter((h: any) => h.issueStatus === "Open").length,
-    inProgress: allPins.filter((h: any) => h.issueStatus === "In Progress")
-      .length,
-    total: allPins.length,
+  /* ── Filtered Area-Wise Defect Summary ── */
+  const hotspotMatches = (h: any) => {
+    if (severityFilter !== "all" && h.issueSeverity !== severityFilter)
+      return false;
+    if (statusFilter !== "all" && h.issueStatus !== statusFilter) return false;
+    return true;
   };
+
+  // Single capture-level predicate driving the WHOLE dashboard — grid, stats,
+  // area summary. One filter source, so visit/block/untagged picks re-count
+  // every KPI automatically.
+  const captureMatches = (c: any) => {
+    if (areaFilter !== "all" && c.title !== areaFilter) return false;
+    if (search && !c.title.toLowerCase().includes(search.toLowerCase()))
+      return false;
+    if (visitFilter !== "all" && c.visitId !== visitFilter) return false;
+    if (untaggedOnly && (c.tags?.length ?? 0) > 0) return false;
+    for (const cat of TAG_CATEGORIES.map((t) => t.key)) {
+      const wanted = tagFilters[cat];
+      if (!wanted) continue;
+      if (!c.tags?.some((t: any) => t.tagValueId === wanted)) return false;
+    }
+    return true;
+  };
+
+  const filteredHotspots = captureHotspots
+    .filter((c: any) => captureMatches(c.capture))
+    .flatMap((c) => c.hotspots)
+    .filter(hotspotMatches);
+
+  /* ── Overall (filter-aware) project totals — power KPI + analytics cards ── */
+  const overall = {
+    major: filteredHotspots.filter((h: any) => h.issueSeverity === "Major")
+      .length,
+    minor: filteredHotspots.filter((h: any) => h.issueSeverity === "Minor")
+      .length,
+    cosmetic: filteredHotspots.filter(
+      (h: any) => h.issueSeverity === "Cosmetic"
+    ).length,
+    resolved: filteredHotspots.filter((h: any) => h.issueStatus === "Resolved")
+      .length,
+    open: filteredHotspots.filter((h: any) => h.issueStatus === "Open").length,
+    inProgress: filteredHotspots.filter(
+      (h: any) => h.issueStatus === "In Progress"
+    ).length,
+    total: filteredHotspots.length,
+  };
+
   const pct = (n: number) =>
     overall.total > 0 ? ((n / overall.total) * 100).toFixed(1) : "0.0";
-
-  const uniqueAreas = Array.from(new Set(captures.map((c: any) => c.title)));
 
   const issueBreakdown = [
     { label: "Major", count: overall.major, color: SEVERITY_COLORS.Major },
@@ -230,80 +333,85 @@ export default function CaptureManager() {
   ];
   const resolutionTotal = overall.open + overall.resolved + overall.inProgress;
 
-  /* ── Filtered Area-Wise Defect Summary ── */
-  const hotspotMatches = (h: any) => {
-    if (severityFilter !== "all" && h.issueSeverity !== severityFilter)
-      return false;
-    if (statusFilter !== "all" && h.issueStatus !== statusFilter) return false;
-    return true;
-  };
+  const uniqueAreas = Array.from(
+    new Set(
+      captureHotspots
+        .filter((c: any) => captureMatches(c.capture))
+        .map((c: any) => c.capture.title)
+    )
+  );
 
-  const areaSummary = useMemo(() => {
-    const map = new Map<
-      string,
-      {
-        major: number;
-        minor: number;
-        cosmetic: number;
-        resolved: number;
-        total: number;
-      }
-    >();
+  /* ── Defect rows — one row per issue across matching captures, honoring
+     every filter (capture-level + severity/status). This replaced the old
+     area-wise count table. ── */
+  const issueRows = useMemo(() => {
+    const rows: { capture: any; hotspot: any; visitTitle?: string }[] = [];
     for (const { capture, hotspots } of captureHotspots) {
       if (areaFilter !== "all" && capture.title !== areaFilter) continue;
-      if (
-        search &&
-        !capture.title.toLowerCase().includes(search.toLowerCase())
-      )
+      if (search && !capture.title.toLowerCase().includes(search.toLowerCase()))
         continue;
-      const filtered = hotspots.filter(hotspotMatches);
-      const existing =
-        map.get(capture.title) ?? {
-          major: 0,
-          minor: 0,
-          cosmetic: 0,
-          resolved: 0,
-          total: 0,
-        };
-      map.set(capture.title, {
-        major:
-          existing.major +
-          filtered.filter((h: any) => h.issueSeverity === "Major").length,
-        minor:
-          existing.minor +
-          filtered.filter((h: any) => h.issueSeverity === "Minor").length,
-        cosmetic:
-          existing.cosmetic +
-          filtered.filter((h: any) => h.issueSeverity === "Cosmetic").length,
-        resolved:
-          existing.resolved +
-          filtered.filter((h: any) => h.issueStatus === "Resolved").length,
-        total: existing.total + filtered.length,
-      });
+      if (visitFilter !== "all" && capture.visitId !== visitFilter) continue;
+      if (untaggedOnly && (capture.tags?.length ?? 0) > 0) continue;
+      let tagMatch = true;
+      for (const cat of TAG_CATEGORIES.map((t) => t.key)) {
+        const wanted = tagFilters[cat];
+        if (!wanted) continue;
+        if (!capture.tags?.some((t: any) => t.tagValueId === wanted)) {
+          tagMatch = false;
+          break;
+        }
+      }
+      if (!tagMatch) continue;
+      const visitTitle = visits.find((v: any) => v.id === capture.visitId)?.title ?? "";
+      for (const h of hotspots) {
+        if (severityFilter !== "all" && h.issueSeverity !== severityFilter)
+          continue;
+        if (statusFilter !== "all" && h.issueStatus !== statusFilter) continue;
+        rows.push({ capture, hotspot: h, visitTitle });
+      }
     }
-    return Array.from(map.entries())
-      .map(([area, stats]) => ({ area, ...stats }))
-      .filter((a) => a.total > 0)
-      .sort((a, b) => b.total - a.total);
-  }, [captureHotspots, areaFilter, severityFilter, statusFilter, search]);
+    return rows;
+  }, [
+    captureHotspots,
+    areaFilter,
+    search,
+    visitFilter,
+    untaggedOnly,
+    tagFilters,
+    severityFilter,
+    statusFilter,
+    visits,
+  ]);
 
-  const areaTotals = areaSummary.reduce(
-    (acc, a) => ({
-      major: acc.major + a.major,
-      minor: acc.minor + a.minor,
-      cosmetic: acc.cosmetic + a.cosmetic,
-      resolved: acc.resolved + a.resolved,
-      total: acc.total + a.total,
-    }),
-    { major: 0, minor: 0, cosmetic: 0, resolved: 0, total: 0 }
+  const totalIssuePages = Math.max(1, Math.ceil(issueRows.length / PAGE_SIZE));
+  const issueSafePage = Math.min(page, totalIssuePages);
+  const pagedIssues = issueRows.slice(
+    (issueSafePage - 1) * PAGE_SIZE,
+    issueSafePage * PAGE_SIZE
   );
 
-  const totalPages = Math.max(1, Math.ceil(areaSummary.length / PAGE_SIZE));
-  const safePage = Math.min(page, totalPages);
-  const pagedAreas = areaSummary.slice(
-    (safePage - 1) * PAGE_SIZE,
-    safePage * PAGE_SIZE
-  );
+  /* Per-capture issue counts (respects severity/status filters via issueRows)
+     — powers the severity dots on each capture card. */
+  const issueCountByCapture = useMemo(() => {
+    const m = new Map<
+      string,
+      { major: number; minor: number; cosmetic: number; total: number }
+    >();
+    for (const { capture, hotspot } of issueRows) {
+      const cur = m.get(capture.id) ?? {
+        major: 0,
+        minor: 0,
+        cosmetic: 0,
+        total: 0,
+      };
+      if (hotspot.issueSeverity === "Major") cur.major++;
+      else if (hotspot.issueSeverity === "Minor") cur.minor++;
+      else cur.cosmetic++;
+      cur.total++;
+      m.set(capture.id, cur);
+    }
+    return m;
+  }, [issueRows]);
 
   /* ── Filtered recent captures ── */
   const filteredCaptures = useMemo(() => {
@@ -325,11 +433,32 @@ export default function CaptureManager() {
         }
         return true;
       })
+      .filter((c: any) => {
+        if (severityFilter === "all" && statusFilter === "all") return true;
+        const entry = captureHotspots.find(
+          (x: any) => x.capture.id === c.id
+        );
+        return (entry?.hotspots ?? []).some(
+          (h: any) =>
+            (severityFilter === "all" || h.issueSeverity === severityFilter) &&
+            (statusFilter === "all" || h.issueStatus === statusFilter)
+        );
+      })
       .sort(
         (a: any, b: any) =>
           new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       );
-  }, [captures, areaFilter, search, visitFilter, untaggedOnly, tagFilters]);
+  }, [
+    captures,
+    areaFilter,
+    search,
+    visitFilter,
+    untaggedOnly,
+    tagFilters,
+    severityFilter,
+    statusFilter,
+    captureHotspots,
+  ]);
 
   const untaggedCount = captures.filter(
     (c: any) => (c.tags?.length ?? 0) === 0
@@ -413,6 +542,47 @@ export default function CaptureManager() {
         setOpenCameraAfterVisit(false);
         setIsUploadOpen(true);
       }
+    },
+    onError: (err: any) =>
+      toast({ title: "Error", description: err.message, variant: "destructive" }),
+  });
+
+  const activateVisitMutation = useMutation({
+    mutationFn: (visitId: string) => api.activateVisit(projectId!, visitId),
+    onSuccess: (activated: any) => {
+      queryClient.invalidateQueries({ queryKey: ["visits", projectId] });
+      queryClient.invalidateQueries({ queryKey: ["currentVisit", projectId] });
+      toast({
+        title: `Now capturing to "${activated.title}"`,
+        description: "New photos sent here.",
+      });
+    },
+    onError: (err: any) =>
+      toast({ title: "Error", description: err.message, variant: "destructive" }),
+  });
+
+  const tagEditMutation = useMutation({
+    mutationFn: ({ id, tagValueIds }: { id: string; tagValueIds: string[] }) =>
+      api.setCaptureTags(id, tagValueIds),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["captures", projectId] });
+      setTagEditCapture(null);
+      setTagEditIds({});
+      toast({ title: "Tags updated" });
+    },
+    onError: (err: any) => {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+      setTagEditCapture(null);
+    },
+  });
+
+  const renameMutation = useMutation({
+    mutationFn: ({ id, title }: { id: string; title: string }) =>
+      api.updateCapture(id, { title }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["captures", projectId] });
+      setRenameCapture(null);
+      toast({ title: "Capture renamed" });
     },
     onError: (err: any) =>
       toast({ title: "Error", description: err.message, variant: "destructive" }),
@@ -648,12 +818,28 @@ export default function CaptureManager() {
                 {uniqueAreas.length}{" "}
                 {uniqueAreas.length === 1 ? "Area" : "Areas"}
               </span>
-              {currentVisit && (
+              {currentVisit && visits.length > 0 && (
                 <>
                   <span className="w-[3px] h-[3px] rounded-full bg-slate-400" />
                   <span className="inline-flex items-center gap-1 font-medium text-indigo-600">
                     <CalendarPlus className="h-3 w-3" />
-                    Visit: {currentVisit.title}
+                    <select
+                      className="bg-transparent border border-indigo-200 rounded-md px-1 py-0.5 text-xs font-medium text-indigo-700 focus:outline-none cursor-pointer hover:border-indigo-400"
+                      value={currentVisit.id}
+                      disabled={activateVisitMutation.isPending}
+                      onChange={(e) =>
+                        activateVisitMutation.mutate(e.target.value)
+                      }
+                      data-testid="select-active-visit"
+                      title="Switch which visit new photos are captured to"
+                    >
+                      {visits.map((v: any) => (
+                        <option key={v.id} value={v.id}>
+                          {v.active ? "● " : ""}
+                          {v.title}
+                        </option>
+                      ))}
+                    </select>
                   </span>
                 </>
               )}
@@ -718,10 +904,9 @@ export default function CaptureManager() {
         ) : captures.length === 0 ? (
           <div className="text-center py-20">
             <MapIcon className="h-12 w-12 mx-auto mb-3 opacity-50 text-slate-400" />
-            <p className="text-lg font-medium text-slate-700">No captures yet</p>
+            <p className="text-lg font-medium text-slate-700">Nothing added</p>
             <p className="text-sm mt-1 text-slate-400">
-              Add your first photo or 360° capture, or create a report to get
-              started
+              Log an issue to start your inspection
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mt-7">
               {user?.role !== "viewer" && (
@@ -733,14 +918,6 @@ export default function CaptureManager() {
                   <Camera className="h-4 w-4 mr-2" /> Add Capture
                 </Button>
               )}
-              <Button
-                size="lg"
-                variant="outline"
-                className="w-full sm:w-auto"
-                onClick={() => setLocation(`/project/${projectId}/reports`)}
-              >
-                <FileText className="h-4 w-4 mr-2" /> Add Report
-              </Button>
             </div>
           </div>
         ) : (
@@ -755,6 +932,7 @@ export default function CaptureManager() {
                     value={search}
                     onChange={(e) => {
                       setSearch(e.target.value);
+                      setUrlParam("q", e.target.value || null);
                       setPage(1);
                     }}
                     placeholder="Search captures..."
@@ -766,6 +944,7 @@ export default function CaptureManager() {
                   value={areaFilter}
                   onChange={(e) => {
                     setAreaFilter(e.target.value);
+                    setUrlParam("area", e.target.value);
                     setPage(1);
                   }}
                 >
@@ -782,9 +961,11 @@ export default function CaptureManager() {
                     label={label}
                     values={tagsByCategory[key]}
                     selectedId={tagFilters[key] ?? null}
-                    onChange={(id) =>
-                      setTagFilters((prev) => ({ ...prev, [key]: id ?? undefined }))
-                    }
+                    onChange={(id) => {
+                      const next = { ...tagFilters, [key]: id ?? undefined };
+                      setTagFilters(next);
+                      setUrlTags(next);
+                    }}
                     allOption={{ label: `All ${label}s` }}
                   />
                 ))}
@@ -792,7 +973,10 @@ export default function CaptureManager() {
                   <select
                     className={selectCls}
                     value={visitFilter}
-                    onChange={(e) => setVisitFilter(e.target.value)}
+                    onChange={(e) => {
+                      setVisitFilter(e.target.value);
+                      setUrlParam("visit", e.target.value);
+                    }}
                   >
                     <option value="all">All Visits</option>
                     {visits.map((v: any) => (
@@ -804,7 +988,12 @@ export default function CaptureManager() {
                 )}
                 <button
                   type="button"
-                  onClick={() => setUntaggedOnly((v) => !v)}
+                  onClick={() =>
+                    setUntaggedOnly((v) => {
+                      setUrlParam("untagged", !v ? "1" : null);
+                      return !v;
+                    })
+                  }
                   className={cn(
                     "h-9 rounded-lg border px-3 text-sm font-medium transition-colors",
                     untaggedOnly
@@ -815,6 +1004,34 @@ export default function CaptureManager() {
                   <Tags className="h-3.5 w-3.5 inline mr-1.5 -mt-0.5" />
                   Untagged {untaggedCount > 0 && `(${untaggedCount})`}
                 </button>
+                <select
+                  className={selectCls}
+                  value={severityFilter}
+                  onChange={(e) => {
+                    setSeverityFilter(e.target.value);
+                    setUrlParam("severity", e.target.value);
+                    setPage(1);
+                  }}
+                >
+                  <option value="all">All Issue Types</option>
+                  <option value="Major">Major</option>
+                  <option value="Minor">Minor</option>
+                  <option value="Cosmetic">Cosmetic</option>
+                </select>
+                <select
+                  className={selectCls}
+                  value={statusFilter}
+                  onChange={(e) => {
+                    setStatusFilter(e.target.value);
+                    setUrlParam("status", e.target.value);
+                    setPage(1);
+                  }}
+                >
+                  <option value="all">All Status</option>
+                  <option value="Open">Open</option>
+                  <option value="In Progress">In Progress</option>
+                  <option value="Resolved">Resolved</option>
+                </select>
               </div>
 
               {untaggedCount > 0 && (
@@ -878,74 +1095,87 @@ export default function CaptureManager() {
               </div>
             )}
 
-            {/* ── Area Wise Defect Summary (severity/status filters only — the
-                search + area + tag + visit filters above already scope this
-                by area/search) ── */}
-            {hotspotsLoaded && (
-              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-                <div className="flex flex-wrap items-center gap-2.5 px-5 py-4 border-b border-slate-100">
-                  <select
-                    className={selectCls}
-                    value={severityFilter}
-                    onChange={(e) => {
-                      setSeverityFilter(e.target.value);
-                      setPage(1);
-                    }}
-                  >
-                    <option value="all">All Issue Types</option>
-                    <option value="Major">Major</option>
-                    <option value="Minor">Minor</option>
-                    <option value="Cosmetic">Cosmetic</option>
-                  </select>
-                  <select
-                    className={selectCls}
-                    value={statusFilter}
-                    onChange={(e) => {
-                      setStatusFilter(e.target.value);
-                      setPage(1);
-                    }}
-                  >
-                    <option value="all">All Status</option>
-                    <option value="Open">Open</option>
-                    <option value="In Progress">In Progress</option>
-                    <option value="Resolved">Resolved</option>
-                  </select>
-                </div>
-
-                <p className="px-6 pt-5 pb-1 text-[15px] font-bold text-slate-900">
-                  Area Wise Defect Summary
-                </p>
-
-                <AreaSummaryTable
-                  areas={pagedAreas}
-                  totals={areaTotals}
-                  totalCount={areaSummary.length}
-                  page={safePage}
-                  totalPages={totalPages}
-                  safePage={safePage}
-                  onPageChange={setPage}
-                />
-              </div>
-            )}
-
-            {/* ── Recent Captures ── */}
+            {/* ── Results — one view at a time, so no duplication: either the
+                captures grid or the per-issue table, both from the same
+                filtered set. ── */}
             <div>
-              <p className="text-[15px] font-bold text-slate-900 mb-4">
-                Recent Captures
-              </p>
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+              <div className="flex items-center justify-between gap-3 mb-4">
+                <div className="flex items-center gap-1.5 bg-white rounded-xl border border-slate-200 p-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setResultsView("captures");
+                      setUrlParam("view", "captures");
+                    }}
+                    className={cn(
+                      "px-4 py-1.5 rounded-lg text-sm font-semibold transition-colors",
+                      resultsView === "captures"
+                        ? "bg-indigo-600 text-white shadow-sm"
+                        : "text-slate-500 hover:text-slate-700"
+                    )}
+                  >
+                    Captures
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setResultsView("issues");
+                      setUrlParam("view", "issues");
+                    }}
+                    className={cn(
+                      "px-4 py-1.5 rounded-lg text-sm font-semibold transition-colors",
+                      resultsView === "issues"
+                        ? "bg-indigo-600 text-white shadow-sm"
+                        : "text-slate-500 hover:text-slate-700"
+                    )}
+                  >
+                    Issues
+                  </button>
+                </div>
+                <p className="text-xs text-slate-400">
+                  {resultsView === "captures"
+                    ? `${filteredCaptures.length} of ${captures.length} captures`
+                    : `${issueRows.length} ${issueRows.length === 1 ? "issue" : "issues"}`}
+                </p>
+              </div>
+
+              {resultsView === "issues" ? (
+                hotspotsLoaded && (
+                  <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                    <DefectsTable
+                      rows={pagedIssues}
+                      totalCount={issueRows.length}
+                      page={issueSafePage}
+                      totalPages={totalIssuePages}
+                      onPageChange={setPage}
+                      onOpenRow={({ capture, hotspot }) => {
+                        const p = new URLSearchParams(searchParams.toString());
+                        p.set("pin", hotspot.id);
+                        setLocation(
+                          `/project/${projectId}/captures/${capture.id}?${p.toString()}`
+                        );
+                      }}
+                    />
+                  </div>
+                )
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
                 {filteredCaptures.map((fp: any) => {
                   const capTotal =
                     captureHotspots.find((c: any) => c.capture.id === fp.id)
                       ?.hotspots.length ?? 0;
+                  const ic = issueCountByCapture.get(fp.id);
                   return (
                     <div
                       key={fp.id}
-                      onClick={() =>
+                      onClick={() => {
+                        const qs = searchParams.toString();
                         setLocation(
-                          `/project/${projectId}/captures/${fp.id}`
-                        )
-                      }
+                          `/project/${projectId}/captures/${fp.id}${
+                            qs ? `?${qs}` : ""
+                          }`
+                        );
+                      }}
                       className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md group cursor-pointer"
                     >
                       <div className="aspect-[16/11] bg-slate-100 relative overflow-hidden">
@@ -955,15 +1185,45 @@ export default function CaptureManager() {
                           className="w-full h-full object-cover"
                         />
                         {user?.role !== "viewer" && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setDeleteId(fp.id);
-                            }}
-                            className="absolute top-2 right-2 h-7 w-7 grid place-items-center rounded-lg bg-white/90 text-red-600 shadow opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
+                          <>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const byCat: Partial<
+                                  Record<TagCategory, string>
+                                > = {};
+                                for (const t of fp.tags ?? []) {
+                                  byCat[t.category as TagCategory] = t.tagValueId;
+                                }
+                                setTagEditIds(byCat);
+                                setTagEditCapture(fp);
+                              }}
+                              title="Edit tags"
+                              className="absolute top-2 left-2 h-7 w-7 grid place-items-center rounded-lg bg-white/90 text-slate-600 shadow opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white"
+                            >
+                              <Tags className="h-3.5 w-3.5" />
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setRenameTitle(fp.title);
+                                setRenameCapture(fp);
+                              }}
+                              title="Rename capture"
+                              className="absolute top-2 left-11 h-7 w-7 grid place-items-center rounded-lg bg-white/90 text-slate-600 shadow opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white"
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setDeleteId(fp.id);
+                              }}
+                              className="absolute top-2 right-2 h-7 w-7 grid place-items-center rounded-lg bg-white/90 text-red-600 shadow opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </>
                         )}
                       </div>
                       <div className="px-3.5 pt-3 pb-3.5">
@@ -975,6 +1235,28 @@ export default function CaptureManager() {
                         <p className="text-xs text-slate-400 mt-1">
                           {capTotal} {capTotal === 1 ? "hotspot" : "hotspots"}
                         </p>
+                        {ic && ic.total > 0 && (
+                          <div className="flex flex-wrap items-center gap-2.5 mt-1.5">
+                            {[
+                              { label: "Major", count: ic.major, color: SEVERITY_COLORS.Major },
+                              { label: "Minor", count: ic.minor, color: SEVERITY_COLORS.Minor },
+                              { label: "Cosmetic", count: ic.cosmetic, color: SEVERITY_COLORS.Cosmetic },
+                            ]
+                              .filter((s) => s.count > 0)
+                              .map((s) => (
+                                <span
+                                  key={s.label}
+                                  className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-600"
+                                >
+                                  <span
+                                    className="h-2 w-2 rounded-full"
+                                    style={{ backgroundColor: s.color }}
+                                  />
+                                  {s.count}
+                                </span>
+                              ))}
+                          </div>
+                        )}
                         {fp.tags?.length > 0 && (
                           <div className="flex flex-wrap gap-1 mt-2">
                             {fp.tags.map((t: any) => (
@@ -1004,7 +1286,8 @@ export default function CaptureManager() {
                     </div>
                   );
                 })}
-              </div>
+                </div>
+              )}
             </div>
           </>
         )}
@@ -1261,6 +1544,127 @@ export default function CaptureManager() {
                 <CheckSquare className="h-4 w-4 mr-2" />
               )}
               Apply
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Edit tags on a single capture (tag it later) ── */}
+      <Dialog
+        open={!!tagEditCapture}
+        onOpenChange={(open) => {
+          if (!open) {
+            setTagEditCapture(null);
+            setTagEditIds({});
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Tag capture</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-slate-500">
+            {tagEditCapture?.title ?? ""}
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {TAG_CATEGORIES.map(({ key, label }) => (
+              <TagSelect
+                key={key}
+                label={label}
+                values={tagsByCategory[key]}
+                selectedId={tagEditIds[key] ?? null}
+                placeholder={label}
+                onChange={(id) =>
+                  setTagEditIds((prev) => ({ ...prev, [key]: id ?? undefined }))
+                }
+                onCreate={async (value) => {
+                  const created = await api.createTagValue(projectId!, {
+                    category: key,
+                    value,
+                  });
+                  queryClient.invalidateQueries({
+                    queryKey: ["tagValues", projectId],
+                  });
+                  return created;
+                }}
+              />
+            ))}
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setTagEditCapture(null);
+                setTagEditIds({});
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() =>
+                tagEditCapture &&
+                tagEditMutation.mutate({
+                  id: tagEditCapture.id,
+                  tagValueIds: Object.values(tagEditIds).filter(
+                    Boolean
+                  ) as string[],
+                })
+              }
+              disabled={tagEditMutation.isPending}
+            >
+              {tagEditMutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : (
+                <Tags className="h-4 w-4 mr-2" />
+              )}
+              Save Tags
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={!!renameCapture}
+        onOpenChange={(open) => {
+          if (!open) setRenameCapture(null);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Rename capture</DialogTitle>
+          </DialogHeader>
+          <Input
+            value={renameTitle}
+            onChange={(e) => setRenameTitle(e.target.value)}
+            placeholder="Capture title"
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && renameTitle.trim())
+                renameMutation.mutate({
+                  id: renameCapture.id,
+                  title: renameTitle.trim(),
+                });
+            }}
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRenameCapture(null)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() =>
+                renameCapture &&
+                renameMutation.mutate({
+                  id: renameCapture.id,
+                  title: renameTitle.trim(),
+                })
+              }
+              disabled={renameMutation.isPending || !renameTitle.trim()}
+            >
+              {renameMutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : (
+                <Pencil className="h-4 w-4 mr-2" />
+              )}
+              Save
             </Button>
           </DialogFooter>
         </DialogContent>

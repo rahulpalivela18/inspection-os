@@ -401,3 +401,192 @@ export function AreaSummaryTable({
     </>
   );
 }
+
+/* ── Defects Table — one row per issue (hotspot) matching the active filters ──
+   Replaces the old "area-wise" count table. Each row is a single defect with
+   the capture context, severity and status, so filtered = exactly the issues
+   the user is looking for. Row click jumps into the capture with that pin. ── */
+const SEV_BADGE: Record<string, { bg: string; text: string; dot: string }> = {
+  Major: { bg: "#fee2e2", text: "#991b1b", dot: "#dc2626" },
+  Minor: { bg: "#fef3c7", text: "#92400e", dot: "#f59e0b" },
+  Cosmetic: { bg: "#dbeafe", text: "#1e40af", dot: "#3b82f6" },
+  Info: { bg: "#f1f5f9", text: "#475569", dot: "#64748b" },
+};
+const STATUS_BADGE: Record<string, { bg: string; text: string }> = {
+  Open: { bg: "#fee2e2", text: "#991b1b" },
+  "In Progress": { bg: "#ffedd5", text: "#9a3412" },
+  Resolved: { bg: "#dcfce7", text: "#166534" },
+};
+
+export type DefectRow = {
+  capture: any;
+  hotspot: any;
+  visitTitle?: string;
+};
+
+export function DefectsTable({
+  rows,
+  totalCount,
+  page,
+  totalPages,
+  onPageChange,
+  onOpenRow,
+  emptyMessage = "No issues match your filters.",
+}: {
+  rows: DefectRow[];
+  totalCount: number;
+  page: number;
+  totalPages: number;
+  onPageChange: (p: number) => void;
+  onOpenRow: (row: DefectRow) => void;
+  emptyMessage?: string;
+}) {
+  return (
+    <>
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr>
+              <th className="px-6 py-3 text-left text-[10.5px] font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200">
+                Capture
+              </th>
+              <th className="px-4 py-3 text-left text-[10.5px] font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200">
+                Block / Floor / Flat
+              </th>
+              <th className="px-4 py-3 text-left text-[10.5px] font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200">
+                Issue
+              </th>
+              <th className="px-4 py-3 text-right text-[10.5px] font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200 whitespace-nowrap">
+                Severity
+              </th>
+              <th className="px-4 py-3 text-right text-[10.5px] font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200 whitespace-nowrap">
+                Status
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.length === 0 ? (
+              <tr>
+                <td
+                  colSpan={5}
+                  className="px-6 py-10 text-center text-slate-400"
+                >
+                  {emptyMessage}
+                </td>
+              </tr>
+            ) : (
+              rows.map((r) => {
+                const sev = SEV_BADGE[r.hotspot.issueSeverity ?? "Info"] ?? SEV_BADGE.Info;
+                const st = STATUS_BADGE[r.hotspot.issueStatus ?? "Open"] ?? STATUS_BADGE.Open;
+                const issueTitle =
+                  r.hotspot.issueTitle || r.hotspot.label || "Untitled issue";
+                const notes = r.hotspot.notes || r.hotspot.label;
+                return (
+                  <tr
+                    key={`${r.capture.id}:${r.hotspot.id}`}
+                    onClick={() => onOpenRow(r)}
+                    className="border-b border-slate-100 hover:bg-slate-50 transition-colors cursor-pointer"
+                  >
+                    <td className="px-6 py-3">
+                      <div className="flex items-center gap-3">
+                        <img
+                          src={r.capture.thumbnailUrl || r.capture.imageUrl}
+                          alt={r.capture.title}
+                          className="h-10 w-14 rounded-md object-cover bg-slate-100 shrink-0"
+                        />
+                        <div className="min-w-0">
+                          <p className="font-semibold text-slate-800 truncate">
+                            {r.capture.title}
+                          </p>
+                          {r.visitTitle && (
+                            <p className="text-[11.5px] text-slate-400 truncate">
+                              {r.visitTitle}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex flex-wrap gap-1">
+                        {(["block", "floor", "flat"] as const).map((cat) => {
+                          const t = (r.capture.tags ?? []).find(
+                            (x: any) => x.category === cat
+                          );
+                          return t ? (
+                            <span
+                              key={cat}
+                              className="text-[11px] font-medium px-1.5 py-0.5 rounded bg-slate-100 text-slate-600"
+                            >
+                              {t.value}
+                            </span>
+                          ) : null;
+                        })}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <p className="font-medium text-slate-800">{issueTitle}</p>
+                      {notes !== issueTitle && (
+                        <p className="text-[12px] text-slate-400 truncate max-w-[260px]">
+                          {notes}
+                        </p>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <span
+                        className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2 py-0.5 rounded-full"
+                        style={{ backgroundColor: sev.bg, color: sev.text }}
+                      >
+                        <span
+                          className="w-1.5 h-1.5 rounded-full"
+                          style={{ backgroundColor: sev.dot }}
+                        />
+                        {r.hotspot.issueSeverity ?? "Info"}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <span
+                        className="inline-flex text-[11px] font-semibold px-2 py-0.5 rounded-full"
+                        style={{ backgroundColor: st.bg, color: st.text }}
+                      >
+                        {r.hotspot.issueStatus ?? "Open"}
+                      </span>
+                    </td>
+                  </tr>
+                );
+              })
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {totalPages > 1 && (
+        <div className="flex items-center justify-end gap-3 px-5 py-3.5 text-[12.5px] text-slate-500">
+          <span>
+            {totalCount === 0
+              ? "No issues"
+              : `Showing ${(page - 1) * 8 + 1} to ${Math.min(
+                  page * 8,
+                  totalCount
+                )} of ${totalCount} issues`}
+          </span>
+          <div className="flex gap-1.5">
+            <button
+              disabled={page <= 1}
+              onClick={() => onPageChange(Math.max(1, page - 1))}
+              className="w-[30px] h-[30px] grid place-items-center rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-default"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            <button
+              disabled={page >= totalPages}
+              onClick={() => onPageChange(Math.min(totalPages, page + 1))}
+              className="w-[30px] h-[30px] grid place-items-center rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-default"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}

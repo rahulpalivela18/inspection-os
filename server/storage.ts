@@ -199,6 +199,11 @@ export interface IStorage {
     workspaceId: string,
   ): Promise<Visit | undefined>;
   createVisit(data: InsertVisit): Promise<Visit>;
+  setActiveVisit(
+    projectId: string,
+    workspaceId: string,
+    visitId: string,
+  ): Promise<Visit | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -292,7 +297,11 @@ export class DatabaseStorage implements IStorage {
     return result.length > 0;
   }
   // Tag Values
-  async getTagValues(projectId: string, workspaceId: string, category?: string) {
+  async getTagValues(
+    projectId: string,
+    workspaceId: string,
+    category?: string,
+  ) {
     const conditions = [
       eq(tagValues.projectId, projectId),
       eq(tagValues.workspaceId, workspaceId),
@@ -329,25 +338,89 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(visits)
       .where(
-        and(eq(visits.projectId, projectId), eq(visits.workspaceId, workspaceId)),
+        and(
+          eq(visits.projectId, projectId),
+          eq(visits.workspaceId, workspaceId),
+        ),
       )
       .orderBy(desc(visits.createdAt));
   }
   async getCurrentVisit(projectId: string, workspaceId: string) {
-    // "Current" = most recently created. No separate flag needed — the only
-    // way a new one becomes current is the explicit "+ New Visit" action.
+    // "Current" = the visit flagged active. If none is active yet (e.g. the
+    // unique-title migration backfilled visits before this column shipped),
+    // fall back to the most recently created one.
+    const [active] = await db
+      .select()
+      .from(visits)
+      .where(
+        and(
+          eq(visits.projectId, projectId),
+          eq(visits.workspaceId, workspaceId),
+          eq(visits.active, true),
+        ),
+      )
+      .limit(1);
+    if (active) return active;
     const [row] = await db
       .select()
       .from(visits)
       .where(
-        and(eq(visits.projectId, projectId), eq(visits.workspaceId, workspaceId)),
+        and(
+          eq(visits.projectId, projectId),
+          eq(visits.workspaceId, workspaceId),
+        ),
       )
       .orderBy(desc(visits.createdAt))
       .limit(1);
     return row;
   }
   async createVisit(data: InsertVisit) {
-    const [row] = await db.insert(visits).values(data).returning();
+    // A fresh "+ New Visit" becomes the active one: it's what the camera will
+    // target next, so deactivate every other visit in this project.
+    const rows = await db.transaction(async (tx) => {
+      await tx
+        .update(visits)
+        .set({ active: false })
+        .where(eq(visits.projectId, data.projectId));
+      const [row] = await tx
+        .insert(visits)
+        .values({ ...data, active: true })
+        .returning();
+      return [row];
+    });
+    return rows[0];
+  }
+  async setActiveVisit(
+    projectId: string,
+    workspaceId: string,
+    visitId: string,
+  ) {
+    // Single active visit per project: clear the flag everywhere, then set it
+    // on the target. Also guards the target actually belongs to this workspace.
+    const [row] = await db.transaction(async (tx) => {
+      const target = await tx
+        .select()
+        .from(visits)
+        .where(
+          and(
+            eq(visits.id, visitId),
+            eq(visits.projectId, projectId),
+            eq(visits.workspaceId, workspaceId),
+          ),
+        )
+        .limit(1);
+      if (!target.length) return [];
+      await tx
+        .update(visits)
+        .set({ active: false })
+        .where(eq(visits.projectId, projectId));
+      const [updated] = await tx
+        .update(visits)
+        .set({ active: true })
+        .where(eq(visits.id, visitId))
+        .returning();
+      return [updated];
+    });
     return row;
   }
 
@@ -731,7 +804,8 @@ export class SpatialStorage {
       eq(captures.projectId, projectId),
       eq(captures.workspaceId, workspaceId),
     ];
-    if (filters?.visitId) conditions.push(eq(captures.visitId, filters.visitId));
+    if (filters?.visitId)
+      conditions.push(eq(captures.visitId, filters.visitId));
     let rows = await db
       .select()
       .from(captures)
@@ -872,7 +946,13 @@ export class SpatialStorage {
     if (tagValueIds.length === 0) return [];
     return db
       .insert(captureTags)
-      .values(tagValueIds.map((tagValueId) => ({ workspaceId, captureId, tagValueId })))
+      .values(
+        tagValueIds.map((tagValueId) => ({
+          workspaceId,
+          captureId,
+          tagValueId,
+        })),
+      )
       .returning();
   }
 
@@ -886,7 +966,13 @@ export class SpatialStorage {
     if (tagValueIds.length === 0) return [];
     return db
       .insert(captureTags)
-      .values(tagValueIds.map((tagValueId) => ({ workspaceId, captureId, tagValueId })))
+      .values(
+        tagValueIds.map((tagValueId) => ({
+          workspaceId,
+          captureId,
+          tagValueId,
+        })),
+      )
       .onConflictDoNothing()
       .returning();
   }

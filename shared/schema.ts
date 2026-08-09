@@ -183,13 +183,26 @@ export const visits = pgTable(
       .notNull()
       .references(() => projects.id, { onDelete: "cascade" }),
     title: text("title").notNull(),
+    // The visit the camera targets. Only one can be active per project; a
+    // fresh "+ New Visit" becomes active automatically, and the client can
+    // switch between existing rounds.
+    active: boolean("active").notNull().default(false),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
-  (table) => [index("visits_project_idx").on(table.projectId, table.createdAt)],
+  (table) => [
+    index("visits_project_idx").on(table.projectId, table.createdAt),
+    // One named round per title per project — case-insensitive, so "aug 9"
+    // and "Aug 9" can't silently split into two visits either.
+    uniqueIndex("visits_unique_title").on(
+      table.projectId,
+      sql`lower(${table.title})`,
+    ),
+  ],
 );
 
 export const insertVisitSchema = createInsertSchema(visits).omit({
   id: true,
+  active: true,
   createdAt: true,
 });
 export type InsertVisit = z.infer<typeof insertVisitSchema>;

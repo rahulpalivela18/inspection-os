@@ -798,8 +798,38 @@ export async function registerRoutes(
         return res
           .status(400)
           .json({ message: parsed.error.errors[0].message });
-      const item = await storage.createVisit(parsed.data);
-      res.status(201).json(item);
+      try {
+        const item = await storage.createVisit(parsed.data);
+        res.status(201).json(item);
+      } catch (err: any) {
+        // Unique constraint (project + title, case-insensitive). Drizzle wraps
+        // the pg error — the SQLSTATE code lives on the original `cause`.
+        const pgCode = err?.code ?? err?.cause?.code;
+        if (pgCode === "23505") {
+          return res.status(409).json({
+            message: `A visit named "${parsed.data.title}" already exists in this project. Use a different name or open that visit instead.`,
+          });
+        }
+        throw err;
+      }
+    },
+  );
+
+  // Switch which visit the camera targets. "Current" is whichever has
+  // `active = true`; new captures always land there.
+  app.post(
+    "/api/projects/:projectId/visits/:visitId/activate",
+    requireWriteAccess,
+    requireActiveTrial,
+    async (req, res) => {
+      const user = req.user as any;
+      const updated = await storage.setActiveVisit(
+        req.params.projectId as string,
+        user.workspaceId,
+        req.params.visitId as string,
+      );
+      if (!updated) return res.status(404).json({ message: "Visit not found" });
+      res.json(updated);
     },
   );
 
@@ -1184,7 +1214,9 @@ export async function registerRoutes(
       const user = req.user as any;
       const { tagValueIds } = req.body;
       if (!Array.isArray(tagValueIds))
-        return res.status(400).json({ message: "tagValueIds must be an array." });
+        return res
+          .status(400)
+          .json({ message: "tagValueIds must be an array." });
       const rows = await spatialStorage.setCaptureTags(
         req.params.id as string,
         user.workspaceId,
@@ -1209,7 +1241,11 @@ export async function registerRoutes(
           .json({ message: "captureIds and tagValueIds must be arrays." });
       await Promise.all(
         captureIds.map((captureId: string) =>
-          spatialStorage.addCaptureTags(captureId, user.workspaceId, tagValueIds),
+          spatialStorage.addCaptureTags(
+            captureId,
+            user.workspaceId,
+            tagValueIds,
+          ),
         ),
       );
       res.json({ success: true });

@@ -200,6 +200,10 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ title }),
     }),
+  activateVisit: (projectId: string, visitId: string) =>
+    request<any>(`/api/projects/${projectId}/visits/${visitId}/activate`, {
+      method: "POST",
+    }),
 
   // Hotspots
   getHotspots: (captureId: string) =>

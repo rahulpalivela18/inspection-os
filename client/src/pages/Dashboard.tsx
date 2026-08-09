@@ -348,9 +348,12 @@ export default function Dashboard() {
                               </button>
                             ))}
                         </div>
+                        <p className="text-xs text-muted-foreground mt-2">
+                          Any other applicable commas to add below.
+                        </p>
                         <div className="flex gap-2 mt-1">
                           <Input
-                            placeholder="Add another amenity..."
+                            placeholder="Add any other applicable e.g. Rooftop, CCTV..."
                             value={customAmenity}
                             onChange={(e) => setCustomAmenity(e.target.value)}
                             onKeyDown={(e) => {

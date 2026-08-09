@@ -1,6 +1,6 @@
 import { build as esbuild } from "esbuild";
 import { build as viteBuild } from "vite";
-import { rm, readFile } from "fs/promises";
+import { copyFile, rm, readFile } from "fs/promises";
 
 // server deps to bundle to reduce openat(2) syscalls
 // which helps cold start times
@@ -59,6 +59,11 @@ async function buildAll() {
     external: externals,
     logLevel: "info",
   });
+
+  // connect-pg-simple is bundled (in the allowlist) but reads its schema SQL
+  // relative to its own module at runtime. Copy the file next to the bundle so
+  // the session store can create its table without an ENOENT.
+  await copyFile("node_modules/connect-pg-simple/table.sql", "dist/table.sql");
 }
 
 buildAll().catch((err) => {
