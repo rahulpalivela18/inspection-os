@@ -134,8 +134,19 @@ export const api = {
     request(`/api/reports/${id}`, { method: "DELETE" }),
 
   // Captures
-  getCaptures: (projectId: string) =>
-    request<any[]>(`/api/projects/${projectId}/captures`),
+  getCaptures: (
+    projectId: string,
+    filters?: { visitId?: string; tagValueIds?: string[] },
+  ) => {
+    const params = new URLSearchParams();
+    if (filters?.visitId) params.set("visitId", filters.visitId);
+    if (filters?.tagValueIds?.length)
+      params.set("tagValueIds", filters.tagValueIds.join(","));
+    const qs = params.toString();
+    return request<any[]>(
+      `/api/projects/${projectId}/captures${qs ? `?${qs}` : ""}`,
+    );
+  },
   getCapture: (id: string) => request<any>(`/api/captures/${id}`),
   createCapture: (projectId: string, data: any) =>
     request<any>(`/api/projects/${projectId}/captures`, {
@@ -149,6 +160,46 @@ export const api = {
     }),
   deleteCapture: (id: string) =>
     request(`/api/captures/${id}`, { method: "DELETE" }),
+  setCaptureTags: (id: string, tagValueIds: string[]) =>
+    request<any[]>(`/api/captures/${id}/tags`, {
+      method: "PATCH",
+      body: JSON.stringify({ tagValueIds }),
+    }),
+  bulkTagCaptures: (
+    projectId: string,
+    captureIds: string[],
+    tagValueIds: string[],
+  ) =>
+    request(`/api/projects/${projectId}/captures/bulk-tag`, {
+      method: "POST",
+      body: JSON.stringify({ captureIds, tagValueIds }),
+    }),
+
+  // Tag Values (Block/Floor/Flat/Amenity vocabulary)
+  getTagValues: (projectId: string, category?: string) =>
+    request<any[]>(
+      `/api/projects/${projectId}/tag-values${category ? `?category=${category}` : ""}`,
+    ),
+  createTagValue: (
+    projectId: string,
+    data: { category: string; value: string },
+  ) =>
+    request<any>(`/api/projects/${projectId}/tag-values`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  getDefaultAmenities: () => request<string[]>("/api/amenities/defaults"),
+
+  // Visits (named inspection rounds)
+  getVisits: (projectId: string) =>
+    request<any[]>(`/api/projects/${projectId}/visits`),
+  getCurrentVisit: (projectId: string) =>
+    request<any>(`/api/projects/${projectId}/visits/current`),
+  createVisit: (projectId: string, title: string) =>
+    request<any>(`/api/projects/${projectId}/visits`, {
+      method: "POST",
+      body: JSON.stringify({ title }),
+    }),
 
   // Hotspots
   getHotspots: (captureId: string) =>

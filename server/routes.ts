@@ -17,10 +17,27 @@ import {
   insertCaptureSchema,
   insertHotspotSchema,
   insertProgressLogSchema,
+  insertTagValueSchema,
+  insertVisitSchema,
 } from "@shared/schema";
 import { pick } from "@shared/cleanData";
 import { DEFAULT_CHECKLIST_POINTS } from "./defaultChecklist";
 import { uploadImageToGCP, isGCPUrl } from "./gcp-storage";
+
+// Seeds the amenity picker in the Multi-Block project questionnaire. A
+// workspace-editable version of this list is a clean v2 — deferred for now.
+const DEFAULT_AMENITIES = [
+  "Gym",
+  "Swimming Pool",
+  "Clubhouse",
+  "Tennis Court",
+  "Children's Play Area",
+  "Garden",
+  "Parking",
+  "Lift",
+  "Cafe",
+  "Security Cabin",
+];
 
 const PgSession = connectPgSimple(session);
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
@@ -584,8 +601,13 @@ export async function registerRoutes(
         }
       }
 
+      // blockCount / amenities are questionnaire-only inputs used to seed
+      // tag_values — not real project columns, so pull them out before
+      // validating the project shape itself.
+      const { blockCount, amenities, ...projectBody } = req.body;
+
       const parsed = insertProjectSchema.safeParse({
-        ...req.body,
+        ...projectBody,
         workspaceId: user.workspaceId,
       });
       if (!parsed.success)
@@ -593,9 +615,47 @@ export async function registerRoutes(
           .status(400)
           .json({ message: parsed.error.errors[0].message });
       const item = await storage.createProject(parsed.data);
+
+      // Multi-Block: seed the Block dropdown ("Block 1".."Block N") and the
+      // chosen Amenity values, so they're ready the first time someone tags
+      // a capture. Floors/Flats always self-populate later via "Other".
+      if (parsed.data.projectType === "multi") {
+        const seeds: Promise<any>[] = [];
+        const count = Math.max(0, Math.min(50, Number(blockCount) || 0));
+        for (let i = 1; i <= count; i++) {
+          seeds.push(
+            storage.createTagValue({
+              workspaceId: user.workspaceId,
+              projectId: item.id,
+              category: "block",
+              value: `Block ${i}`,
+            }),
+          );
+        }
+        if (Array.isArray(amenities)) {
+          for (const amenity of amenities) {
+            if (typeof amenity === "string" && amenity.trim()) {
+              seeds.push(
+                storage.createTagValue({
+                  workspaceId: user.workspaceId,
+                  projectId: item.id,
+                  category: "amenity",
+                  value: amenity.trim(),
+                }),
+              );
+            }
+          }
+        }
+        await Promise.all(seeds);
+      }
+
       res.status(201).json(item);
     },
   );
+
+  app.get("/api/amenities/defaults", requireAuth, async (_req, res) => {
+    res.json(DEFAULT_AMENITIES);
+  });
 
   app.get("/api/projects/:id", requireAuth, async (req, res) => {
     const user = req.user as any;
@@ -653,6 +713,93 @@ export async function registerRoutes(
       );
       if (!ok) return res.status(404).json({ message: "Not found" });
       res.json({ success: true });
+    },
+  );
+
+  // ── Tag Value Routes (Block/Floor/Flat/Amenity vocabulary) ───────────────────
+
+  app.get(
+    "/api/projects/:projectId/tag-values",
+    requireAuth,
+    async (req, res) => {
+      const user = req.user as any;
+      const category = req.query.category as string | undefined;
+      const items = await storage.getTagValues(
+        req.params.projectId as string,
+        user.workspaceId,
+        category,
+      );
+      res.json(items);
+    },
+  );
+
+  app.post(
+    "/api/projects/:projectId/tag-values",
+    requireWriteAccess,
+    requireActiveTrial,
+    async (req, res) => {
+      const user = req.user as any;
+      const parsed = insertTagValueSchema.safeParse({
+        ...req.body,
+        projectId: req.params.projectId as string,
+        workspaceId: user.workspaceId,
+      });
+      if (!parsed.success)
+        return res
+          .status(400)
+          .json({ message: parsed.error.errors[0].message });
+      // Idempotent — reuses an existing case-insensitive match instead of
+      // fragmenting the dropdown (see storage.createTagValue).
+      const item = await storage.createTagValue(parsed.data);
+      res.status(201).json(item);
+    },
+  );
+
+  // ── Visit Routes (named inspection rounds) ───────────────────────────────────
+
+  app.get("/api/projects/:projectId/visits", requireAuth, async (req, res) => {
+    const user = req.user as any;
+    const items = await storage.getVisitsByProject(
+      req.params.projectId as string,
+      user.workspaceId,
+    );
+    res.json(items);
+  });
+
+  // The camera button always targets this — "current" is simply the most
+  // recently created visit, no separate flag needed. Returns 404 if the
+  // project has no visits yet, so the client knows to prompt "name this visit".
+  app.get(
+    "/api/projects/:projectId/visits/current",
+    requireAuth,
+    async (req, res) => {
+      const user = req.user as any;
+      const current = await storage.getCurrentVisit(
+        req.params.projectId as string,
+        user.workspaceId,
+      );
+      if (!current) return res.status(404).json({ message: "No visits yet" });
+      res.json(current);
+    },
+  );
+
+  app.post(
+    "/api/projects/:projectId/visits",
+    requireWriteAccess,
+    requireActiveTrial,
+    async (req, res) => {
+      const user = req.user as any;
+      const parsed = insertVisitSchema.safeParse({
+        ...req.body,
+        projectId: req.params.projectId as string,
+        workspaceId: user.workspaceId,
+      });
+      if (!parsed.success)
+        return res
+          .status(400)
+          .json({ message: parsed.error.errors[0].message });
+      const item = await storage.createVisit(parsed.data);
+      res.status(201).json(item);
     },
   );
 
@@ -917,11 +1064,29 @@ export async function registerRoutes(
     requireAuth,
     async (req, res) => {
       const user = req.user as any;
+      const visitId = req.query.visitId as string | undefined;
+      const tagValueIds = req.query.tagValueIds
+        ? (req.query.tagValueIds as string).split(",").filter(Boolean)
+        : undefined;
       const items = await spatialStorage.getCapturesByProject(
         req.params.projectId as string,
         user.workspaceId,
+        { visitId, tagValueIds },
       );
-      res.json(items);
+      // Hydrate each capture's tags in one query, so the grid/filter UI can
+      // show tag chips + power the "Untagged" filter without N+1 requests.
+      const tagRows = await spatialStorage.getTagsForCaptures(
+        items.map((c) => c.id),
+      );
+      const tagsByCapture = new Map<string, typeof tagRows>();
+      for (const row of tagRows) {
+        const list = tagsByCapture.get(row.captureId) ?? [];
+        list.push(row);
+        tagsByCapture.set(row.captureId, list);
+      }
+      res.json(
+        items.map((c) => ({ ...c, tags: tagsByCapture.get(c.id) ?? [] })),
+      );
     },
   );
 
@@ -931,6 +1096,7 @@ export async function registerRoutes(
     requireActiveTrial,
     async (req, res) => {
       const user = req.user as any;
+      const { tagValueIds, ...captureBody } = req.body;
 
       // Trial capture limit
       const workspace = await storage.getWorkspace(user.workspaceId);
@@ -949,8 +1115,28 @@ export async function registerRoutes(
         }
       }
 
+      // Every capture must belong to a visit. If the client didn't pass one
+      // explicitly (the common case — camera button just uses whatever's
+      // current), resolve it here. If the project truly has no visits yet,
+      // fail clearly so the client can prompt "name this visit" and retry —
+      // we never silently invent one on the server.
+      let visitId = captureBody.visitId;
+      if (!visitId) {
+        const current = await storage.getCurrentVisit(
+          req.params.projectId as string,
+          user.workspaceId,
+        );
+        if (!current)
+          return res.status(400).json({
+            message: "Create a visit before adding captures.",
+            needsVisit: true,
+          });
+        visitId = current.id;
+      }
+
       const parsed = insertCaptureSchema.safeParse({
-        ...req.body,
+        ...captureBody,
+        visitId,
         projectId: req.params.projectId as string,
         workspaceId: user.workspaceId,
       });
@@ -976,7 +1162,57 @@ export async function registerRoutes(
       }
 
       const item = await spatialStorage.createCapture(parsed.data);
+
+      if (Array.isArray(tagValueIds) && tagValueIds.length > 0) {
+        await spatialStorage.setCaptureTags(
+          item.id,
+          user.workspaceId,
+          tagValueIds,
+        );
+      }
+
       res.status(201).json(item);
+    },
+  );
+
+  // Replaces a capture's tag set (used by the capture edit form).
+  app.patch(
+    "/api/captures/:id/tags",
+    requireWriteAccess,
+    requireActiveTrial,
+    async (req, res) => {
+      const user = req.user as any;
+      const { tagValueIds } = req.body;
+      if (!Array.isArray(tagValueIds))
+        return res.status(400).json({ message: "tagValueIds must be an array." });
+      const rows = await spatialStorage.setCaptureTags(
+        req.params.id as string,
+        user.workspaceId,
+        tagValueIds,
+      );
+      res.json(rows);
+    },
+  );
+
+  // Adds tags to several captures at once without removing existing ones —
+  // used by the "Untagged" bulk-apply cleanup action.
+  app.post(
+    "/api/projects/:projectId/captures/bulk-tag",
+    requireWriteAccess,
+    requireActiveTrial,
+    async (req, res) => {
+      const { captureIds, tagValueIds } = req.body;
+      const user = req.user as any;
+      if (!Array.isArray(captureIds) || !Array.isArray(tagValueIds))
+        return res
+          .status(400)
+          .json({ message: "captureIds and tagValueIds must be arrays." });
+      await Promise.all(
+        captureIds.map((captureId: string) =>
+          spatialStorage.addCaptureTags(captureId, user.workspaceId, tagValueIds),
+        ),
+      );
+      res.json({ success: true });
     },
   );
 

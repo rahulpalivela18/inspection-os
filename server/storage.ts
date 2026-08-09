@@ -1,13 +1,16 @@
-import { eq, and, desc, asc, sql } from "drizzle-orm";
+import { eq, and, desc, asc, sql, inArray } from "drizzle-orm";
 import { db } from "./db";
 import {
   users,
   workspaces,
   projects,
+  tagValues,
+  visits,
   reports,
   checklistTemplates,
   invoices,
   captures,
+  captureTags,
   hotspots,
   progressLogs,
   shareLinks,
@@ -20,6 +23,10 @@ import {
   type InsertWorkspace,
   type Project,
   type InsertProject,
+  type TagValue,
+  type InsertTagValue,
+  type Visit,
+  type InsertVisit,
   type Report,
   type InsertReport,
   type ChecklistTemplate,
@@ -28,6 +35,8 @@ import {
   type InsertInvoice,
   type Capture,
   type InsertCapture,
+  type CaptureTag,
+  type InsertCaptureTag,
   type Hotspot,
   type InsertHotspot,
   type ProgressLog,
@@ -174,6 +183,22 @@ export interface IStorage {
     data: Partial<InsertWorkspaceRate>,
   ): Promise<WorkspaceRate | undefined>;
   deleteWorkspaceRate(id: string, workspaceId: string): Promise<boolean>;
+
+  // Tag Values (Block/Floor/Flat/Amenity vocabulary)
+  getTagValues(
+    projectId: string,
+    workspaceId: string,
+    category?: string,
+  ): Promise<TagValue[]>;
+  createTagValue(data: InsertTagValue): Promise<TagValue>;
+
+  // Visits (named inspection rounds)
+  getVisitsByProject(projectId: string, workspaceId: string): Promise<Visit[]>;
+  getCurrentVisit(
+    projectId: string,
+    workspaceId: string,
+  ): Promise<Visit | undefined>;
+  createVisit(data: InsertVisit): Promise<Visit>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -266,6 +291,66 @@ export class DatabaseStorage implements IStorage {
       .returning();
     return result.length > 0;
   }
+  // Tag Values
+  async getTagValues(projectId: string, workspaceId: string, category?: string) {
+    const conditions = [
+      eq(tagValues.projectId, projectId),
+      eq(tagValues.workspaceId, workspaceId),
+    ];
+    if (category) conditions.push(eq(tagValues.category, category as any));
+    return db
+      .select()
+      .from(tagValues)
+      .where(and(...conditions))
+      .orderBy(asc(tagValues.value));
+  }
+  async createTagValue(data: InsertTagValue) {
+    // Idempotent on (project, category, case-insensitive value) — "Other"
+    // re-adding an existing value (e.g. typed slightly differently) reuses
+    // the same row instead of fragmenting the dropdown.
+    const [existing] = await db
+      .select()
+      .from(tagValues)
+      .where(
+        and(
+          eq(tagValues.projectId, data.projectId),
+          eq(tagValues.category, data.category),
+          sql`lower(${tagValues.value}) = lower(${data.value})`,
+        ),
+      );
+    if (existing) return existing;
+    const [row] = await db.insert(tagValues).values(data).returning();
+    return row;
+  }
+
+  // Visits
+  async getVisitsByProject(projectId: string, workspaceId: string) {
+    return db
+      .select()
+      .from(visits)
+      .where(
+        and(eq(visits.projectId, projectId), eq(visits.workspaceId, workspaceId)),
+      )
+      .orderBy(desc(visits.createdAt));
+  }
+  async getCurrentVisit(projectId: string, workspaceId: string) {
+    // "Current" = most recently created. No separate flag needed — the only
+    // way a new one becomes current is the explicit "+ New Visit" action.
+    const [row] = await db
+      .select()
+      .from(visits)
+      .where(
+        and(eq(visits.projectId, projectId), eq(visits.workspaceId, workspaceId)),
+      )
+      .orderBy(desc(visits.createdAt))
+      .limit(1);
+    return row;
+  }
+  async createVisit(data: InsertVisit) {
+    const [row] = await db.insert(visits).values(data).returning();
+    return row;
+  }
+
   async getChecklistTemplates(workspaceId: string, type?: string) {
     const conditions = [eq(checklistTemplates.workspaceId, workspaceId)];
     if (type) {
@@ -637,17 +722,31 @@ export class DatabaseStorage implements IStorage {
 
 export class SpatialStorage {
   // Captures
-  async getCapturesByProject(projectId: string, workspaceId: string) {
-    return db
+  async getCapturesByProject(
+    projectId: string,
+    workspaceId: string,
+    filters?: { visitId?: string; tagValueIds?: string[] },
+  ) {
+    const conditions = [
+      eq(captures.projectId, projectId),
+      eq(captures.workspaceId, workspaceId),
+    ];
+    if (filters?.visitId) conditions.push(eq(captures.visitId, filters.visitId));
+    let rows = await db
       .select()
       .from(captures)
-      .where(
-        and(
-          eq(captures.projectId, projectId),
-          eq(captures.workspaceId, workspaceId),
-        ),
-      )
+      .where(and(...conditions))
       .orderBy(desc(captures.createdAt));
+
+    if (filters?.tagValueIds && filters.tagValueIds.length > 0) {
+      const matches = await db
+        .selectDistinct({ captureId: captureTags.captureId })
+        .from(captureTags)
+        .where(inArray(captureTags.tagValueId, filters.tagValueIds));
+      const matchingIds = new Set(matches.map((m) => m.captureId));
+      rows = rows.filter((r) => matchingIds.has(r.id));
+    }
+    return rows;
   }
 
   async getCapturesByWorkspace(workspaceId: string) {
@@ -737,6 +836,59 @@ export class SpatialStorage {
       .where(and(eq(hotspots.id, id), eq(hotspots.workspaceId, workspaceId)))
       .returning();
     return result.length > 0;
+  }
+
+  // Capture Tags
+  async getCaptureTags(captureId: string) {
+    return db
+      .select()
+      .from(captureTags)
+      .where(eq(captureTags.captureId, captureId));
+  }
+
+  // Bulk-hydrate tags (with their category/value) for a set of captures in
+  // one query — used to render tag chips on the capture grid without N+1s.
+  async getTagsForCaptures(captureIds: string[]) {
+    if (captureIds.length === 0) return [];
+    return db
+      .select({
+        captureId: captureTags.captureId,
+        tagValueId: captureTags.tagValueId,
+        category: tagValues.category,
+        value: tagValues.value,
+      })
+      .from(captureTags)
+      .innerJoin(tagValues, eq(tagValues.id, captureTags.tagValueId))
+      .where(inArray(captureTags.captureId, captureIds));
+  }
+
+  // Replaces a capture's full tag set — used by the capture form (create/edit).
+  async setCaptureTags(
+    captureId: string,
+    workspaceId: string,
+    tagValueIds: string[],
+  ) {
+    await db.delete(captureTags).where(eq(captureTags.captureId, captureId));
+    if (tagValueIds.length === 0) return [];
+    return db
+      .insert(captureTags)
+      .values(tagValueIds.map((tagValueId) => ({ workspaceId, captureId, tagValueId })))
+      .returning();
+  }
+
+  // Adds tags to a capture without removing existing ones — used by the
+  // "Untagged" bulk-apply cleanup action.
+  async addCaptureTags(
+    captureId: string,
+    workspaceId: string,
+    tagValueIds: string[],
+  ) {
+    if (tagValueIds.length === 0) return [];
+    return db
+      .insert(captureTags)
+      .values(tagValueIds.map((tagValueId) => ({ workspaceId, captureId, tagValueId })))
+      .onConflictDoNothing()
+      .returning();
   }
 }
 

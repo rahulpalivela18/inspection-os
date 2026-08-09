@@ -9,6 +9,8 @@ import {
   jsonb,
   integer,
   numeric,
+  uniqueIndex,
+  index,
 } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
@@ -102,6 +104,11 @@ export const projects = pgTable("projects", {
   address: text("address"),
   description: text("description"),
   isPinned: boolean("is_pinned").notNull().default(false),
+  // "single" = One Building (simple, minimal tagging). "multi" = Multi-Block
+  // Project (blocks/floors/flats seeded via the creation questionnaire).
+  projectType: text("project_type", { enum: ["single", "multi"] })
+    .notNull()
+    .default("single"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -111,6 +118,82 @@ export const insertProjectSchema = createInsertSchema(projects).omit({
 });
 export type InsertProject = z.infer<typeof insertProjectSchema>;
 export type Project = typeof projects.$inferSelect;
+
+// ─── Tag Values (per-project vocabulary for Block/Floor/Flat/Amenity) ────────
+// Powers every faceted-tag dropdown on a capture. Self-populating: seeded by
+// the project creation questionnaire, and appended whenever someone picks
+// "Other" while tagging a capture. Category is plain text (not an enum table)
+// on purpose — a fixed set of four ships in v1, but adding a custom category
+// later ("Wing", "Tower") becomes a pure data insert with zero migration.
+export const tagValues = pgTable(
+  "tag_values",
+  {
+    id: varchar("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    workspaceId: varchar("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    projectId: varchar("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    category: text("category", {
+      enum: ["block", "floor", "flat", "amenity"],
+    }).notNull(),
+    value: text("value").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    // Case-insensitive dedup — "401", "Flat 401", "flat401" must not fragment
+    // the same dropdown into three different filter values.
+    uniqueIndex("tag_values_unique").on(
+      table.projectId,
+      table.category,
+      sql`lower(${table.value})`,
+    ),
+    index("tag_values_lookup_idx").on(table.projectId, table.category),
+  ],
+);
+
+export const insertTagValueSchema = createInsertSchema(tagValues).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertTagValue = z.infer<typeof insertTagValueSchema>;
+export type TagValue = typeof tagValues.$inferSelect;
+
+// ─── Visits (WHEN, not WHERE) ─────────────────────────────────────────────────
+// A named, explicit inspection round ("Initial Inspection", "Stage Inspection
+// – Mar 2026"). Unlike tag_values (optional, descriptive, soft), a visit is a
+// hard structural fact — every capture belongs to exactly one (see
+// `captures.visitId` below, NOT NULL). The "current" visit for a project is
+// simply the most-recently-created row; no separate "active" flag is needed.
+// The camera button always uses the current visit; a "+ New Visit" action is
+// the only way a new one starts — no automatic time-gap guessing.
+export const visits = pgTable(
+  "visits",
+  {
+    id: varchar("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    workspaceId: varchar("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    projectId: varchar("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [index("visits_project_idx").on(table.projectId, table.createdAt)],
+);
+
+export const insertVisitSchema = createInsertSchema(visits).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertVisit = z.infer<typeof insertVisitSchema>;
+export type Visit = typeof visits.$inferSelect;
 
 // ─── Reports ──────────────────────────────────────────────────────────────────
 export const reports = pgTable("reports", {
@@ -333,6 +416,13 @@ export const captures = spatial.table("captures", {
   projectId: varchar("project_id")
     .notNull()
     .references(() => projects.id, { onDelete: "cascade" }),
+  // Which inspection round this photo belongs to — always required (see
+  // `visits` above). The camera button auto-resolves this to the project's
+  // current visit; the client only sends it explicitly if the user just
+  // created a new visit.
+  visitId: varchar("visit_id")
+    .notNull()
+    .references(() => visits.id, { onDelete: "cascade" }),
   title: text("title").notNull(),
   imageUrl: text("image_url").notNull(),
   thumbnailUrl: text("thumbnail_url"),
@@ -348,6 +438,39 @@ export const insertCaptureSchema = createInsertSchema(captures).omit({
 });
 export type InsertCapture = z.infer<typeof insertCaptureSchema>;
 export type Capture = typeof captures.$inferSelect;
+
+// ─── Capture Tags (join: which Block/Floor/Flat/Amenity a capture carries) ───
+// A normalized join (not columns-on-capture) so a capture can carry several
+// facets, and adding a custom category later needs no schema change.
+export const captureTags = spatial.table(
+  "capture_tags",
+  {
+    id: varchar("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    workspaceId: varchar("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    captureId: varchar("capture_id")
+      .notNull()
+      .references(() => captures.id, { onDelete: "cascade" }),
+    tagValueId: varchar("tag_value_id")
+      .notNull()
+      .references(() => tagValues.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("capture_tags_unique").on(table.captureId, table.tagValueId),
+    index("capture_tags_tagvalue_idx").on(table.tagValueId),
+  ],
+);
+
+export const insertCaptureTagSchema = createInsertSchema(captureTags).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertCaptureTag = z.infer<typeof insertCaptureTagSchema>;
+export type CaptureTag = typeof captureTags.$inferSelect;
 
 export const hotspots = spatial.table("hotspots", {
   id: varchar("id")

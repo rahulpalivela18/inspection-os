@@ -39,14 +39,27 @@ import {
   Clock,
   ArrowLeft,
   FileText,
+  Camera,
+  CalendarPlus,
+  Tags,
+  CheckSquare,
 } from "lucide-react";
 import { useRoute, useLocation } from "wouter";
 import { ProjectTabs } from "@/components/ProjectTabs";
 import { useToast } from "@/hooks/use-toast";
-import { ensureJpeg } from "@/lib/utils";
+import { ensureJpeg, cn } from "@/lib/utils";
 import CapturePDF from "@/components/CapturePDF";
 import { pdf } from "@react-pdf/renderer";
 import { useAuth } from "@/lib/auth";
+import { TagSelect, type TagOption } from "@/components/TagSelect";
+
+const TAG_CATEGORIES = [
+  { key: "block", label: "Block" },
+  { key: "floor", label: "Floor" },
+  { key: "flat", label: "Flat" },
+  { key: "amenity", label: "Amenity" },
+] as const;
+type TagCategory = (typeof TAG_CATEGORIES)[number]["key"];
 
 import {
   SEVERITY_COLORS,
@@ -69,18 +82,47 @@ export default function CaptureManager() {
 
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [newTitle, setNewTitle] = useState("");
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [is360Upload, setIs360Upload] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [exportingAll, setExportingAll] = useState(false);
 
-  /* ── Filters ── */
+  /* ── Tags: which value is selected per category while tagging, and the
+     "sticky" last-used values that pre-fill the next capture automatically
+     so nobody re-fills Block/Floor/Flat for every photo in the same spot ── */
+  const [selectedTagIds, setSelectedTagIds] = useState<
+    Partial<Record<TagCategory, string>>
+  >({});
+
+  /* ── Burst mode: tag once, then the camera keeps firing with no dialog
+     interruption between shots ── */
+  const [burstMode, setBurstMode] = useState(false);
+  const [burstCount, setBurstCount] = useState(0);
+
+  /* ── Visits (named inspection rounds) ── */
+  const [isNewVisitOpen, setIsNewVisitOpen] = useState(false);
+  const [newVisitTitle, setNewVisitTitle] = useState("");
+  const [openCameraAfterVisit, setOpenCameraAfterVisit] = useState(false);
+
+  /* ── "Untagged" bulk cleanup ── */
+  const [isBulkTagOpen, setIsBulkTagOpen] = useState(false);
+  const [bulkTagIds, setBulkTagIds] = useState<
+    Partial<Record<TagCategory, string>>
+  >({});
+
+  /* ── Filters — visible the moment captures load, not gated behind
+     analytics/hotspot loading. Search is the primary tool here. ── */
   const [areaFilter, setAreaFilter] = useState("all");
   const [severityFilter, setSeverityFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
+  const [tagFilters, setTagFilters] = useState<
+    Partial<Record<TagCategory, string>>
+  >({});
+  const [visitFilter, setVisitFilter] = useState<string>("all");
+  const [untaggedOnly, setUntaggedOnly] = useState(false);
 
   const projectId = params?.id;
 
@@ -93,6 +135,41 @@ export default function CaptureManager() {
   const { data: captures = [], isLoading } = useQuery({
     queryKey: ["captures", projectId],
     queryFn: () => api.getCaptures(projectId!),
+    enabled: !!projectId,
+  });
+
+  const { data: tagValues = [] } = useQuery({
+    queryKey: ["tagValues", projectId],
+    queryFn: () => api.getTagValues(projectId!),
+    enabled: !!projectId,
+  });
+  const tagsByCategory: Record<TagCategory, TagOption[]> = {
+    block: [],
+    floor: [],
+    flat: [],
+    amenity: [],
+  };
+  for (const t of tagValues as any[]) {
+    tagsByCategory[t.category as TagCategory]?.push({ id: t.id, value: t.value });
+  }
+
+  const { data: visits = [] } = useQuery({
+    queryKey: ["visits", projectId],
+    queryFn: () => api.getVisits(projectId!),
+    enabled: !!projectId,
+  });
+
+  // "No visit yet" is a normal state (brand-new project), not an error — the
+  // camera button uses this to decide whether to prompt for a visit name.
+  const { data: currentVisit } = useQuery({
+    queryKey: ["currentVisit", projectId],
+    queryFn: async () => {
+      try {
+        return await api.getCurrentVisit(projectId!);
+      } catch {
+        return null;
+      }
+    },
     enabled: !!projectId,
   });
 
@@ -236,47 +313,124 @@ export default function CaptureManager() {
         (c: any) =>
           !search || c.title.toLowerCase().includes(search.toLowerCase())
       )
+      .filter((c: any) => visitFilter === "all" || c.visitId === visitFilter)
+      .filter((c: any) =>
+        untaggedOnly ? (c.tags?.length ?? 0) === 0 : true
+      )
+      .filter((c: any) => {
+        for (const cat of TAG_CATEGORIES.map((t) => t.key)) {
+          const wanted = tagFilters[cat];
+          if (!wanted) continue;
+          if (!c.tags?.some((t: any) => t.tagValueId === wanted)) return false;
+        }
+        return true;
+      })
       .sort(
         (a: any, b: any) =>
           new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       );
-  }, [captures, areaFilter, search]);
+  }, [captures, areaFilter, search, visitFilter, untaggedOnly, tagFilters]);
+
+  const untaggedCount = captures.filter(
+    (c: any) => (c.tags?.length ?? 0) === 0
+  ).length;
+
+  function readFileAsCapture(file: File) {
+    return new Promise<{ dataUrl: string; width: number; height: number }>(
+      (resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const dataUrl = reader.result as string;
+          const img = new Image();
+          img.onload = () =>
+            resolve({
+              dataUrl,
+              width: img.naturalWidth,
+              height: img.naturalHeight,
+            });
+          img.onerror = reject;
+          img.src = dataUrl;
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      }
+    );
+  }
 
   const uploadMutation = useMutation({
     mutationFn: async () => {
-      if (!selectedFile || !newTitle || !projectId) return;
-      const file = selectedFile;
-      const dataUrl = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      });
-      const img = new Image();
-      const dimensions = await new Promise<{ width: number; height: number }>(
-        (resolve, reject) => {
-          img.onload = () =>
-            resolve({ width: img.naturalWidth, height: img.naturalHeight });
-          img.onerror = reject;
-          img.src = dataUrl;
-        }
+      if (selectedFiles.length === 0 || !projectId || !currentVisit) return;
+      const tagValueIds = Object.values(selectedTagIds).filter(Boolean) as string[];
+      // Multiple files selected at once (native multi-select import) share
+      // the same title/tags — a bulk import of one batch, tagged once.
+      const results = await Promise.all(
+        selectedFiles.map(async (file, i) => {
+          const { dataUrl, width, height } = await readFileAsCapture(file);
+          const title =
+            selectedFiles.length > 1
+              ? `${newTitle || "Capture"} ${i + 1}`
+              : newTitle || "Capture";
+          return api.createCapture(projectId, {
+            title,
+            imageUrl: dataUrl,
+            width,
+            height,
+            is360: is360Upload,
+            visitId: currentVisit.id,
+            tagValueIds,
+          });
+        })
       );
-      return api.createCapture(projectId, {
-        title: newTitle,
-        imageUrl: dataUrl,
-        width: dimensions.width,
-        height: dimensions.height,
-        is360: is360Upload,
-      });
+      return results;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["captures", projectId] });
       refreshTrial();
-      setIsUploadOpen(false);
-      setNewTitle("");
-      setSelectedFile(null);
+      setSelectedFiles([]);
       setPreviewUrl(null);
       setIs360Upload(false);
+      if (burstMode) {
+        // Stay open, keep the same tags, just bump the counter and let the
+        // user fire the next shot — no re-tagging between photos.
+        setBurstCount((n) => n + selectedFiles.length);
+      } else {
+        setIsUploadOpen(false);
+        setNewTitle("");
+      }
+    },
+    onError: (err: any) =>
+      toast({ title: "Error", description: err.message, variant: "destructive" }),
+  });
+
+  const createVisitMutation = useMutation({
+    mutationFn: (title: string) => api.createVisit(projectId!, title),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["visits", projectId] });
+      queryClient.invalidateQueries({ queryKey: ["currentVisit", projectId] });
+      setIsNewVisitOpen(false);
+      setNewVisitTitle("");
+      if (openCameraAfterVisit) {
+        setOpenCameraAfterVisit(false);
+        setIsUploadOpen(true);
+      }
+    },
+    onError: (err: any) =>
+      toast({ title: "Error", description: err.message, variant: "destructive" }),
+  });
+
+  const bulkTagMutation = useMutation({
+    mutationFn: () => {
+      const ids = Object.values(bulkTagIds).filter(Boolean) as string[];
+      const untaggedIds = captures
+        .filter((c: any) => (c.tags?.length ?? 0) === 0)
+        .map((c: any) => c.id);
+      return api.bulkTagCaptures(projectId!, untaggedIds, ids);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["captures", projectId] });
+      setIsBulkTagOpen(false);
+      setBulkTagIds({});
+      toast({ title: "Tags applied" });
     },
     onError: (err: any) =>
       toast({ title: "Error", description: err.message, variant: "destructive" }),
@@ -301,8 +455,9 @@ export default function CaptureManager() {
       const logoUrl = workspace?.logoUrl
         ? await ensureJpeg(workspace.logoUrl)
         : undefined;
+      const exportSet = filteredCaptures;
       const captureData = await Promise.all(
-        captures.map(async (fp: any) => {
+        exportSet.map(async (fp: any) => {
           const pins = await api.getHotspots(fp.id);
           const imageUrl = await ensureJpeg(fp.imageUrl);
           return {
@@ -311,7 +466,7 @@ export default function CaptureManager() {
             imageUrl,
             imageWidth: fp.width,
             imageHeight: fp.height,
-            totalCaptures: captures.length,
+            totalCaptures: exportSet.length,
             companyName: workspace?.name,
             companyLogoUrl: logoUrl,
             companyAddress: workspace?.address,
@@ -384,11 +539,26 @@ export default function CaptureManager() {
   }
 
   function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setSelectedFile(file);
-    const url = URL.createObjectURL(file);
-    setPreviewUrl(url);
+    const files = Array.from(e.target.files ?? []);
+    if (files.length === 0) return;
+    setSelectedFiles(files);
+    // Preview only makes sense for a single file — a multi-select import
+    // just shows a count (see the dialog JSX below).
+    setPreviewUrl(files.length === 1 ? URL.createObjectURL(files[0]) : null);
+  }
+
+  // The camera button always targets the current visit. If this project has
+  // no visit yet (brand new), prompt for one first — the same small dialog
+  // as "+ New Visit" — then open the capture form automatically once it's
+  // created. No auto-detection, no guessing: the user is always in control.
+  function handleCameraClick() {
+    if (!currentVisit) {
+      setOpenCameraAfterVisit(true);
+      setIsNewVisitOpen(true);
+      return;
+    }
+    setBurstCount(0);
+    setIsUploadOpen(true);
   }
 
   const kpiCards = [
@@ -478,6 +648,15 @@ export default function CaptureManager() {
                 {uniqueAreas.length}{" "}
                 {uniqueAreas.length === 1 ? "Area" : "Areas"}
               </span>
+              {currentVisit && (
+                <>
+                  <span className="w-[3px] h-[3px] rounded-full bg-slate-400" />
+                  <span className="inline-flex items-center gap-1 font-medium text-indigo-600">
+                    <CalendarPlus className="h-3 w-3" />
+                    Visit: {currentVisit.title}
+                  </span>
+                </>
+              )}
             </div>
           </div>
           <div className="flex items-center gap-2.5 shrink-0">
@@ -490,18 +669,44 @@ export default function CaptureManager() {
                 className="h-9"
               >
                 <FileDown className="h-4 w-4 mr-1.5" />
-                {exportingAll ? "Exporting..." : "Export PDF"}
+                {exportingAll
+                  ? "Exporting..."
+                  : filteredCaptures.length !== captures.length
+                    ? `Export PDF (${filteredCaptures.length})`
+                    : "Export PDF"}
               </Button>
             )}
             {user?.role !== "viewer" && (
-              <Button
-                size="sm"
-                onClick={() => setIsUploadOpen(true)}
-                className="h-9 bg-indigo-600 hover:bg-indigo-700"
-              >
-                <Plus className="h-4 w-4 mr-1.5" />
-                New Capture
-              </Button>
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-9"
+                  onClick={() => {
+                    setNewVisitTitle(
+                      new Date().toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric",
+                      })
+                    );
+                    setOpenCameraAfterVisit(false);
+                    setIsNewVisitOpen(true);
+                  }}
+                  title="Start a new named inspection round, e.g. 'Stage Inspection'"
+                >
+                  <CalendarPlus className="h-4 w-4 mr-1.5" />
+                  New Visit
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={handleCameraClick}
+                  className="h-9 bg-indigo-600 hover:bg-indigo-700"
+                >
+                  <Camera className="h-4 w-4 mr-1.5" />
+                  New Capture
+                </Button>
+              </>
             )}
           </div>
         </div>
@@ -523,9 +728,9 @@ export default function CaptureManager() {
                 <Button
                   size="lg"
                   className="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-600/20"
-                  onClick={() => setIsUploadOpen(true)}
+                  onClick={handleCameraClick}
                 >
-                  <Plus className="h-4 w-4 mr-2" /> Add Capture
+                  <Camera className="h-4 w-4 mr-2" /> Add Capture
                 </Button>
               )}
               <Button
@@ -540,6 +745,97 @@ export default function CaptureManager() {
           </div>
         ) : (
           <>
+            {/* ── Search & Filter — the most powerful tool in the app, visible
+                the instant captures load, never hidden behind analytics ── */}
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+              <div className="flex flex-wrap items-center gap-2.5 px-5 py-4">
+                <div className="relative flex-1 min-w-[220px]">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                  <input
+                    value={search}
+                    onChange={(e) => {
+                      setSearch(e.target.value);
+                      setPage(1);
+                    }}
+                    placeholder="Search captures..."
+                    className="w-full h-9 rounded-lg border border-slate-200 pl-9 pr-3 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                  />
+                </div>
+                <select
+                  className={selectCls}
+                  value={areaFilter}
+                  onChange={(e) => {
+                    setAreaFilter(e.target.value);
+                    setPage(1);
+                  }}
+                >
+                  <option value="all">All Areas</option>
+                  {uniqueAreas.map((a) => (
+                    <option key={a} value={a}>
+                      {a}
+                    </option>
+                  ))}
+                </select>
+                {TAG_CATEGORIES.map(({ key, label }) => (
+                  <TagSelect
+                    key={key}
+                    label={label}
+                    values={tagsByCategory[key]}
+                    selectedId={tagFilters[key] ?? null}
+                    onChange={(id) =>
+                      setTagFilters((prev) => ({ ...prev, [key]: id ?? undefined }))
+                    }
+                    allOption={{ label: `All ${label}s` }}
+                  />
+                ))}
+                {visits.length > 0 && (
+                  <select
+                    className={selectCls}
+                    value={visitFilter}
+                    onChange={(e) => setVisitFilter(e.target.value)}
+                  >
+                    <option value="all">All Visits</option>
+                    {visits.map((v: any) => (
+                      <option key={v.id} value={v.id}>
+                        {v.title}
+                      </option>
+                    ))}
+                  </select>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setUntaggedOnly((v) => !v)}
+                  className={cn(
+                    "h-9 rounded-lg border px-3 text-sm font-medium transition-colors",
+                    untaggedOnly
+                      ? "border-amber-300 bg-amber-50 text-amber-700"
+                      : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
+                  )}
+                >
+                  <Tags className="h-3.5 w-3.5 inline mr-1.5 -mt-0.5" />
+                  Untagged {untaggedCount > 0 && `(${untaggedCount})`}
+                </button>
+              </div>
+
+              {untaggedCount > 0 && (
+                <div className="flex items-center justify-between gap-3 px-5 py-3 border-t border-amber-100 bg-amber-50/60">
+                  <p className="text-[13px] text-amber-800">
+                    {untaggedCount} capture{untaggedCount === 1 ? "" : "s"}{" "}
+                    {untaggedCount === 1 ? "has" : "have"} no tags yet.
+                  </p>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-8 border-amber-300 text-amber-700 hover:bg-amber-100"
+                    onClick={() => setIsBulkTagOpen(true)}
+                  >
+                    <CheckSquare className="h-3.5 w-3.5 mr-1.5" />
+                    Apply tags to all
+                  </Button>
+                </div>
+              )}
+            </div>
+
             {/* ── KPI Cards ── */}
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 lg:gap-4">
               {kpiCards.map((kpi) => (
@@ -582,26 +878,12 @@ export default function CaptureManager() {
               </div>
             )}
 
-            {/* ── Filters + Area Wise Defect Summary ── */}
+            {/* ── Area Wise Defect Summary (severity/status filters only — the
+                search + area + tag + visit filters above already scope this
+                by area/search) ── */}
             {hotspotsLoaded && (
               <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-                {/* Filter bar */}
                 <div className="flex flex-wrap items-center gap-2.5 px-5 py-4 border-b border-slate-100">
-                  <select
-                    className={selectCls}
-                    value={areaFilter}
-                    onChange={(e) => {
-                      setAreaFilter(e.target.value);
-                      setPage(1);
-                    }}
-                  >
-                    <option value="all">All Areas</option>
-                    {uniqueAreas.map((a) => (
-                      <option key={a} value={a}>
-                        {a}
-                      </option>
-                    ))}
-                  </select>
                   <select
                     className={selectCls}
                     value={severityFilter}
@@ -628,18 +910,6 @@ export default function CaptureManager() {
                     <option value="In Progress">In Progress</option>
                     <option value="Resolved">Resolved</option>
                   </select>
-                  <div className="relative flex-1 min-w-[200px]">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                    <input
-                      value={search}
-                      onChange={(e) => {
-                        setSearch(e.target.value);
-                        setPage(1);
-                      }}
-                      placeholder="Search area or issue..."
-                      className="w-full h-9 rounded-lg border border-slate-200 pl-9 pr-3 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
-                    />
-                  </div>
                 </div>
 
                 <p className="px-6 pt-5 pb-1 text-[15px] font-bold text-slate-900">
@@ -705,6 +975,18 @@ export default function CaptureManager() {
                         <p className="text-xs text-slate-400 mt-1">
                           {capTotal} {capTotal === 1 ? "hotspot" : "hotspots"}
                         </p>
+                        {fp.tags?.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-2">
+                            {fp.tags.map((t: any) => (
+                              <span
+                                key={t.tagValueId}
+                                className="inline-block rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-600"
+                              >
+                                {t.value}
+                              </span>
+                            ))}
+                          </div>
+                        )}
                         <p className="text-[11.5px] text-slate-400 mt-2 flex items-center gap-1.5">
                           <Clock className="h-3 w-3" />
                           {fp.createdAt
@@ -731,11 +1013,15 @@ export default function CaptureManager() {
       <Dialog open={isUploadOpen} onOpenChange={setIsUploadOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Upload Capture</DialogTitle>
+            <DialogTitle>
+              {burstMode && burstCount > 0
+                ? `Add Capture — ${burstCount} captured here`
+                : "Add Capture"}
+            </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <Label htmlFor="title">Title</Label>
+              <Label htmlFor="title">Title (optional)</Label>
               <Input
                 id="title"
                 value={newTitle}
@@ -744,16 +1030,23 @@ export default function CaptureManager() {
               />
             </div>
             <div>
-              <Label htmlFor="file">Image File</Label>
+              <Label htmlFor="file">
+                Photo{selectedFiles.length > 1 ? "s" : ""}
+              </Label>
               <Input
                 id="file"
                 type="file"
                 ref={fileInputRef}
                 accept="image/png,image/jpeg,image/webp"
+                multiple
                 onChange={handleFileSelect}
               />
+              <p className="text-[11px] text-slate-400 mt-1">
+                Select several at once to import a batch already taken with
+                your camera — they'll all get the same tags below.
+              </p>
             </div>
-            {previewUrl && (
+            {previewUrl ? (
               <div className="aspect-4/3 bg-slate-100 rounded-md overflow-hidden">
                 <img
                   src={previewUrl}
@@ -761,7 +1054,46 @@ export default function CaptureManager() {
                   className="w-full h-full object-contain"
                 />
               </div>
-            )}
+            ) : selectedFiles.length > 1 ? (
+              <p className="text-sm text-slate-600 bg-slate-50 rounded-md px-3 py-2">
+                {selectedFiles.length} photos selected
+              </p>
+            ) : null}
+
+            {/* ── Tags: Block/Floor/Flat/Amenity, none required. Values
+                stay pre-filled from your last capture (sticky) so you don't
+                re-tag every photo in the same spot. ── */}
+            <div>
+              <Label>Tags (optional)</Label>
+              <div className="flex flex-wrap gap-2 mt-1.5">
+                {TAG_CATEGORIES.map(({ key, label }) => (
+                  <TagSelect
+                    key={key}
+                    label={label}
+                    values={tagsByCategory[key]}
+                    selectedId={selectedTagIds[key] ?? null}
+                    placeholder={label}
+                    onChange={(id) =>
+                      setSelectedTagIds((prev) => ({
+                        ...prev,
+                        [key]: id ?? undefined,
+                      }))
+                    }
+                    onCreate={async (value) => {
+                      const created = await api.createTagValue(projectId!, {
+                        category: key,
+                        value,
+                      });
+                      queryClient.invalidateQueries({
+                        queryKey: ["tagValues", projectId],
+                      });
+                      return created;
+                    }}
+                  />
+                ))}
+              </div>
+            </div>
+
             <label className="flex items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"
@@ -773,6 +1105,22 @@ export default function CaptureManager() {
                 This is a 360° panorama image
               </span>
             </label>
+
+            {/* ── Burst mode: tag once, keep shooting — no dialog
+                interruption between shots until you tap Done. ── */}
+            <label className="flex items-center gap-2 cursor-pointer rounded-lg border border-indigo-100 bg-indigo-50/50 px-3 py-2.5">
+              <input
+                type="checkbox"
+                checked={burstMode}
+                onChange={(e) => setBurstMode(e.target.checked)}
+                className="rounded border-slate-300"
+              />
+              <span className="text-sm text-slate-700">
+                <span className="font-medium">Stay here</span> — keep this
+                dialog open after each upload so I can add several photos in a
+                row without re-tagging
+              </span>
+            </label>
           </div>
           <DialogFooter>
             <Button
@@ -780,16 +1128,18 @@ export default function CaptureManager() {
               onClick={() => {
                 setIsUploadOpen(false);
                 setNewTitle("");
-                setSelectedFile(null);
+                setSelectedFiles([]);
                 setPreviewUrl(null);
                 setIs360Upload(false);
+                setBurstMode(false);
+                setBurstCount(0);
               }}
             >
-              Cancel
+              {burstMode && burstCount > 0 ? "Done" : "Cancel"}
             </Button>
             <Button
               onClick={() => uploadMutation.mutate()}
-              disabled={!newTitle || !selectedFile || uploadMutation.isPending}
+              disabled={selectedFiles.length === 0 || uploadMutation.isPending}
             >
               {uploadMutation.isPending ? (
                 <Loader2 className="h-4 w-4 animate-spin mr-2" />
@@ -797,6 +1147,120 @@ export default function CaptureManager() {
                 <ImageUp className="h-4 w-4 mr-2" />
               )}
               Upload
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── New Visit ── */}
+      <Dialog
+        open={isNewVisitOpen}
+        onOpenChange={(open) => {
+          setIsNewVisitOpen(open);
+          if (!open) setOpenCameraAfterVisit(false);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {currentVisit ? "Start a new visit" : "Name this visit"}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2">
+            <p className="text-sm text-slate-500">
+              {currentVisit
+                ? "Everything you capture from now on goes under this new visit — your existing captures stay exactly where they are."
+                : "This is your first capture on this project. Give this inspection round a name — e.g. \"Initial Inspection\"."}
+            </p>
+            <Label htmlFor="visit-title">Visit name</Label>
+            <Input
+              id="visit-title"
+              autoFocus
+              value={newVisitTitle}
+              onChange={(e) => setNewVisitTitle(e.target.value)}
+              placeholder="e.g. Initial Inspection"
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && newVisitTitle.trim())
+                  createVisitMutation.mutate(newVisitTitle.trim());
+              }}
+            />
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsNewVisitOpen(false);
+                setOpenCameraAfterVisit(false);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => createVisitMutation.mutate(newVisitTitle.trim())}
+              disabled={!newVisitTitle.trim() || createVisitMutation.isPending}
+            >
+              {createVisitMutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : (
+                <CalendarPlus className="h-4 w-4 mr-2" />
+              )}
+              Start Visit
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Bulk-apply tags to every untagged capture ── */}
+      <Dialog open={isBulkTagOpen} onOpenChange={setIsBulkTagOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Tag {untaggedCount} untagged captures</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-slate-500">
+            These tags will be added to every untagged capture in this
+            project. Existing tags on other captures aren't affected.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {TAG_CATEGORIES.map(({ key, label }) => (
+              <TagSelect
+                key={key}
+                label={label}
+                values={tagsByCategory[key]}
+                selectedId={bulkTagIds[key] ?? null}
+                placeholder={label}
+                onChange={(id) =>
+                  setBulkTagIds((prev) => ({ ...prev, [key]: id ?? undefined }))
+                }
+                onCreate={async (value) => {
+                  const created = await api.createTagValue(projectId!, {
+                    category: key,
+                    value,
+                  });
+                  queryClient.invalidateQueries({
+                    queryKey: ["tagValues", projectId],
+                  });
+                  return created;
+                }}
+              />
+            ))}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsBulkTagOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => bulkTagMutation.mutate()}
+              disabled={
+                Object.values(bulkTagIds).filter(Boolean).length === 0 ||
+                bulkTagMutation.isPending
+              }
+            >
+              {bulkTagMutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : (
+                <CheckSquare className="h-4 w-4 mr-2" />
+              )}
+              Apply
             </Button>
           </DialogFooter>
         </DialogContent>
