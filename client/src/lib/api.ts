@@ -45,6 +45,19 @@ export const api = {
     }),
   logout: () => request("/api/auth/logout", { method: "POST" }),
 
+  // Self-service profile
+  updateUser: (data: {
+    name?: string;
+    phone?: string | null;
+    avatarUrl?: string | null;
+  }) =>
+    request<any>("/api/user", { method: "PATCH", body: JSON.stringify(data) }),
+  changePassword: (data: { currentPassword: string; newPassword: string }) =>
+    request<any>("/api/user/password", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
   // Workspace
   updateWorkspace: (data: any) =>
     request("/api/workspace", { method: "PATCH", body: JSON.stringify(data) }),
@@ -103,6 +116,20 @@ export const api = {
     }),
   deleteProject: (id: string) =>
     request(`/api/projects/${id}`, { method: "DELETE" }),
+
+  // Project membership (per-project access, admin only)
+  getProjectMembers: (projectId: string) =>
+    request<{ restricted: boolean; members: any[] }>(
+      `/api/projects/${projectId}/members`,
+    ),
+  setProjectMembers: (
+    projectId: string,
+    data: { restricted: boolean; userIds: string[] },
+  ) =>
+    request<any>(`/api/projects/${projectId}/members`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    }),
 
   // Team
   getTeam: () => request<any[]>("/api/team"),

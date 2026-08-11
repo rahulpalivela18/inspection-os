@@ -57,6 +57,10 @@ export const users = pgTable("users", {
   role: text("role", { enum: ["super_admin", "admin", "inspector", "viewer"] })
     .notNull()
     .default("inspector"),
+  // Per-user profile (self-editable on the Profile page). Company-level
+  // contact fields live on `workspaces`; these are the individual's.
+  phone: text("phone"),
+  avatarUrl: text("avatar_url"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -109,6 +113,10 @@ export const projects = pgTable("projects", {
   projectType: text("project_type", { enum: ["single", "multi"] })
     .notNull()
     .default("single"),
+  // Access control. false = open to every workspace member (default).
+  // true = only members of `project_members` (and admins) can see it; with no
+  // members assigned, only admins see it.
+  restricted: boolean("restricted").notNull().default(false),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -118,6 +126,47 @@ export const insertProjectSchema = createInsertSchema(projects).omit({
 });
 export type InsertProject = z.infer<typeof insertProjectSchema>;
 export type Project = typeof projects.$inferSelect;
+
+// ─── Project Members (per-project access) ────────────────────────────────────
+// Explicit opt-in restriction: a project with ZERO membership rows is open to
+// every member of the workspace. Once any row exists, only members (and
+// admins/super_admins) can see the project. `permission` reserves room for
+// view-only vs edit per project later; it defaults to "edit" for now.
+export const projectMembers = pgTable(
+  "project_members",
+  {
+    id: varchar("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    workspaceId: varchar("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    projectId: varchar("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    userId: varchar("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    permission: text("permission", { enum: ["view", "edit"] })
+      .notNull()
+      .default("edit"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("project_members_unique").on(table.projectId, table.userId),
+    index("project_members_project_idx").on(table.projectId),
+    index("project_members_user_idx").on(table.userId),
+  ],
+);
+
+export const insertProjectMemberSchema = createInsertSchema(
+  projectMembers,
+).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertProjectMember = z.infer<typeof insertProjectMemberSchema>;
+export type ProjectMember = typeof projectMembers.$inferSelect;
 
 // ─── Tag Values (per-project vocabulary for Block/Floor/Flat/Amenity) ────────
 // Powers every faceted-tag dropdown on a capture. Self-populating: seeded by
@@ -414,6 +463,20 @@ export const registerSchema = z.object({
   email: z.string().email(),
   password: z.string().min(6),
   companyName: z.string().min(1),
+});
+
+// Self-service profile edits. Role/email/password are deliberately absent —
+// role changes stay admin-only via Team, email is the login identifier, and
+// password has its own endpoint. The server also strips these defensively.
+export const updateUserSchema = z.object({
+  name: z.string().min(1).optional(),
+  phone: z.string().nullable().optional(),
+  avatarUrl: z.string().nullable().optional(),
+});
+
+export const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1),
+  newPassword: z.string().min(6),
 });
 
 // ─── Spatial Schema (Captures + Hotspots) ──────────────────────────────────────

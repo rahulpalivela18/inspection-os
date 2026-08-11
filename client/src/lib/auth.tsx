@@ -14,6 +14,8 @@ type User = {
   email: string;
   role: string;
   workspaceId: string;
+  phone?: string | null;
+  avatarUrl?: string | null;
 };
 
 type Workspace = {
@@ -23,6 +25,7 @@ type Workspace = {
   address?: string;
   email?: string;
   phone?: string;
+  taxRate?: string;
   plan?: string;
   planStatus?: string;
   trialEndsAt?: string | null;
@@ -51,6 +54,7 @@ type AuthContextType = {
   }) => Promise<void>;
   logout: () => Promise<void>;
   refreshWorkspace: (data: Partial<Workspace>) => void;
+  refreshUser: (data: Partial<User>) => void;
   refreshTrial: () => void;
 };
 
@@ -139,6 +143,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setWorkspace((prev) => (prev ? { ...prev, ...data } : prev));
   };
 
+  const refreshUser = (data: Partial<User>) => {
+    setUser((prev) => (prev ? { ...prev, ...data } : prev));
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -150,6 +158,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         register,
         logout,
         refreshWorkspace,
+        refreshUser,
         refreshTrial: fetchTrialStatus,
       }}
     >

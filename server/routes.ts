@@ -10,6 +10,8 @@ import { storage, spatialStorage } from "./storage";
 import {
   loginSchema,
   registerSchema,
+  updateUserSchema,
+  changePasswordSchema,
   insertProjectSchema,
   insertReportSchema,
   insertChecklistTemplateSchema,
@@ -184,6 +186,7 @@ export async function registerRoutes(
         "address",
         "email",
         "phone",
+        "taxRate",
         "plan",
         "planStatus",
         "trialEndsAt",
@@ -245,6 +248,69 @@ export async function registerRoutes(
       "trialEndsAt",
     ]);
     res.json({ user: safe, workspace: safeWs });
+  });
+
+  // ── Self-service User Profile Routes ─────────────────────────────────────────
+
+  // Edit your own name/phone/avatar. Role, email, and password are NOT
+  // accepted here (role changes stay admin-only via Team, email is the login
+  // identifier, password has its own endpoint below) — stripped defensively
+  // in case a client sends them anyway.
+  app.patch("/api/user", requireAuth, async (req, res) => {
+    const user = req.user as any;
+    const { password: _, role, email, workspaceId, id, ...body } = req.body;
+    const parsed = updateUserSchema.safeParse(body);
+    if (!parsed.success)
+      return res.status(400).json({ message: parsed.error.errors[0].message });
+
+    // Upload avatar to GCP if it's a base64 data URL (same flow as the
+    // workspace logo) — otherwise keep the existing GCP URL as-is.
+    if (
+      parsed.data.avatarUrl &&
+      !isGCPUrl(parsed.data.avatarUrl) &&
+      parsed.data.avatarUrl.startsWith("data:")
+    ) {
+      try {
+        const gcpUrl = await uploadImageToGCP(
+          parsed.data.avatarUrl,
+          "avatar.jpg",
+        );
+        if (gcpUrl) parsed.data.avatarUrl = gcpUrl;
+      } catch (err) {
+        console.error("Avatar upload error:", err);
+      }
+    }
+
+    const updated = await storage.updateUser(user.id, user.workspaceId, {
+      ...(parsed.data.name !== undefined && { name: parsed.data.name }),
+      ...(parsed.data.phone !== undefined && { phone: parsed.data.phone }),
+      ...(parsed.data.avatarUrl !== undefined && {
+        avatarUrl: parsed.data.avatarUrl,
+      }),
+    });
+    if (!updated) return res.status(404).json({ message: "User not found" });
+    const { password: _pw, ...safe } = updated;
+    res.json(safe);
+  });
+
+  app.post("/api/user/password", requireAuth, async (req, res) => {
+    const user = req.user as any;
+    const parsed = changePasswordSchema.safeParse(req.body);
+    if (!parsed.success)
+      return res.status(400).json({ message: parsed.error.errors[0].message });
+
+    const valid = await bcrypt.compare(
+      parsed.data.currentPassword,
+      user.password,
+    );
+    if (!valid)
+      return res
+        .status(400)
+        .json({ message: "Current password is incorrect." });
+
+    const hashed = await bcrypt.hash(parsed.data.newPassword, 10);
+    await storage.updateUser(user.id, user.workspaceId, { password: hashed });
+    res.json({ success: true });
   });
 
   // ── Trial Routes ──────────────────────────────────────────────────────────────
@@ -567,7 +633,15 @@ export async function registerRoutes(
 
   app.get("/api/dashboard/stats", requireAuth, async (req, res) => {
     const user = req.user as any;
-    const stats = await storage.getDashboardStats(user.workspaceId);
+    let scopedIds: string[] | undefined;
+    if (user?.role !== "admin" && user?.role !== "super_admin") {
+      const accessible = await storage.getAccessibleProjects(
+        user.workspaceId,
+        user.id,
+      );
+      scopedIds = accessible.map((p) => p.id);
+    }
+    const stats = await storage.getDashboardStats(user.workspaceId, scopedIds);
     res.json(stats);
   });
 
@@ -575,7 +649,10 @@ export async function registerRoutes(
 
   app.get("/api/projects", requireAuth, async (req, res) => {
     const user = req.user as any;
-    const items = await storage.getProjectsByWorkspace(user.workspaceId);
+    const items =
+      user?.role === "admin" || user?.role === "super_admin"
+        ? await storage.getProjectsByWorkspace(user.workspaceId)
+        : await storage.getAccessibleProjects(user.workspaceId, user.id);
     res.json(items);
   });
 
@@ -657,6 +734,27 @@ export async function registerRoutes(
     res.json(DEFAULT_AMENITIES);
   });
 
+  // Every route under /api/projects/:projectId (including /:id itself and all
+  // nested reports/captures/visits/tag-values/quotations/share-links) is gated
+  // by per-project access. Admins always pass; other roles need the project to
+  // be unassigned (open to the team) or to be a member. 404 hides existence.
+  app.use("/api/projects/:projectId", requireAuth, async (req, res, next) => {
+    try {
+      const user = req.user as any;
+      const projectId = (req.params.projectId || req.params.id) as string;
+      const allowed = await storage.canUserAccessProject(
+        projectId,
+        user.workspaceId,
+        user.id,
+        user.role,
+      );
+      if (!allowed) return res.status(404).json({ message: "Not found" });
+      next();
+    } catch (err) {
+      next(err);
+    }
+  });
+
   app.get("/api/projects/:id", requireAuth, async (req, res) => {
     const user = req.user as any;
     const item = await storage.getProject(
@@ -713,6 +811,81 @@ export async function registerRoutes(
       );
       if (!ok) return res.status(404).json({ message: "Not found" });
       res.json({ success: true });
+    },
+  );
+
+  // ── Project Membership Routes (admin only) ──────────────────────────────────
+
+  app.get(
+    "/api/projects/:projectId/members",
+    requireAdmin,
+    async (req, res) => {
+      const user = req.user as any;
+      const projectId = req.params.projectId as string;
+      const project = await storage.getProject(projectId, user.workspaceId);
+      if (!project) return res.status(404).json({ message: "Not found" });
+      const rows = await storage.getProjectMembers(projectId);
+      const users = await storage.getUsersByWorkspace(user.workspaceId);
+      res.json({
+        restricted: project.restricted,
+        members: rows.map((row) => {
+          const member = users.find((u) => u.id === row.userId);
+          if (!member) return null;
+          const { password: _, ...safe } = member;
+          return { ...safe, permission: row.permission };
+        }),
+      });
+    },
+  );
+
+  // Replace the full member set for a project and its restricted flag.
+  // restricted=false → open to everyone (members are cleared). restricted=true
+  // with an empty list → only admins can see the project.
+  app.put(
+    "/api/projects/:projectId/members",
+    requireAdmin,
+    async (req, res) => {
+      const user = req.user as any;
+      const projectId = req.params.projectId as string;
+      const project = await storage.getProject(projectId, user.workspaceId);
+      if (!project) return res.status(404).json({ message: "Not found" });
+
+      const { userIds, restricted } = req.body as {
+        userIds?: unknown;
+        restricted?: unknown;
+      };
+      const list = Array.isArray(userIds) ? (userIds as string[]) : [];
+      if (list.some((id) => typeof id !== "string"))
+        return res.status(400).json({ message: "Invalid userIds." });
+
+      // Only workspace members can be assigned.
+      const workspaceUsers = await storage.getUsersByWorkspace(
+        user.workspaceId,
+      );
+      const validIds = new Set(workspaceUsers.map((u) => u.id));
+      if (list.some((id) => !validIds.has(id)))
+        return res
+          .status(400)
+          .json({ message: "One or more members are not in this workspace." });
+
+      const isRestricted = restricted === true;
+      await storage.setProjectMembers(
+        projectId,
+        user.workspaceId,
+        isRestricted ? list : [],
+        isRestricted,
+      );
+
+      const rows = await storage.getProjectMembers(projectId);
+      res.json({
+        restricted: isRestricted,
+        members: rows.map((row) => {
+          const member = workspaceUsers.find((u) => u.id === row.userId);
+          if (!member) return null;
+          const { password: _, ...safe } = member;
+          return { ...safe, permission: row.permission };
+        }),
+      });
     },
   );
 
@@ -1582,6 +1755,7 @@ export async function registerRoutes(
     requireActiveTrial,
     async (req, res) => {
       const user = req.user as any;
+      const ws = await storage.getWorkspace(user.workspaceId);
       const {
         projectId,
         title,
@@ -1603,7 +1777,7 @@ export async function registerRoutes(
         projectId: projectId || null,
         workspaceId: user.workspaceId,
         title,
-        taxRate: taxRate ?? "18",
+        taxRate: taxRate ?? ws?.taxRate ?? "18",
         notes: notes ?? null,
         validityDays: validityDays ?? 30,
         clientName: clientName ?? null,
@@ -1626,6 +1800,7 @@ export async function registerRoutes(
     requireActiveTrial,
     async (req, res) => {
       const user = req.user as any;
+      const ws = await storage.getWorkspace(user.workspaceId);
       const {
         title,
         taxRate,
@@ -1646,7 +1821,7 @@ export async function registerRoutes(
         projectId: req.params.projectId as string,
         workspaceId: user.workspaceId,
         title,
-        taxRate: taxRate ?? "0",
+        taxRate: taxRate ?? ws?.taxRate ?? "18",
         notes: notes ?? null,
         validityDays: validityDays ?? 30,
         clientName: clientName ?? null,

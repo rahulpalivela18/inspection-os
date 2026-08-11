@@ -1,4 +1,4 @@
-import { eq, and, desc, asc, sql, inArray } from "drizzle-orm";
+import { eq, and, desc, asc, sql, inArray, or, exists } from "drizzle-orm";
 import { db } from "./db";
 import {
   users,
@@ -17,6 +17,7 @@ import {
   quotations,
   quotationItems,
   workspaceRates,
+  projectMembers,
   type User,
   type InsertUser,
   type Workspace,
@@ -49,6 +50,8 @@ import {
   type InsertQuotationItem,
   type WorkspaceRate,
   type InsertWorkspaceRate,
+  type ProjectMember,
+  type InsertProjectMember,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -67,6 +70,11 @@ export interface IStorage {
   createUser(user: InsertUser): Promise<User>;
   getUsersByWorkspace(workspaceId: string): Promise<User[]>;
   deleteUser(id: string, workspaceId: string): Promise<boolean>;
+  updateUser(
+    id: string,
+    workspaceId: string,
+    data: Partial<Pick<User, "name" | "phone" | "avatarUrl" | "password">>,
+  ): Promise<User | undefined>;
 
   // Checklist Templates
   getChecklistTemplates(
@@ -95,8 +103,30 @@ export interface IStorage {
   deleteProject(id: string, workspaceId: string): Promise<boolean>;
   countPinnedProjects(workspaceId: string): Promise<number>;
 
+  // Project access control
+  canUserAccessProject(
+    projectId: string,
+    workspaceId: string,
+    userId: string,
+    role: string,
+  ): Promise<boolean>;
+  getAccessibleProjects(
+    workspaceId: string,
+    userId: string,
+  ): Promise<Project[]>;
+  getProjectMembers(projectId: string): Promise<ProjectMember[]>;
+  setProjectMembers(
+    projectId: string,
+    workspaceId: string,
+    userIds: string[],
+    restricted: boolean,
+  ): Promise<void>;
+
   // Dashboard stats
-  getDashboardStats(workspaceId: string): Promise<{
+  getDashboardStats(
+    workspaceId: string,
+    projectIds?: string[],
+  ): Promise<{
     projects: number;
     captures: number;
     reports: number;
@@ -253,6 +283,18 @@ export class DatabaseStorage implements IStorage {
       .where(and(eq(users.id, id), eq(users.workspaceId, workspaceId)))
       .returning();
     return result.length > 0;
+  }
+  async updateUser(
+    id: string,
+    workspaceId: string,
+    data: Partial<Pick<User, "name" | "phone" | "avatarUrl" | "password">>,
+  ) {
+    const [row] = await db
+      .update(users)
+      .set(data)
+      .where(and(eq(users.id, id), eq(users.workspaceId, workspaceId)))
+      .returning();
+    return row;
   }
 
   // Workspace Rates
@@ -517,21 +559,120 @@ export class DatabaseStorage implements IStorage {
     return Number(row.count);
   }
 
+  // Project access control: admins see everything; everyone else sees projects
+  // that are open to the team (restricted = false) OR ones they're a member of.
+  async canUserAccessProject(
+    projectId: string,
+    workspaceId: string,
+    userId: string,
+    role: string,
+  ) {
+    const project = await this.getProject(projectId, workspaceId);
+    if (!project) return false;
+    if (role === "admin" || role === "super_admin") return true;
+    if (!project.restricted) return true;
+    const [member] = await db
+      .select({ id: projectMembers.id })
+      .from(projectMembers)
+      .where(
+        and(
+          eq(projectMembers.projectId, projectId),
+          eq(projectMembers.userId, userId),
+        ),
+      );
+    return !!member;
+  }
+  async getAccessibleProjects(workspaceId: string, userId: string) {
+    return db
+      .select()
+      .from(projects)
+      .where(
+        and(
+          eq(projects.workspaceId, workspaceId),
+          or(
+            eq(projects.restricted, false),
+            exists(
+              db
+                .select({ id: projectMembers.id })
+                .from(projectMembers)
+                .where(
+                  and(
+                    eq(projectMembers.projectId, projects.id),
+                    eq(projectMembers.userId, userId),
+                  ),
+                ),
+            ),
+          ),
+        ),
+      )
+      .orderBy(desc(projects.isPinned), desc(projects.createdAt));
+  }
+  async getProjectMembers(projectId: string) {
+    return db
+      .select()
+      .from(projectMembers)
+      .where(eq(projectMembers.projectId, projectId));
+  }
+  async setProjectMembers(
+    projectId: string,
+    workspaceId: string,
+    userIds: string[],
+    restricted: boolean,
+  ) {
+    await db.transaction(async (tx) => {
+      await tx
+        .update(projects)
+        .set({ restricted })
+        .where(
+          and(
+            eq(projects.id, projectId),
+            eq(projects.workspaceId, workspaceId),
+          ),
+        );
+      await tx
+        .delete(projectMembers)
+        .where(eq(projectMembers.projectId, projectId));
+      if (userIds.length > 0) {
+        await tx.insert(projectMembers).values(
+          userIds.map((userId) => ({
+            projectId,
+            workspaceId,
+            userId,
+            permission: "edit" as const,
+          })),
+        );
+      }
+    });
+  }
+
   // Dashboard stats
-  async getDashboardStats(workspaceId: string) {
+  async getDashboardStats(workspaceId: string, projectIds?: string[]) {
+    const projectsCond = projectIds
+      ? and(
+          eq(projects.workspaceId, workspaceId),
+          inArray(projects.id, projectIds),
+        )
+      : eq(projects.workspaceId, workspaceId);
+    const reportsCond = projectIds
+      ? and(
+          eq(reports.workspaceId, workspaceId),
+          inArray(reports.projectId, projectIds),
+        )
+      : eq(reports.workspaceId, workspaceId);
+    const capturesCond = projectIds
+      ? and(
+          eq(captures.workspaceId, workspaceId),
+          inArray(captures.projectId, projectIds),
+        )
+      : eq(captures.workspaceId, workspaceId);
+
     const [projectRows, reportRows, captureRows] = await Promise.all([
-      db
-        .select({ id: projects.id })
-        .from(projects)
-        .where(eq(projects.workspaceId, workspaceId)),
+      db.select({ id: projects.id }).from(projects).where(projectsCond),
       db
         .select({ id: reports.id, status: reports.status })
         .from(reports)
-        .where(eq(reports.workspaceId, workspaceId)),
-      db
-        .select({ id: captures.id })
-        .from(captures)
-        .where(eq(captures.workspaceId, workspaceId)),
+        .where(reportsCond),
+      db.select({ id: captures.id }).from(captures).where(capturesCond),
     ]);
 
     const reportsByStatus: { Draft: number; Review: number; Final: number } = {

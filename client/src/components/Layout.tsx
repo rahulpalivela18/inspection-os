@@ -5,30 +5,51 @@ import {
   Settings,
   Menu,
   Building2,
-  CheckSquare,
+  ClipboardList,
   Shield,
   CreditCard,
   Clock,
   AlertTriangle,
   FileText,
+  LogOut,
+  User,
+  Users,
 } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { cn } from "@/lib/utils";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { cn, getInitials, isAdminRole } from "@/lib/utils";
 import { useAuth } from "@/lib/auth";
 import Footer from "@/components/Footer";
 import { InstallAppButton } from "@/components/InstallAppButton";
 
 export default function Layout({ children }: { children: React.ReactNode }) {
-  const [location] = useLocation();
+  const [location, navigate] = useLocation();
   const [isMobileOpen, setIsMobileOpen] = useState(false);
-  const { user, workspace, trial } = useAuth();
+  const { user, workspace, trial, logout } = useAuth();
+
+  const handleLogout = async () => {
+    await logout();
+    navigate("/login");
+  };
 
   const navigation = [
     { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
     { name: "Projects", href: "/dashboard", icon: FolderOpen },
     { name: "Quotations", href: "/quotations", icon: FileText },
+    { name: "Templates", href: "/templates", icon: ClipboardList },
+    ...(isAdminRole(user?.role)
+      ? [{ name: "Team", href: "/team", icon: Users }]
+      : []),
     ...(user?.role !== "viewer"
       ? [{ name: "Settings", href: "/settings", icon: Settings }]
       : []),
@@ -40,9 +61,90 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       : []),
   ];
 
+  const AccountMenu = ({ compact = false }: { compact?: boolean }) => (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        {compact ? (
+          <button
+            className="flex h-9 w-9 items-center justify-center rounded-lg transition-colors hover:bg-muted"
+            data-testid="button-account-menu-mobile"
+          >
+            <Avatar className="h-7 w-7">
+              <AvatarImage
+                src={user?.avatarUrl || undefined}
+                alt={user?.name || "Account"}
+              />
+              <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">
+                {getInitials(user?.name, user?.email)}
+              </AvatarFallback>
+            </Avatar>
+          </button>
+        ) : (
+          <button
+            className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-left transition-colors hover:bg-sidebar-accent/50"
+            data-testid="button-account-menu"
+          >
+            <Avatar className="h-8 w-8">
+              <AvatarImage
+                src={user?.avatarUrl || undefined}
+                alt={user?.name || "Account"}
+              />
+              <AvatarFallback className="bg-primary/10 text-primary text-sm font-semibold">
+                {getInitials(user?.name, user?.email)}
+              </AvatarFallback>
+            </Avatar>
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-sm font-medium text-slate-900">
+                {user?.name || "Account"}
+              </span>
+              <span className="block truncate text-xs text-slate-500">
+                {user?.email}
+              </span>
+            </span>
+          </button>
+        )}
+      </DropdownMenuTrigger>
+      <DropdownMenuContent
+        align={compact ? "end" : "start"}
+        className="w-64"
+      >
+        <DropdownMenuLabel>
+          <div className="flex items-center gap-2">
+            <Avatar className="h-8 w-8">
+              <AvatarImage
+                src={user?.avatarUrl || undefined}
+                alt={user?.name || ""}
+              />
+              <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">
+                {getInitials(user?.name, user?.email)}
+              </AvatarFallback>
+            </Avatar>
+            <div className="min-w-0">
+              <p className="truncate text-sm font-medium">{user?.name}</p>
+              <p className="truncate text-xs text-muted-foreground">
+                {user?.email}
+              </p>
+            </div>
+          </div>
+        </DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          onClick={() => navigate("/profile")}
+          data-testid="menu-profile"
+        >
+          <User className="h-4 w-4 mr-2" /> Profile
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={handleLogout} data-testid="menu-sign-out">
+          <LogOut className="h-4 w-4 mr-2" /> Sign Out
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+
   const SidebarContent = () => (
     <div className="flex h-full flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground">
-      <div className="space-y-4 p-6">
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        <div className="space-y-4 p-6">
         <Link href="/home" className="flex items-center gap-2 font-heading text-2xl font-bold text-primary hover:text-primary/80 transition-colors">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
             IO
@@ -122,7 +224,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         )}
       </div>
 
-      <div className="flex-1 space-y-1 px-4 py-4">
+      <div className="space-y-1 px-4 py-4">
         {navigation.map((item) => {
           const isActive = location === item.href;
           return (
@@ -145,36 +247,12 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           );
         })}
       </div>
+      </div>
 
       <div className="border-t border-sidebar-border p-4">
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-          <div className="flex items-start gap-3">
-            <div className="mt-0.5 flex h-9 w-9 items-center justify-center rounded-xl bg-slate-900 text-white">
-              <CheckSquare className="h-4 w-4" />
-            </div>
-            <div>
-              <h4 className="text-sm font-semibold text-slate-900">
-                Simple report flow
-              </h4>
-              <p className="mt-1 text-xs text-slate-500">
-                Create a report, open it, and start filling the checklist right
-                away.
-              </p>
-            </div>
-          </div>
-          <Link href="/templates">
-            <Button
-              size="sm"
-              variant="outline"
-              className="mt-4 w-full"
-              data-testid="button-view-default-checklist"
-            >
-              View default checklist
-            </Button>
-          </Link>
-          <div className="mt-3">
-            <InstallAppButton />
-          </div>
+        <div className="flex items-center gap-3">
+          <InstallAppButton />
+          <AccountMenu />
         </div>
       </div>
     </div>
@@ -194,6 +272,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           Inspection OS
         </Link>
         <div className="flex items-center gap-2">
+          <AccountMenu compact />
           <InstallAppButton />
           <Sheet open={isMobileOpen} onOpenChange={setIsMobileOpen}>
             <SheetTrigger asChild>

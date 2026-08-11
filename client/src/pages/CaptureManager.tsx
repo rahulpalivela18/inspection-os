@@ -47,11 +47,12 @@ import {
 import { useRoute, useLocation, useSearchParams } from "wouter";
 import { ProjectTabs } from "@/components/ProjectTabs";
 import { useToast } from "@/hooks/use-toast";
-import { ensureJpeg, cn } from "@/lib/utils";
+import { ensureJpeg, cn, isAdminRole } from "@/lib/utils";
 import CapturePDF from "@/components/CapturePDF";
 import { pdf } from "@react-pdf/renderer";
 import { useAuth } from "@/lib/auth";
 import { TagSelect, type TagOption } from "@/components/TagSelect";
+import NotFound from "./not-found";
 
 const TAG_CATEGORIES = [
   { key: "block", label: "Block" },
@@ -195,10 +196,11 @@ export default function CaptureManager() {
 
   const projectId = params?.id;
 
-  const { data: project } = useQuery({
+  const { data: project, isError: projectError } = useQuery({
     queryKey: ["project", projectId],
     queryFn: () => api.getProject(projectId!),
     enabled: !!projectId,
+    retry: false,
   });
 
   const { data: captures = [], isLoading } = useQuery({
@@ -784,6 +786,8 @@ export default function CaptureManager() {
   const selectCls =
     "h-9 rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-600 outline-none cursor-pointer hover:border-slate-300 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100";
 
+  if (projectError) return <NotFound />;
+
   return (
     <Layout>
       <div className="p-6 lg:p-8 space-y-6 max-w-[1440px] mx-auto">
@@ -796,7 +800,11 @@ export default function CaptureManager() {
             <ArrowLeft className="h-4 w-4" />
             All Projects
           </button>
-          <ProjectTabs projectId={projectId!} active="captures" />
+          <ProjectTabs
+            projectId={projectId!}
+            active="captures"
+            admin={isAdminRole(user?.role)}
+          />
         </div>
 
         {/* ── Header ── */}

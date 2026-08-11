@@ -31,6 +31,8 @@ import {
 import { useRoute, useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth";
+import { isAdminRole } from "@/lib/utils";
+import RatesManager from "@/components/RatesManager";
 import QuotationPDF from "@/components/QuotationPDF";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import { pdf } from "@react-pdf/renderer";
@@ -40,7 +42,8 @@ export default function QuotationEditor() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const { workspace } = useAuth();
+  const { workspace, user } = useAuth();
+  const isAdmin = isAdminRole(user?.role);
   const [exporting, setExporting] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [showAddItem, setShowAddItem] = useState(false);
@@ -53,6 +56,7 @@ export default function QuotationEditor() {
   });
   const [calcRateId, setCalcRateId] = useState<string>("");
   const [calcQty, setCalcQty] = useState("1");
+  const [manageRates, setManageRates] = useState(false);
 
   const quotationId = params?.id;
 
@@ -305,68 +309,98 @@ export default function QuotationEditor() {
             </Button>
           </CardHeader>
           <CardContent>
-            {rates.length > 0 && (
+            {(rates.length > 0 || isAdmin) && (
               <div className="mb-4 p-4 rounded-lg border border-indigo-200 bg-indigo-50/50">
-                <p className="text-xs font-semibold text-indigo-700 mb-3 flex items-center gap-1.5">
-                  <IndianRupee className="h-3.5 w-3.5" /> Rate Calculator
-                </p>
-                <div className="flex flex-wrap gap-2 mb-3">
-                  {rates.map((r: any) => (
-                    <button
-                      key={r.id}
-                      onClick={() => {
-                        setCalcRateId(r.id);
-                        setCalcQty("1");
-                      }}
-                      className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors border ${
-                        calcRateId === r.id
-                          ? "bg-indigo-600 text-white border-indigo-600"
-                          : "bg-white text-indigo-700 border-indigo-200 hover:bg-indigo-100"
-                      }`}
-                    >
-                      {r.label}
-                      <span className={calcRateId === r.id ? "text-indigo-200" : "text-indigo-500"}>
-                        ₹{Number(r.rate).toLocaleString("en-IN")}/{r.unit}
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-xs font-semibold text-indigo-700 flex items-center gap-1.5">
+                    <IndianRupee className="h-3.5 w-3.5" /> Rate Calculator
+                    {isAdmin && (
+                      <span className="text-[10px] font-medium text-indigo-400">
+                        shared rates
                       </span>
-                    </button>
-                  ))}
-                </div>
-                {calcRateId && (
-                  <div className="flex items-end gap-3 pt-2 border-t border-indigo-100">
-                    <div className="space-y-1 flex-1 max-w-[140px]">
-                      <Label className="text-[11px] text-slate-500">Quantity</Label>
-                      <Input
-                        type="number"
-                        value={calcQty}
-                        onChange={(e) => setCalcQty(e.target.value)}
-                        className="h-8 text-sm bg-white"
-                        min="1"
-                      />
-                    </div>
-                    <div className="text-sm text-slate-500 pb-2">=</div>
-                    <div className="text-sm font-bold text-indigo-700 pb-2">
-                      ₹{(() => {
-                        const rate = rates.find((r: any) => r.id === calcRateId);
-                        if (!rate) return "0";
-                        return (Number(rate.rate) * (parseInt(calcQty) || 1)).toLocaleString("en-IN");
-                      })()}
-                    </div>
+                    )}
+                  </p>
+                  {isAdmin && (
                     <Button
+                      variant="ghost"
                       size="sm"
-                      className="h-8 text-xs bg-indigo-600 hover:bg-indigo-700"
-                      disabled={addItemMutation.isPending}
-                      onClick={() => {
-                        const rate = rates.find((r: any) => r.id === calcRateId);
-                        if (!rate) return;
-                        handleQuickAddRate(rate, parseInt(calcQty) || 1);
-                        setCalcRateId("");
-                        setCalcQty("1");
-                      }}
+                      className="h-7 text-xs text-indigo-700 hover:bg-indigo-100"
+                      onClick={() => setManageRates((v) => !v)}
+                      data-testid="button-manage-rates"
                     >
-                      <Plus className="h-3.5 w-3.5 mr-1" />
-                      Add
+                      {manageRates ? "Done" : "Manage rates"}
                     </Button>
-                  </div>
+                  )}
+                </div>
+
+                {manageRates ? (
+                  <RatesManager />
+                ) : rates.length > 0 ? (
+                  <>
+                    <div className="flex flex-wrap gap-2 mb-3">
+                      {rates.map((r: any) => (
+                        <button
+                          key={r.id}
+                          onClick={() => {
+                            setCalcRateId(r.id);
+                            setCalcQty("1");
+                          }}
+                          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors border ${
+                            calcRateId === r.id
+                              ? "bg-indigo-600 text-white border-indigo-600"
+                              : "bg-white text-indigo-700 border-indigo-200 hover:bg-indigo-100"
+                          }`}
+                        >
+                          {r.label}
+                          <span className={calcRateId === r.id ? "text-indigo-200" : "text-indigo-500"}>
+                            ₹{Number(r.rate).toLocaleString("en-IN")}/{r.unit}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                    {calcRateId && (
+                      <div className="flex items-end gap-3 pt-2 border-t border-indigo-100">
+                        <div className="space-y-1 flex-1 max-w-[140px]">
+                          <Label className="text-[11px] text-slate-500">Quantity</Label>
+                          <Input
+                            type="number"
+                            value={calcQty}
+                            onChange={(e) => setCalcQty(e.target.value)}
+                            className="h-8 text-sm bg-white"
+                            min="1"
+                          />
+                        </div>
+                        <div className="text-sm text-slate-500 pb-2">=</div>
+                        <div className="text-sm font-bold text-indigo-700 pb-2">
+                          ₹{(() => {
+                            const rate = rates.find((r: any) => r.id === calcRateId);
+                            if (!rate) return "0";
+                            return (Number(rate.rate) * (parseInt(calcQty) || 1)).toLocaleString("en-IN");
+                          })()}
+                        </div>
+                        <Button
+                          size="sm"
+                          className="h-8 text-xs bg-indigo-600 hover:bg-indigo-700"
+                          disabled={addItemMutation.isPending}
+                          onClick={() => {
+                            const rate = rates.find((r: any) => r.id === calcRateId);
+                            if (!rate) return;
+                            handleQuickAddRate(rate, parseInt(calcQty) || 1);
+                            setCalcRateId("");
+                            setCalcQty("1");
+                          }}
+                        >
+                          <Plus className="h-3.5 w-3.5 mr-1" />
+                          Add
+                        </Button>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <p className="text-xs text-indigo-500">
+                    No rates yet. Click "Manage rates" to add your first
+                    inspection rate.
+                  </p>
                 )}
               </div>
             )}

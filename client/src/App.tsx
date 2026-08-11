@@ -6,12 +6,15 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/lib/auth";
 import Dashboard from "@/pages/Dashboard";
 import ProjectDetails from "@/pages/ProjectDetails";
+import ProjectAccess from "@/pages/ProjectAccess";
 import ReportEditor from "@/pages/ReportEditor";
 import Templates from "@/pages/Templates";
 import CaptureManager from "@/pages/CaptureManager";
 import CaptureCanvas from "@/pages/CaptureCanvas";
 import LandingPage from "@/pages/LandingPage";
 import Settings from "@/pages/Settings";
+import Profile from "@/pages/Profile";
+import Team from "@/pages/Team";
 import Admin from "@/pages/Admin";
 import Billing from "@/pages/Billing";
 import Login from "@/pages/Login";
@@ -85,6 +88,12 @@ function Router() {
       <Route path="/settings">
         <ProtectedRoute component={Settings} />
       </Route>
+      <Route path="/profile">
+        <ProtectedRoute component={Profile} />
+      </Route>
+      <Route path="/team">
+        <ProtectedRoute component={Team} />
+      </Route>
       <Route path="/admin">
         <ProtectedRoute component={Admin} />
       </Route>
@@ -102,6 +111,9 @@ function Router() {
       </Route>
       <Route path="/project/:id/reports">
         <ProtectedRoute component={ProjectDetails} />
+      </Route>
+      <Route path="/project/:id/team">
+        <ProtectedRoute component={ProjectAccess} />
       </Route>
       <Route path="/project/:id">
         <ProjectLandingRedirect />

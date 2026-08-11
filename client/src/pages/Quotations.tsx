@@ -8,6 +8,9 @@ import { Label } from "@/components/ui/label";
 import {
   Card,
   CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
 } from "@/components/ui/card";
 import {
   Dialog,
@@ -21,19 +24,39 @@ import {
   Trash2,
   FileText,
   Loader2,
+  Save,
+  Percent,
+  IndianRupee,
 } from "lucide-react";
 import { useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import ConfirmDialog from "@/components/ConfirmDialog";
+import RatesManager from "@/components/RatesManager";
+import { useAuth } from "@/lib/auth";
+import { isAdminRole } from "@/lib/utils";
 
 export default function Quotations() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const { user, workspace, refreshWorkspace } = useAuth();
   const queryClient = useQueryClient();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [newTitle, setNewTitle] = useState("");
   const [selectedProjectId, setSelectedProjectId] = useState("");
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
+  const isAdmin = isAdminRole(user?.role);
+  const [taxRate, setTaxRate] = useState(workspace?.taxRate || "18");
+
+  const taxRateMutation = useMutation({
+    mutationFn: () => api.updateWorkspace({ taxRate }),
+    onSuccess: (data: any) => {
+      refreshWorkspace(data);
+      toast({ title: "Default tax rate saved" });
+    },
+    onError: (err: any) => {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    },
+  });
 
   const { data: quotations = [], isLoading } = useQuery({
     queryKey: ["quotations-all"],
@@ -96,6 +119,65 @@ export default function Quotations() {
             New Quotation
           </Button>
         </div>
+
+        {/* Default Tax Rate (workspace default for new quotations) */}
+        {isAdmin && (
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+                <Percent className="h-4 w-4" /> Default Tax Rate
+              </CardTitle>
+              <CardDescription>
+                GST rate applied by default to new quotations.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="flex items-end gap-3">
+              <div className="w-40 space-y-1">
+                <Label className="text-xs">Tax Rate (%)</Label>
+                <Input
+                  type="number"
+                  value={taxRate}
+                  onChange={(e) => setTaxRate(e.target.value)}
+                  placeholder="18"
+                  className="h-9"
+                  data-testid="input-default-tax-rate"
+                />
+              </div>
+              <Button
+                size="sm"
+                onClick={() => taxRateMutation.mutate()}
+                disabled={taxRateMutation.isPending}
+                className="h-9 bg-indigo-600 hover:bg-indigo-700"
+                data-testid="button-save-default-tax-rate"
+              >
+                {taxRateMutation.isPending ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />
+                ) : (
+                  <Save className="h-3.5 w-3.5 mr-1" />
+                )}
+                Save
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Pricing Rates (workspace-wide, shared by the Rate Calculator) */}
+        {isAdmin && (
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+                <IndianRupee className="h-4 w-4" /> Pricing Rates
+              </CardTitle>
+              <CardDescription>
+                Shared inspection rates used by the Rate Calculator when
+                building quotations.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <RatesManager />
+            </CardContent>
+          </Card>
+        )}
 
         {/* List */}
         {isLoading ? (
