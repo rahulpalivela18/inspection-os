@@ -121,6 +121,16 @@ export interface IStorage {
     userIds: string[],
     restricted: boolean,
   ): Promise<void>;
+  getProjectAccessMatrix(
+    workspaceId: string,
+  ): Promise<
+    { id: string; name: string; restricted: boolean; memberIds: string[] }[]
+  >;
+  setMemberProjects(
+    workspaceId: string,
+    userId: string,
+    projectIds: string[],
+  ): Promise<void>;
 
   // Dashboard stats
   getDashboardStats(
@@ -635,6 +645,67 @@ export class DatabaseStorage implements IStorage {
       if (userIds.length > 0) {
         await tx.insert(projectMembers).values(
           userIds.map((userId) => ({
+            projectId,
+            workspaceId,
+            userId,
+            permission: "edit" as const,
+          })),
+        );
+      }
+    });
+  }
+
+  // Full access matrix for the workspace: every project with its restricted
+  // flag and the ids of assigned members. Drives the admin Team-page UI so a
+  // member's projects can be assigned without one request per project.
+  async getProjectAccessMatrix(workspaceId: string) {
+    const projects = await this.getProjectsByWorkspace(workspaceId);
+    const rows = await db
+      .select({
+        projectId: projectMembers.projectId,
+        userId: projectMembers.userId,
+      })
+      .from(projectMembers)
+      .where(eq(projectMembers.workspaceId, workspaceId));
+    const byProject = new Map<string, string[]>();
+    for (const row of rows) {
+      const list = byProject.get(row.projectId) ?? [];
+      list.push(row.userId);
+      byProject.set(row.projectId, list);
+    }
+    return projects.map((p) => ({
+      id: p.id,
+      name: p.title,
+      restricted: p.restricted,
+      memberIds: byProject.get(p.id) ?? [],
+    }));
+  }
+
+  // Member-centric assignment: sets which restricted projects a user belongs
+  // to. Open projects (restricted = false) are skipped — everyone already sees
+  // those, so membership is irrelevant.
+  async setMemberProjects(
+    workspaceId: string,
+    userId: string,
+    projectIds: string[],
+  ) {
+    const projects = await this.getProjectsByWorkspace(workspaceId);
+    const restrictedIds = new Set(
+      projects.filter((p) => p.restricted).map((p) => p.id),
+    );
+    const targetIds = projectIds.filter((id) => restrictedIds.has(id));
+    await db.transaction(async (tx) => {
+      await tx
+        .delete(projectMembers)
+        .where(
+          and(
+            eq(projectMembers.workspaceId, workspaceId),
+            eq(projectMembers.userId, userId),
+          ),
+        );
+      if (targetIds.length > 0) {
+        await tx.insert(projectMembers).values(
+          targetIds.map((projectId) => ({
             projectId,
             workspaceId,
             userId,

@@ -492,6 +492,44 @@ export async function registerRoutes(
     res.json({ success: true });
   });
 
+  // ── Team Project Assignment (admin only) ─────────────────────────────────────
+
+  // Every project with its restricted flag + assigned member ids, so the Team
+  // page can render a member's project assignments in one request.
+  app.get("/api/team/access", requireAdmin, async (req, res) => {
+    const user = req.user as any;
+    const matrix = await storage.getProjectAccessMatrix(user.workspaceId);
+    res.json(matrix);
+  });
+
+  // Member-centric assignment: replace the set of restricted projects a member
+  // belongs to. Open projects are ignored by the storage layer (everyone sees
+  // them already).
+  app.put(
+    "/api/team/members/:userId/access",
+    requireAdmin,
+    async (req, res) => {
+      const admin = req.user as any;
+      const userId = req.params.userId as string;
+      const { projectIds } = req.body as { projectIds?: unknown };
+      const list = Array.isArray(projectIds)
+        ? (projectIds as unknown[]).filter((id) => typeof id === "string")
+        : [];
+
+      const members = await storage.getUsersByWorkspace(admin.workspaceId);
+      const target = members.find((m) => m.id === userId);
+      if (!target)
+        return res.status(404).json({ message: "Member not found." });
+      if (target.role === "admin" || target.role === "super_admin")
+        return res.status(400).json({
+          message: "Admins always have access to every project.",
+        });
+
+      await storage.setMemberProjects(admin.workspaceId, userId, list);
+      res.json({ success: true });
+    },
+  );
+
   // ── Workspace Routes ──────────────────────────────────────────────────────────
 
   app.patch("/api/workspace", requireAdmin, async (req, res) => {

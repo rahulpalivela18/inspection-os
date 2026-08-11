@@ -13,7 +13,15 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Shield, Users, UserPlus, Trash2, AlertTriangle } from "lucide-react";
+import {
+  Shield,
+  Users,
+  UserPlus,
+  Trash2,
+  KeyRound,
+  AlertTriangle,
+} from "lucide-react";
+import MemberAccessManager from "@/components/MemberAccessManager";
 import { useToast } from "@/hooks/use-toast";
 import {
   AlertDialog,
@@ -48,6 +56,7 @@ export default function Team() {
     password: false,
   });
   const [showAddForm, setShowAddForm] = useState(false);
+  const [accessMember, setAccessMember] = useState<any>(null);
 
   const memberErrors = {
     name:
@@ -300,6 +309,19 @@ export default function Team() {
                     >
                       {ROLE_LABELS[m.role]?.label || m.role}
                     </Badge>
+                    {m.role !== "admin" && m.role !== "super_admin" && isAdmin && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 gap-1.5 px-2 text-slate-400 hover:text-primary"
+                        title="Manage project access"
+                        onClick={() => setAccessMember(m)}
+                        data-testid={`button-manage-access-${m.id}`}
+                      >
+                        <KeyRound className="h-3.5 w-3.5" />
+                        <span className="hidden sm:inline text-xs">Access</span>
+                      </Button>
+                    )}
                     {m.role !== "super_admin" && isAdmin && (
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
@@ -348,6 +370,12 @@ export default function Team() {
           </CardContent>
         </Card>
       </div>
+
+      <MemberAccessManager
+        member={accessMember}
+        open={!!accessMember}
+        onOpenChange={(open) => !open && setAccessMember(null)}
+      />
     </Layout>
   );
 }

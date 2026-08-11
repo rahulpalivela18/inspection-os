@@ -142,6 +142,15 @@ export const api = {
     request<any>("/api/team", { method: "POST", body: JSON.stringify(data) }),
   removeTeamMember: (id: string) =>
     request(`/api/team/${id}`, { method: "DELETE" }),
+  getTeamAccess: () =>
+    request<
+      { id: string; name: string; restricted: boolean; memberIds: string[] }[]
+    >("/api/team/access"),
+  setMemberProjects: (userId: string, projectIds: string[]) =>
+    request<any>(`/api/team/members/${userId}/access`, {
+      method: "PUT",
+      body: JSON.stringify({ projectIds }),
+    }),
 
   // Reports
   getReports: (projectId: string) =>
