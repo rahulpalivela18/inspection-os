@@ -1,4 +1,4 @@
-import { useState, useRef, useMemo } from "react";
+import { useState, useRef, useMemo, useEffect } from "react";
 import Layout from "@/components/Layout";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
@@ -177,6 +177,10 @@ export default function CaptureManager() {
   const [visitFilter, setVisitFilter] = useState<string>(
     () => searchParams.get("visit") ?? "all"
   );
+  // True once the visitor's visit filter has been decided — either by an
+  // explicit ?visit= in the URL or by our auto-default. Prevents us from
+  // clobbering a manual "All visits" pick.
+  const visitDefaultedRef = useRef(searchParams.get("visit") !== null);
   const [untaggedOnly, setUntaggedOnly] = useState(
     () => searchParams.get("untagged") === "1"
   );
@@ -243,6 +247,20 @@ export default function CaptureManager() {
     },
     enabled: !!projectId,
   });
+
+  // Default the visit filter to the latest visit (currentVisit, else newest
+  // by createdAt — getVisitsByProject is newest-first) so opening a project
+  // shows the most recent round without the visitor re-picking it. Only runs
+  // when nothing was chosen yet, and only once per project page.
+  useEffect(() => {
+    if (visitDefaultedRef.current) return;
+    if (visitFilter !== "all") return;
+    if (visits.length === 0) return;
+    const latestId = currentVisit?.id ?? visits[0]?.id;
+    if (!latestId) return;
+    visitDefaultedRef.current = true;
+    setVisitFilter(latestId);
+  }, [visits, currentVisit, visitFilter]);
 
   const { data: captureHotspots = [] } = useQuery({
     queryKey: ["allHotspots", projectId],
