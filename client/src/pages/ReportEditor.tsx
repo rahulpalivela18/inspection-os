@@ -507,6 +507,7 @@ export default function ReportEditor() {
                   <ProgressView
                     report={report}
                     readOnly={isViewer}
+                    updateChecklistItem={updateChecklistItem}
                   />
                 ) : (
                   <ChecklistView
@@ -848,15 +849,23 @@ function ChecklistItemRow({
   const handleYes = () => {
     if (readOnly) return;
     if (item.status === "Y")
-      update(item.id, { status: null, severity: null, image: undefined });
-    else update(item.id, { status: "Y", severity: null, image: undefined });
+      update(item.id, { status: null, severity: null, image: undefined, workStatus: null });
+    else update(item.id, {
+      status: "Y",
+      severity: null,
+      image: undefined,
+      workStatus: item.triggerOn === "yes" ? "open" : undefined,
+    });
   };
 
   const handleNo = () => {
     if (readOnly) return;
     if (item.status === "N")
-      update(item.id, { status: null, severity: null, image: undefined });
-    else update(item.id, { status: "N" });
+      update(item.id, { status: null, severity: null, image: undefined, workStatus: null });
+    else update(item.id, {
+      status: "N",
+      workStatus: item.triggerOn !== "yes" ? "open" : undefined,
+    });
   };
 
   const isTriggerIssue =
@@ -933,26 +942,47 @@ function ChecklistItemRow({
             </button>
           </div>
 
-          {(item.triggerOn === "yes"
-            ? item.status === "Y"
-            : item.status === "N") && (
-            <select
-              className="text-xs border rounded-md px-2 py-1.5 bg-white text-slate-700 w-full sm:w-[110px]"
-              value={item.severity || "invalid"}
-              onChange={(e) => {
-                if (readOnly) return;
-                update(item.id, { severity: (e.target.value || null) as any });
-              }}
-              disabled={readOnly}
-              data-testid={`select-severity-${item.id}`}
-            >
-              <option value="invalid" disabled>
-                Severity
-              </option>
-              <option value="MAJOR">Major</option>
-              <option value="MINOR">Minor</option>
-              <option value="COSMETIC">Cosmetic</option>
-            </select>
+          {isTriggerIssue && (
+            <>
+              <select
+                className="text-xs border rounded-md px-2 py-1.5 bg-white text-slate-700 w-full sm:w-[110px]"
+                value={item.severity || "invalid"}
+                onChange={(e) => {
+                  if (readOnly) return;
+                  update(item.id, { severity: (e.target.value || null) as any });
+                }}
+                disabled={readOnly}
+                data-testid={`select-severity-${item.id}`}
+              >
+                <option value="invalid" disabled>
+                  Severity
+                </option>
+                <option value="MAJOR">Major</option>
+                <option value="MINOR">Minor</option>
+                <option value="COSMETIC">Cosmetic</option>
+              </select>
+              <select
+                className={cn(
+                  "text-xs border rounded-md px-2 py-1.5 w-full sm:w-[120px] font-medium",
+                  item.workStatus === "resolved"
+                    ? "bg-green-50 text-green-700 border-green-200"
+                    : item.workStatus === "in_progress"
+                      ? "bg-yellow-50 text-yellow-700 border-yellow-200"
+                      : "bg-red-50 text-red-700 border-red-200",
+                )}
+                value={item.workStatus || "open"}
+                onChange={(e) => {
+                  if (readOnly) return;
+                  update(item.id, { workStatus: e.target.value as any });
+                }}
+                disabled={readOnly}
+                data-testid={`select-work-status-${item.id}`}
+              >
+                <option value="open">Open</option>
+                <option value="in_progress">In Progress</option>
+                <option value="resolved">Resolved</option>
+              </select>
+            </>
           )}
         </div>
 
@@ -1287,18 +1317,185 @@ function DimensionsView({
   );
 }
 
+// ─── Progress: Item Status Row ────────────────────────────────────────────────
+
+function ItemStatusRow({
+  item,
+  readOnly,
+  onUpdate,
+  onPhotoUpload,
+  afterPhotos,
+  onRemovePhoto,
+  onResolve,
+  isPendingResolve,
+}: {
+  item: ChecklistItem;
+  readOnly: boolean;
+  onUpdate: (id: string, updates: Partial<ChecklistItem>) => void;
+  onPhotoUpload: (itemId: string, e: React.ChangeEvent<HTMLInputElement>) => void;
+  afterPhotos: Record<string, string[]>;
+  onRemovePhoto: (itemId: string, photoIdx: number) => void;
+  onResolve: (itemId: string) => void;
+  isPendingResolve: boolean;
+}) {
+  const statusColors = {
+    open: "bg-red-100 text-red-700 border-red-200",
+    in_progress: "bg-yellow-100 text-yellow-700 border-yellow-200",
+    resolved: "bg-green-100 text-green-700 border-green-200",
+  };
+
+  const nextStatus: Record<string, string> = {
+    open: "in_progress",
+    in_progress: "resolved",
+  };
+
+  const nextLabel: Record<string, string> = {
+    open: "Start Work",
+    in_progress: "Mark Resolved",
+  };
+
+  const handleAdvance = () => {
+    const next = nextStatus[item.workStatus || "open"];
+    if (next === "resolved") {
+      onResolve(item.id);
+    } else {
+      onUpdate(item.id, { workStatus: next as any });
+    }
+  };
+
+  const handleConfirmResolve = () => {
+    const photos = afterPhotos[item.id] || [];
+    if (photos.length === 0) return;
+    onUpdate(item.id, { workStatus: "resolved" });
+  };
+
+  const currentStatus = item.workStatus || "open";
+  const itemPhotos = afterPhotos[item.id] || [];
+  const showPhotoUpload = isPendingResolve && currentStatus !== "resolved";
+
+  return (
+    <div className={cn(
+      "rounded-lg border transition-colors",
+      currentStatus === "resolved"
+        ? "bg-green-50/50 border-green-200"
+        : currentStatus === "in_progress"
+          ? "bg-yellow-50/50 border-yellow-200"
+          : "bg-white border-slate-200",
+    )}>
+      <div className="flex items-center gap-3 p-3">
+        <div className="flex-1 min-w-0">
+          <p className={cn(
+            "text-sm font-medium truncate",
+            currentStatus === "resolved" && "line-through text-slate-500",
+          )}>
+            {item.point}
+          </p>
+          <div className="flex items-center gap-2 mt-1">
+            {item.severity && (
+              <span className={cn(
+                "text-[10px] font-semibold px-1.5 py-0.5 rounded",
+                item.severity === "MAJOR"
+                  ? "bg-red-50 text-red-600"
+                  : item.severity === "MINOR"
+                    ? "bg-orange-50 text-orange-600"
+                    : "bg-blue-50 text-blue-600",
+              )}>
+                {item.severity}
+              </span>
+            )}
+            <span className={cn(
+              "text-[10px] font-semibold px-1.5 py-0.5 rounded border",
+              statusColors[currentStatus as keyof typeof statusColors],
+            )}>
+              {currentStatus === "in_progress" ? "In Progress" : currentStatus.charAt(0).toUpperCase() + currentStatus.slice(1)}
+            </span>
+          </div>
+        </div>
+
+        {!readOnly && currentStatus !== "resolved" && !showPhotoUpload && (
+          <Button
+            size="sm"
+            variant={currentStatus === "open" ? "default" : "outline"}
+            onClick={handleAdvance}
+            className="shrink-0 text-xs"
+          >
+            {nextLabel[currentStatus]}
+          </Button>
+        )}
+      </div>
+
+      {/* Inline photo upload when resolving */}
+      {showPhotoUpload && (
+        <div className="px-3 pb-3 border-t border-slate-100 pt-3">
+          <p className="text-[10px] font-medium text-slate-500 mb-2">
+            After photo required to mark as resolved:
+          </p>
+          <div className="flex gap-2 flex-wrap items-center">
+            {itemPhotos.map((photo, pIdx) => (
+              <div key={pIdx} className="relative h-14 w-14 rounded border overflow-hidden group">
+                <img src={photo} alt="After" className="object-cover w-full h-full" />
+                <button
+                  type="button"
+                  onClick={() => onRemovePhoto(item.id, pIdx)}
+                  className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity"
+                >
+                  <X className="h-3 w-3 text-white" />
+                </button>
+              </div>
+            ))}
+            {itemPhotos.length < 2 && (
+              <>
+                <input
+                  type="file"
+                  accept="image/*"
+                  id={`resolve-after-${item.id}`}
+                  className="hidden"
+                  onChange={(e) => onPhotoUpload(item.id, e)}
+                />
+                <label
+                  htmlFor={`resolve-after-${item.id}`}
+                  className="flex items-center justify-center gap-1 h-14 w-14 border-2 border-dashed border-slate-300 rounded-lg text-slate-400 hover:border-primary hover:text-primary cursor-pointer transition-colors"
+                >
+                  <Plus className="h-3 w-3" />
+                </label>
+              </>
+            )}
+          </div>
+          {itemPhotos.length === 0 && (
+            <p className="text-[10px] text-red-500 mt-1">At least 1 photo required</p>
+          )}
+          <div className="flex gap-2 justify-end mt-3">
+            <Button variant="outline" size="sm" onClick={() => onResolve("")} className="text-xs">
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              onClick={handleConfirmResolve}
+              disabled={itemPhotos.length === 0}
+              className="text-xs"
+            >
+              Confirm Resolve
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Progress View ───────────────────────────────────────────────────────────
 
 function ProgressView({
   report,
   readOnly = false,
+  updateChecklistItem,
 }: {
   report: any;
   readOnly?: boolean;
+  updateChecklistItem: (id: string, updates: Partial<ChecklistItem>) => void;
 }) {
   const queryClient = useQueryClient();
   const { user } = useAuth();
-  const [isAdding, setIsAdding] = useState(false);
   const [editingLogId, setEditingLogId] = useState<string | null>(null);
   const [editNotes, setEditNotes] = useState("");
   const [editAfterPhotos, setEditAfterPhotos] = useState<Record<string, string[]>>({});
@@ -1306,6 +1503,8 @@ function ProgressView({
   const [resolvedIds, setResolvedIds] = useState<string[]>([]);
   const [afterPhotos, setAfterPhotos] = useState<Record<string, string[]>>({});
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [isAdding, setIsAdding] = useState(false);
+  const [pendingResolveId, setPendingResolveId] = useState<string | null>(null);
 
   const { data: logs = [], isLoading } = useQuery({
     queryKey: ["progress-logs", report.id],
@@ -1340,15 +1539,14 @@ function ProgressView({
 
   const checklist: ChecklistItem[] = report.checklist ?? [];
   const failedItems = checklist.filter(
-    (c) => (c.triggerOn === "yes" ? c.status === "Y" : c.status === "N") && c.severity,
+    (c) => (c.triggerOn === "yes" ? c.status === "Y" : c.status === "N"),
   );
 
-  const allResolvedIds = new Set(
-    logs.flatMap((log: any) => log.resolvedChecklistItemIds ?? []),
-  );
+  const openItems = failedItems.filter((c) => !c.workStatus || c.workStatus === "open");
+  const inProgressItems = failedItems.filter((c) => c.workStatus === "in_progress");
+  const resolvedItems = failedItems.filter((c) => c.workStatus === "resolved");
 
-  const unresolvedItems = failedItems.filter((c) => !allResolvedIds.has(c.id));
-  const resolvedCount = failedItems.length - unresolvedItems.length;
+  const resolvedCount = resolvedItems.length;
   const progressPct =
     failedItems.length > 0
       ? Math.round((resolvedCount / failedItems.length) * 100)
@@ -1359,6 +1557,7 @@ function ProgressView({
     setResolvedIds([]);
     setAfterPhotos({});
     setNotes("");
+    setPendingResolveId(null);
   };
 
   const handlePhotoUpload = (itemId: string, e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1387,19 +1586,19 @@ function ProgressView({
     (id) => afterPhotos[id] && afterPhotos[id].length > 0,
   );
 
-  const handleSubmit = () => {
-    if (!canSubmit) return;
-    if (resolvedIds.length > 0 && !allResolvedHavePhotos) return;
+  const handleResolveSelected = () => {
+    if (resolvedIds.length === 0 || !allResolvedHavePhotos) return;
+    resolvedIds.forEach((id) => {
+      updateChecklistItem(id, { workStatus: "resolved" });
+    });
     createMutation.mutate({
       author: user?.name || "Inspector",
       date: new Date().toISOString().split("T")[0],
       notes: notes.trim() || undefined,
-      resolvedChecklistItemIds: resolvedIds.length > 0 ? resolvedIds : undefined,
-      afterPhotos: resolvedIds.length > 0 && Object.keys(afterPhotos).length > 0
-        ? Object.fromEntries(
-            Object.entries(afterPhotos).filter(([k]) => resolvedIds.includes(k)),
-          )
-        : undefined,
+      resolvedChecklistItemIds: resolvedIds,
+      afterPhotos: Object.fromEntries(
+        Object.entries(afterPhotos).filter(([k]) => resolvedIds.includes(k)),
+      ),
     });
   };
 
@@ -1455,11 +1654,11 @@ function ProgressView({
     <>
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-lg font-bold flex items-center gap-2">
-          <RefreshCw className="h-5 w-5 text-primary" /> Progress Log
+          <RefreshCw className="h-5 w-5 text-primary" /> Progress
         </h2>
-        {!readOnly && !isAdding && (
+        {!readOnly && !isAdding && openItems.length + inProgressItems.length > 0 && (
           <Button size="sm" onClick={() => setIsAdding(true)}>
-            <Plus className="mr-2 h-4 w-4" /> Log Entry
+            <Plus className="mr-2 h-4 w-4" /> Resolve Items
           </Button>
         )}
       </div>
@@ -1478,19 +1677,35 @@ function ProgressView({
             style={{ width: `${progressPct}%` }}
           />
         </div>
+        {failedItems.length > 0 && (
+          <div className="flex gap-3 mt-3 text-xs">
+            <span className="flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-red-500" />
+              Open ({openItems.length})
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-yellow-500" />
+              In Progress ({inProgressItems.length})
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-green-500" />
+              Resolved ({resolvedItems.length})
+            </span>
+          </div>
+        )}
       </div>
 
-      {/* New Entry Form */}
+      {/* Resolve Items Form */}
       {isAdding && (
         <div className="bg-white rounded-xl border shadow-sm p-4 mb-6">
-          <h3 className="font-semibold text-sm mb-3">New Log Entry</h3>
-          {unresolvedItems.length > 0 && (
+          <h3 className="font-semibold text-sm mb-3">Resolve Items</h3>
+          {openItems.length + inProgressItems.length > 0 && (
             <div className="mb-4">
               <Label className="text-xs font-medium text-slate-600 mb-2 block">
-                Mark resolved items:
+                Select items to mark as resolved:
               </Label>
               <div className="space-y-2 max-h-64 overflow-y-auto">
-                {unresolvedItems.map((item) => {
+                {[...openItems, ...inProgressItems].map((item) => {
                   const isChecked = resolvedIds.includes(item.id);
                   const itemPhotos = afterPhotos[item.id] || [];
                   return (
@@ -1513,8 +1728,13 @@ function ProgressView({
                                 : "bg-blue-50 text-blue-600",
                           )}
                         >
-                          {item.severity}
+                          {item.severity || "NO SEVERITY"}
                         </span>
+                        {item.workStatus === "in_progress" && (
+                          <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-yellow-50 text-yellow-600">
+                            In Progress
+                          </span>
+                        )}
                       </label>
                       {isChecked && (
                         <div className="mt-2 pl-6">
@@ -1579,7 +1799,7 @@ function ProgressView({
             </Button>
             <Button
               size="sm"
-              onClick={handleSubmit}
+              onClick={handleResolveSelected}
               disabled={
                 createMutation.isPending ||
                 !canSubmit ||
@@ -1613,159 +1833,235 @@ function ProgressView({
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Timeline */}
-      {isLoading ? (
-        <p className="text-sm text-muted-foreground">Loading logs...</p>
-      ) : logs.length === 0 ? (
-        <div className="text-center py-12 text-slate-400">
-          <RefreshCw className="h-8 w-8 mx-auto mb-2 opacity-50" />
-          <p className="text-sm">No progress entries yet.</p>
+      {/* Item Status Sections */}
+      {failedItems.length > 0 ? (
+        <div className="space-y-6 mb-8">
+          {openItems.length > 0 && (
+            <div>
+              <h3 className="text-sm font-semibold text-red-700 mb-2 flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-red-500" />
+                Open ({openItems.length})
+              </h3>
+              <div className="space-y-2">
+                {openItems.map((item) => (
+                  <ItemStatusRow
+                    key={item.id}
+                    item={item}
+                    readOnly={readOnly}
+                    onUpdate={updateChecklistItem}
+                    onPhotoUpload={handlePhotoUpload}
+                    afterPhotos={afterPhotos}
+                    onRemovePhoto={removeAfterPhoto}
+                    onResolve={(id) => setPendingResolveId(id || null)}
+                    isPendingResolve={pendingResolveId === item.id}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+          {inProgressItems.length > 0 && (
+            <div>
+              <h3 className="text-sm font-semibold text-yellow-700 mb-2 flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-yellow-500" />
+                In Progress ({inProgressItems.length})
+              </h3>
+              <div className="space-y-2">
+                {inProgressItems.map((item) => (
+                  <ItemStatusRow
+                    key={item.id}
+                    item={item}
+                    readOnly={readOnly}
+                    onUpdate={updateChecklistItem}
+                    onPhotoUpload={handlePhotoUpload}
+                    afterPhotos={afterPhotos}
+                    onRemovePhoto={removeAfterPhoto}
+                    onResolve={(id) => setPendingResolveId(id || null)}
+                    isPendingResolve={pendingResolveId === item.id}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+          {resolvedItems.length > 0 && (
+            <div>
+              <h3 className="text-sm font-semibold text-green-700 mb-2 flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-green-500" />
+                Resolved ({resolvedItems.length})
+              </h3>
+              <div className="space-y-2">
+                {resolvedItems.map((item) => (
+                  <ItemStatusRow
+                    key={item.id}
+                    item={item}
+                    readOnly={readOnly}
+                    onUpdate={updateChecklistItem}
+                    onPhotoUpload={handlePhotoUpload}
+                    afterPhotos={afterPhotos}
+                    onRemovePhoto={removeAfterPhoto}
+                    onResolve={(id) => setPendingResolveId(id || null)}
+                    isPendingResolve={false}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       ) : (
-        <div className="space-y-4">
-          {logs.map((log: any) => {
-            const isEditing = editingLogId === log.id;
-            return (
-              <div key={log.id} className="bg-white rounded-xl border shadow-sm p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary text-xs font-bold">
-                      {log.author?.charAt(0) || "?"}
-                    </div>
-                    <div>
-                      <p className="text-sm font-semibold">{log.author}</p>
-                      <p className="text-[10px] text-slate-400">{log.date}</p>
-                    </div>
-                  </div>
-                  {!readOnly && (
-                    <div className="flex items-center gap-1">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7 text-slate-400 hover:text-foreground"
-                        onClick={() => startEditNotes(log)}
-                        disabled={isEditing}
-                      >
-                        <Pencil className="h-3.5 w-3.5" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7 text-slate-400 hover:text-red-500"
-                        onClick={() => setDeleteConfirmId(log.id)}
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
-                  )}
-                </div>
+        <div className="text-center py-12 text-slate-400">
+          <RefreshCw className="h-8 w-8 mx-auto mb-2 opacity-50" />
+          <p className="text-sm">No failed items to track.</p>
+        </div>
+      )}
 
-                {log.resolvedChecklistItemIds?.length > 0 && (
-                  <div className="mt-2">
-                    <p className="text-[10px] font-semibold uppercase text-slate-400 mb-1">Resolved</p>
-                    <div className="space-y-1.5">
-                      {log.resolvedChecklistItemIds.map((id: string) => {
-                        const item = checklist.find((c) => c.id === id);
-                        const photos = log.afterPhotos?.[id] ?? [];
-                        return item ? (
-                          <div key={id} className="flex items-center gap-2">
-                            <span className="text-[11px] bg-green-50 text-green-700 px-2 py-0.5 rounded-full border border-green-200 shrink-0">
-                              ✓ {item.point}
-                            </span>
-                            {photos.length > 0 && (
-                              <div className="flex gap-1">
-                                {photos.map((p: string, i: number) => (
-                                  <img
-                                    key={i}
-                                    src={p}
-                                    alt="After"
-                                    className="h-8 w-8 rounded border object-cover cursor-pointer hover:opacity-80"
-                                    onClick={() => openImageInNewTab(p)}
-                                  />
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        ) : null;
-                      })}
+      {/* Timeline */}
+      {!isLoading && logs.length > 0 && (
+        <div>
+          <h3 className="text-sm font-semibold text-slate-600 mb-3">Activity Log</h3>
+          <div className="space-y-4">
+            {logs.map((log: any) => {
+              const isEditing = editingLogId === log.id;
+              return (
+                <div key={log.id} className="bg-white rounded-xl border shadow-sm p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary text-xs font-bold">
+                        {log.author?.charAt(0) || "?"}
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold">{log.author}</p>
+                        <p className="text-[10px] text-slate-400">{log.date}</p>
+                      </div>
                     </div>
-                  </div>
-                )}
-
-                {isEditing ? (
-                  <div className="mt-3">
-                    <Textarea
-                      value={editNotes}
-                      onChange={(e) => setEditNotes(e.target.value)}
-                      placeholder="Notes..."
-                      className="min-h-16 text-sm"
-                    />
-                    {log.resolvedChecklistItemIds?.length > 0 && (
-                      <div className="mt-3">
-                        <Label className="text-[10px] font-semibold uppercase text-slate-400 mb-1 block">
-                          After Photos
-                        </Label>
-                        <div className="space-y-2">
-                          {log.resolvedChecklistItemIds.map((itemId: string) => {
-                            const item = checklist.find((c) => c.id === itemId);
-                            const photos = editAfterPhotos[itemId] || [];
-                            return item ? (
-                              <div key={itemId} className="rounded-lg border border-slate-200 p-2">
-                                <p className="text-[11px] text-slate-600 mb-1">{item.point}</p>
-                                <div className="flex gap-1.5 flex-wrap items-center">
-                                  {photos.map((photo: string, pIdx: number) => (
-                                    <div key={pIdx} className="relative h-14 w-14 rounded border overflow-hidden group">
-                                      <img src={photo} alt="After" className="object-cover w-full h-full" />
-                                      <button
-                                        type="button"
-                                        onClick={(e) => { e.preventDefault(); removeEditAfterPhoto(itemId, pIdx); }}
-                                        className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity"
-                                      >
-                                        <X className="h-3 w-3 text-white" />
-                                      </button>
-                                    </div>
-                                  ))}
-                                  {photos.length < 2 && (
-                                    <>
-                                      <input
-                                        type="file"
-                                        accept="image/*"
-                                        id={`edit-after-${itemId}`}
-                                        className="hidden"
-                                        onChange={(e) => handleEditPhotoUpload(itemId, e)}
-                                      />
-                                      <label
-                                        htmlFor={`edit-after-${itemId}`}
-                                        className="flex items-center justify-center gap-1 h-14 w-14 border-2 border-dashed border-slate-300 rounded-lg text-slate-400 hover:border-primary hover:text-primary cursor-pointer transition-colors"
-                                      >
-                                        <Plus className="h-3 w-3" />
-                                      </label>
-                                    </>
-                                  )}
-                                </div>
-                              </div>
-                            ) : null;
-                          })}
-                        </div>
+                    {!readOnly && (
+                      <div className="flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-slate-400 hover:text-foreground"
+                          onClick={() => startEditNotes(log)}
+                          disabled={isEditing}
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-slate-400 hover:text-red-500"
+                          onClick={() => setDeleteConfirmId(log.id)}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
                       </div>
                     )}
-                    <div className="flex gap-2 justify-end mt-2">
-                      <Button variant="outline" size="sm" onClick={() => setEditingLogId(null)}>
-                        Cancel
-                      </Button>
-                      <Button size="sm" onClick={saveEditNotes} disabled={updateMutation.isPending}>
-                        {updateMutation.isPending ? "Saving..." : "Save"}
-                      </Button>
-                    </div>
                   </div>
-                ) : (
-                  log.notes && (
-                    <p className="text-sm text-slate-600 mt-2">{log.notes}</p>
-                  )
-                )}
-              </div>
-            );
-          })}
+
+                  {log.resolvedChecklistItemIds?.length > 0 && (
+                    <div className="mt-2">
+                      <p className="text-[10px] font-semibold uppercase text-slate-400 mb-1">Resolved</p>
+                      <div className="space-y-1.5">
+                        {log.resolvedChecklistItemIds.map((id: string) => {
+                          const item = checklist.find((c) => c.id === id);
+                          const photos = log.afterPhotos?.[id] ?? [];
+                          return item ? (
+                            <div key={id} className="flex items-center gap-2">
+                              <span className="text-[11px] bg-green-50 text-green-700 px-2 py-0.5 rounded-full border border-green-200 shrink-0">
+                                ✓ {item.point}
+                              </span>
+                              {photos.length > 0 && (
+                                <div className="flex gap-1">
+                                  {photos.map((p: string, i: number) => (
+                                    <img
+                                      key={i}
+                                      src={p}
+                                      alt="After"
+                                      className="h-8 w-8 rounded border object-cover cursor-pointer hover:opacity-80"
+                                      onClick={() => openImageInNewTab(p)}
+                                    />
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          ) : null;
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {isEditing ? (
+                    <div className="mt-3">
+                      <Textarea
+                        value={editNotes}
+                        onChange={(e) => setEditNotes(e.target.value)}
+                        placeholder="Notes..."
+                        className="min-h-16 text-sm"
+                      />
+                      {log.resolvedChecklistItemIds?.length > 0 && (
+                        <div className="mt-3">
+                          <Label className="text-[10px] font-semibold uppercase text-slate-400 mb-1 block">
+                            After Photos
+                          </Label>
+                          <div className="space-y-2">
+                            {log.resolvedChecklistItemIds.map((itemId: string) => {
+                              const item = checklist.find((c) => c.id === itemId);
+                              const photos = editAfterPhotos[itemId] || [];
+                              return item ? (
+                                <div key={itemId} className="rounded-lg border border-slate-200 p-2">
+                                  <p className="text-[11px] text-slate-600 mb-1">{item.point}</p>
+                                  <div className="flex gap-1.5 flex-wrap items-center">
+                                    {photos.map((photo: string, pIdx: number) => (
+                                      <div key={pIdx} className="relative h-14 w-14 rounded border overflow-hidden group">
+                                        <img src={photo} alt="After" className="object-cover w-full h-full" />
+                                        <button
+                                          type="button"
+                                          onClick={(e) => { e.preventDefault(); removeEditAfterPhoto(itemId, pIdx); }}
+                                          className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity"
+                                        >
+                                          <X className="h-3 w-3 text-white" />
+                                        </button>
+                                      </div>
+                                    ))}
+                                    {photos.length < 2 && (
+                                      <>
+                                        <input
+                                          type="file"
+                                          accept="image/*"
+                                          id={`edit-after-${itemId}`}
+                                          className="hidden"
+                                          onChange={(e) => handleEditPhotoUpload(itemId, e)}
+                                        />
+                                        <label
+                                          htmlFor={`edit-after-${itemId}`}
+                                          className="flex items-center justify-center gap-1 h-14 w-14 border-2 border-dashed border-slate-300 rounded-lg text-slate-400 hover:border-primary hover:text-primary cursor-pointer transition-colors"
+                                        >
+                                          <Plus className="h-3 w-3" />
+                                        </label>
+                                      </>
+                                    )}
+                                  </div>
+                                </div>
+                              ) : null;
+                            })}
+                          </div>
+                        </div>
+                      )}
+                      <div className="flex gap-2 justify-end mt-2">
+                        <Button variant="outline" size="sm" onClick={() => setEditingLogId(null)}>
+                          Cancel
+                        </Button>
+                        <Button size="sm" onClick={saveEditNotes} disabled={updateMutation.isPending}>
+                          {updateMutation.isPending ? "Saving..." : "Save"}
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    log.notes && (
+                      <p className="text-sm text-slate-600 mt-2">{log.notes}</p>
+                    )
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
     </>
