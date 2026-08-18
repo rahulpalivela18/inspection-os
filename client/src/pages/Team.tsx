@@ -284,7 +284,7 @@ export default function Team() {
             )}
 
             <div className="divide-y rounded-lg border overflow-hidden">
-              {(team as any[]).map((m: any) => (
+              {(team as any[]).filter((m: any) => m.role !== "super_admin").map((m: any) => (
                 <div
                   key={m.id}
                   className="flex items-center justify-between px-4 py-3 bg-white"
