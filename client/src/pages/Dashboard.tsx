@@ -562,8 +562,17 @@ export default function Dashboard() {
                     <Calendar className="h-3 w-3" />
                     {formatDistanceToNow(new Date(project.createdAt))} ago
                   </span>
-                  <div className="flex items-center text-xs font-bold text-primary opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all">
-                    Open Project <ArrowRight className="ml-1 h-3 w-3" />
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs text-muted-foreground flex items-center gap-1" title={project.projectType === "multi" ? "Multi-Block Project" : "Single Building"}>
+                      {project.projectType === "multi" ? (
+                        <Building2 className="h-3.5 w-3.5" />
+                      ) : (
+                        <Home className="h-3.5 w-3.5" />
+                      )}
+                    </span>
+                    <div className="flex items-center text-xs font-bold text-primary opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all">
+                      Open Project <ArrowRight className="ml-1 h-3 w-3" />
+                    </div>
                   </div>
                 </CardFooter>
               </Card>
