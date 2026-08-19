@@ -59,6 +59,7 @@ import { ProjectTabs } from "@/components/ProjectTabs";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth";
+import { isAdminRole } from "@/lib/utils";
 import { buildChecklistWithPreservedResponses } from "@/lib/checklist";
 import { pick } from "@shared/cleanData";
 import NotFound from "./not-found";
@@ -365,7 +366,11 @@ export default function ProjectDetails() {
               >
                 <ArrowLeft className="mr-1 h-4 w-4" /> All Projects
               </Link>
-              <ProjectTabs projectId={params.id} active="reports" />
+              <ProjectTabs
+                projectId={params.id}
+                active="reports"
+                admin={isAdminRole(user?.role)}
+              />
             </div>
             <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-6">
               <div className="flex-1">

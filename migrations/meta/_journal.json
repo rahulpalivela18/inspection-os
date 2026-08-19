@@ -29,6 +29,27 @@
       "when": 1785943158847,
       "tag": "0003_mighty_rhodey",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1786473512836,
+      "tag": "0004_eager_jimmy_woo",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1786475214129,
+      "tag": "0005_project_members",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1786475956710,
+      "tag": "0006_project_restricted",
+      "breakpoints": true
     }
   ]
 }

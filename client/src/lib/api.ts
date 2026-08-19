@@ -45,6 +45,19 @@ export const api = {
     }),
   logout: () => request("/api/auth/logout", { method: "POST" }),
 
+  // Self-service profile
+  updateUser: (data: {
+    name?: string;
+    phone?: string | null;
+    avatarUrl?: string | null;
+  }) =>
+    request<any>("/api/user", { method: "PATCH", body: JSON.stringify(data) }),
+  changePassword: (data: { currentPassword: string; newPassword: string }) =>
+    request<any>("/api/user/password", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
   // Workspace
   updateWorkspace: (data: any) =>
     request("/api/workspace", { method: "PATCH", body: JSON.stringify(data) }),
@@ -104,6 +117,20 @@ export const api = {
   deleteProject: (id: string) =>
     request(`/api/projects/${id}`, { method: "DELETE" }),
 
+  // Project membership (per-project access, admin only)
+  getProjectMembers: (projectId: string) =>
+    request<{ restricted: boolean; members: any[] }>(
+      `/api/projects/${projectId}/members`,
+    ),
+  setProjectMembers: (
+    projectId: string,
+    data: { restricted: boolean; userIds: string[] },
+  ) =>
+    request<any>(`/api/projects/${projectId}/members`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    }),
+
   // Team
   getTeam: () => request<any[]>("/api/team"),
   addTeamMember: (data: {
@@ -115,6 +142,15 @@ export const api = {
     request<any>("/api/team", { method: "POST", body: JSON.stringify(data) }),
   removeTeamMember: (id: string) =>
     request(`/api/team/${id}`, { method: "DELETE" }),
+  getTeamAccess: () =>
+    request<
+      { id: string; name: string; restricted: boolean; memberIds: string[] }[]
+    >("/api/team/access"),
+  setMemberProjects: (userId: string, projectIds: string[]) =>
+    request<any>(`/api/team/members/${userId}/access`, {
+      method: "PUT",
+      body: JSON.stringify({ projectIds }),
+    }),
 
   // Reports
   getReports: (projectId: string) =>
@@ -134,8 +170,19 @@ export const api = {
     request(`/api/reports/${id}`, { method: "DELETE" }),
 
   // Captures
-  getCaptures: (projectId: string) =>
-    request<any[]>(`/api/projects/${projectId}/captures`),
+  getCaptures: (
+    projectId: string,
+    filters?: { visitId?: string; tagValueIds?: string[] },
+  ) => {
+    const params = new URLSearchParams();
+    if (filters?.visitId) params.set("visitId", filters.visitId);
+    if (filters?.tagValueIds?.length)
+      params.set("tagValueIds", filters.tagValueIds.join(","));
+    const qs = params.toString();
+    return request<any[]>(
+      `/api/projects/${projectId}/captures${qs ? `?${qs}` : ""}`,
+    );
+  },
   getCapture: (id: string) => request<any>(`/api/captures/${id}`),
   createCapture: (projectId: string, data: any) =>
     request<any>(`/api/projects/${projectId}/captures`, {
@@ -149,6 +196,50 @@ export const api = {
     }),
   deleteCapture: (id: string) =>
     request(`/api/captures/${id}`, { method: "DELETE" }),
+  setCaptureTags: (id: string, tagValueIds: string[]) =>
+    request<any[]>(`/api/captures/${id}/tags`, {
+      method: "PATCH",
+      body: JSON.stringify({ tagValueIds }),
+    }),
+  bulkTagCaptures: (
+    projectId: string,
+    captureIds: string[],
+    tagValueIds: string[],
+  ) =>
+    request(`/api/projects/${projectId}/captures/bulk-tag`, {
+      method: "POST",
+      body: JSON.stringify({ captureIds, tagValueIds }),
+    }),
+
+  // Tag Values (Block/Floor/Flat/Amenity vocabulary)
+  getTagValues: (projectId: string, category?: string) =>
+    request<any[]>(
+      `/api/projects/${projectId}/tag-values${category ? `?category=${category}` : ""}`,
+    ),
+  createTagValue: (
+    projectId: string,
+    data: { category: string; value: string },
+  ) =>
+    request<any>(`/api/projects/${projectId}/tag-values`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  getDefaultAmenities: () => request<string[]>("/api/amenities/defaults"),
+
+  // Visits (named inspection rounds)
+  getVisits: (projectId: string) =>
+    request<any[]>(`/api/projects/${projectId}/visits`),
+  getCurrentVisit: (projectId: string) =>
+    request<any>(`/api/projects/${projectId}/visits/current`),
+  createVisit: (projectId: string, title: string) =>
+    request<any>(`/api/projects/${projectId}/visits`, {
+      method: "POST",
+      body: JSON.stringify({ title }),
+    }),
+  activateVisit: (projectId: string, visitId: string) =>
+    request<any>(`/api/projects/${projectId}/visits/${visitId}/activate`, {
+      method: "POST",
+    }),
 
   // Hotspots
   getHotspots: (captureId: string) =>

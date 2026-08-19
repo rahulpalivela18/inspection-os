@@ -13,10 +13,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { ClipboardCheck, Loader2, Eye, EyeOff } from "lucide-react";
-
-function isValidEmail(email: string) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-}
+import { isValidEmail } from "@/lib/utils";
 
 export default function Login() {
   const { login } = useAuth();

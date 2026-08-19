@@ -10,6 +10,8 @@ import { storage, spatialStorage } from "./storage";
 import {
   loginSchema,
   registerSchema,
+  updateUserSchema,
+  changePasswordSchema,
   insertProjectSchema,
   insertReportSchema,
   insertChecklistTemplateSchema,
@@ -17,10 +19,27 @@ import {
   insertCaptureSchema,
   insertHotspotSchema,
   insertProgressLogSchema,
+  insertTagValueSchema,
+  insertVisitSchema,
 } from "@shared/schema";
 import { pick } from "@shared/cleanData";
 import { DEFAULT_CHECKLIST_POINTS } from "./defaultChecklist";
 import { uploadImageToGCP, isGCPUrl } from "./gcp-storage";
+
+// Seeds the amenity picker in the Multi-Block project questionnaire. A
+// workspace-editable version of this list is a clean v2 — deferred for now.
+const DEFAULT_AMENITIES = [
+  "Gym",
+  "Swimming Pool",
+  "Clubhouse",
+  "Tennis Court",
+  "Children's Play Area",
+  "Garden",
+  "Parking",
+  "Lift",
+  "Cafe",
+  "Security Cabin",
+];
 
 const PgSession = connectPgSimple(session);
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
@@ -167,6 +186,7 @@ export async function registerRoutes(
         "address",
         "email",
         "phone",
+        "taxRate",
         "plan",
         "planStatus",
         "trialEndsAt",
@@ -228,6 +248,69 @@ export async function registerRoutes(
       "trialEndsAt",
     ]);
     res.json({ user: safe, workspace: safeWs });
+  });
+
+  // ── Self-service User Profile Routes ─────────────────────────────────────────
+
+  // Edit your own name/phone/avatar. Role, email, and password are NOT
+  // accepted here (role changes stay admin-only via Team, email is the login
+  // identifier, password has its own endpoint below) — stripped defensively
+  // in case a client sends them anyway.
+  app.patch("/api/user", requireAuth, async (req, res) => {
+    const user = req.user as any;
+    const { password: _, role, email, workspaceId, id, ...body } = req.body;
+    const parsed = updateUserSchema.safeParse(body);
+    if (!parsed.success)
+      return res.status(400).json({ message: parsed.error.errors[0].message });
+
+    // Upload avatar to GCP if it's a base64 data URL (same flow as the
+    // workspace logo) — otherwise keep the existing GCP URL as-is.
+    if (
+      parsed.data.avatarUrl &&
+      !isGCPUrl(parsed.data.avatarUrl) &&
+      parsed.data.avatarUrl.startsWith("data:")
+    ) {
+      try {
+        const gcpUrl = await uploadImageToGCP(
+          parsed.data.avatarUrl,
+          "avatar.jpg",
+        );
+        if (gcpUrl) parsed.data.avatarUrl = gcpUrl;
+      } catch (err) {
+        console.error("Avatar upload error:", err);
+      }
+    }
+
+    const updated = await storage.updateUser(user.id, user.workspaceId, {
+      ...(parsed.data.name !== undefined && { name: parsed.data.name }),
+      ...(parsed.data.phone !== undefined && { phone: parsed.data.phone }),
+      ...(parsed.data.avatarUrl !== undefined && {
+        avatarUrl: parsed.data.avatarUrl,
+      }),
+    });
+    if (!updated) return res.status(404).json({ message: "User not found" });
+    const { password: _pw, ...safe } = updated;
+    res.json(safe);
+  });
+
+  app.post("/api/user/password", requireAuth, async (req, res) => {
+    const user = req.user as any;
+    const parsed = changePasswordSchema.safeParse(req.body);
+    if (!parsed.success)
+      return res.status(400).json({ message: parsed.error.errors[0].message });
+
+    const valid = await bcrypt.compare(
+      parsed.data.currentPassword,
+      user.password,
+    );
+    if (!valid)
+      return res
+        .status(400)
+        .json({ message: "Current password is incorrect." });
+
+    const hashed = await bcrypt.hash(parsed.data.newPassword, 10);
+    await storage.updateUser(user.id, user.workspaceId, { password: hashed });
+    res.json({ success: true });
   });
 
   // ── Trial Routes ──────────────────────────────────────────────────────────────
@@ -409,6 +492,44 @@ export async function registerRoutes(
     res.json({ success: true });
   });
 
+  // ── Team Project Assignment (admin only) ─────────────────────────────────────
+
+  // Every project with its restricted flag + assigned member ids, so the Team
+  // page can render a member's project assignments in one request.
+  app.get("/api/team/access", requireAdmin, async (req, res) => {
+    const user = req.user as any;
+    const matrix = await storage.getProjectAccessMatrix(user.workspaceId);
+    res.json(matrix);
+  });
+
+  // Member-centric assignment: replace the set of restricted projects a member
+  // belongs to. Open projects are ignored by the storage layer (everyone sees
+  // them already).
+  app.put(
+    "/api/team/members/:userId/access",
+    requireAdmin,
+    async (req, res) => {
+      const admin = req.user as any;
+      const userId = req.params.userId as string;
+      const { projectIds } = req.body as { projectIds?: unknown };
+      const list = Array.isArray(projectIds)
+        ? (projectIds as unknown[]).filter((id) => typeof id === "string")
+        : [];
+
+      const members = await storage.getUsersByWorkspace(admin.workspaceId);
+      const target = members.find((m) => m.id === userId);
+      if (!target)
+        return res.status(404).json({ message: "Member not found." });
+      if (target.role === "admin" || target.role === "super_admin")
+        return res.status(400).json({
+          message: "Admins always have access to every project.",
+        });
+
+      await storage.setMemberProjects(admin.workspaceId, userId, list);
+      res.json({ success: true });
+    },
+  );
+
   // ── Workspace Routes ──────────────────────────────────────────────────────────
 
   app.patch("/api/workspace", requireAdmin, async (req, res) => {
@@ -550,7 +671,15 @@ export async function registerRoutes(
 
   app.get("/api/dashboard/stats", requireAuth, async (req, res) => {
     const user = req.user as any;
-    const stats = await storage.getDashboardStats(user.workspaceId);
+    let scopedIds: string[] | undefined;
+    if (user?.role !== "admin" && user?.role !== "super_admin") {
+      const accessible = await storage.getAccessibleProjects(
+        user.workspaceId,
+        user.id,
+      );
+      scopedIds = accessible.map((p) => p.id);
+    }
+    const stats = await storage.getDashboardStats(user.workspaceId, scopedIds);
     res.json(stats);
   });
 
@@ -558,7 +687,10 @@ export async function registerRoutes(
 
   app.get("/api/projects", requireAuth, async (req, res) => {
     const user = req.user as any;
-    const items = await storage.getProjectsByWorkspace(user.workspaceId);
+    const items =
+      user?.role === "admin" || user?.role === "super_admin"
+        ? await storage.getProjectsByWorkspace(user.workspaceId)
+        : await storage.getAccessibleProjects(user.workspaceId, user.id);
     res.json(items);
   });
 
@@ -584,8 +716,13 @@ export async function registerRoutes(
         }
       }
 
+      // blockCount / amenities are questionnaire-only inputs used to seed
+      // tag_values — not real project columns, so pull them out before
+      // validating the project shape itself.
+      const { blockCount, amenities, ...projectBody } = req.body;
+
       const parsed = insertProjectSchema.safeParse({
-        ...req.body,
+        ...projectBody,
         workspaceId: user.workspaceId,
       });
       if (!parsed.success)
@@ -593,9 +730,68 @@ export async function registerRoutes(
           .status(400)
           .json({ message: parsed.error.errors[0].message });
       const item = await storage.createProject(parsed.data);
+
+      // Multi-Block: seed the Block dropdown ("Block 1".."Block N") and the
+      // chosen Amenity values, so they're ready the first time someone tags
+      // a capture. Floors/Flats always self-populate later via "Other".
+      if (parsed.data.projectType === "multi") {
+        const seeds: Promise<any>[] = [];
+        const count = Math.max(0, Math.min(50, Number(blockCount) || 0));
+        for (let i = 1; i <= count; i++) {
+          seeds.push(
+            storage.createTagValue({
+              workspaceId: user.workspaceId,
+              projectId: item.id,
+              category: "block",
+              value: `Block ${i}`,
+            }),
+          );
+        }
+        if (Array.isArray(amenities)) {
+          for (const amenity of amenities) {
+            if (typeof amenity === "string" && amenity.trim()) {
+              seeds.push(
+                storage.createTagValue({
+                  workspaceId: user.workspaceId,
+                  projectId: item.id,
+                  category: "amenity",
+                  value: amenity.trim(),
+                }),
+              );
+            }
+          }
+        }
+        await Promise.all(seeds);
+      }
+
       res.status(201).json(item);
     },
   );
+
+  app.get("/api/amenities/defaults", requireAuth, async (_req, res) => {
+    res.json(DEFAULT_AMENITIES);
+  });
+
+  // Every route under /api/projects/:projectId (including /:id itself and all
+  // nested reports/captures/visits/tag-values/quotations/share-links) is gated
+  // by per-project access. Admins always pass; other roles need the project to
+  // be unassigned (open to the team) or to be a member. 404 hides existence.
+  app.use("/api/projects/:projectId", requireAuth, async (req, res, next) => {
+    try {
+      const user = req.user as any;
+      const projectId = (req.params.projectId || req.params.id) as string;
+      const allowed = await storage.canUserAccessProject(
+        projectId,
+        user.workspaceId,
+        user.id,
+        user.role,
+      );
+      if (!allowed) return res.status(404).json({ message: "Not found" });
+      next();
+    } catch (err) {
+      next(err);
+    }
+  });
 
   app.get("/api/projects/:id", requireAuth, async (req, res) => {
     const user = req.user as any;
@@ -653,6 +849,198 @@ export async function registerRoutes(
       );
       if (!ok) return res.status(404).json({ message: "Not found" });
       res.json({ success: true });
+    },
+  );
+
+  // ── Project Membership Routes (admin only) ──────────────────────────────────
+
+  app.get(
+    "/api/projects/:projectId/members",
+    requireAdmin,
+    async (req, res) => {
+      const user = req.user as any;
+      const projectId = req.params.projectId as string;
+      const project = await storage.getProject(projectId, user.workspaceId);
+      if (!project) return res.status(404).json({ message: "Not found" });
+      const rows = await storage.getProjectMembers(projectId);
+      const users = await storage.getUsersByWorkspace(user.workspaceId);
+      res.json({
+        restricted: project.restricted,
+        members: rows.map((row) => {
+          const member = users.find((u) => u.id === row.userId);
+          if (!member) return null;
+          const { password: _, ...safe } = member;
+          return { ...safe, permission: row.permission };
+        }),
+      });
+    },
+  );
+
+  // Replace the full member set for a project and its restricted flag.
+  // restricted=false → open to everyone (members are cleared). restricted=true
+  // with an empty list → only admins can see the project.
+  app.put(
+    "/api/projects/:projectId/members",
+    requireAdmin,
+    async (req, res) => {
+      const user = req.user as any;
+      const projectId = req.params.projectId as string;
+      const project = await storage.getProject(projectId, user.workspaceId);
+      if (!project) return res.status(404).json({ message: "Not found" });
+
+      const { userIds, restricted } = req.body as {
+        userIds?: unknown;
+        restricted?: unknown;
+      };
+      const list = Array.isArray(userIds) ? (userIds as string[]) : [];
+      if (list.some((id) => typeof id !== "string"))
+        return res.status(400).json({ message: "Invalid userIds." });
+
+      // Only workspace members can be assigned.
+      const workspaceUsers = await storage.getUsersByWorkspace(
+        user.workspaceId,
+      );
+      const validIds = new Set(workspaceUsers.map((u) => u.id));
+      if (list.some((id) => !validIds.has(id)))
+        return res
+          .status(400)
+          .json({ message: "One or more members are not in this workspace." });
+
+      const isRestricted = restricted === true;
+      await storage.setProjectMembers(
+        projectId,
+        user.workspaceId,
+        isRestricted ? list : [],
+        isRestricted,
+      );
+
+      const rows = await storage.getProjectMembers(projectId);
+      res.json({
+        restricted: isRestricted,
+        members: rows.map((row) => {
+          const member = workspaceUsers.find((u) => u.id === row.userId);
+          if (!member) return null;
+          const { password: _, ...safe } = member;
+          return { ...safe, permission: row.permission };
+        }),
+      });
+    },
+  );
+
+  // ── Tag Value Routes (Block/Floor/Flat/Amenity vocabulary) ───────────────────
+
+  app.get(
+    "/api/projects/:projectId/tag-values",
+    requireAuth,
+    async (req, res) => {
+      const user = req.user as any;
+      const category = req.query.category as string | undefined;
+      const items = await storage.getTagValues(
+        req.params.projectId as string,
+        user.workspaceId,
+        category,
+      );
+      res.json(items);
+    },
+  );
+
+  app.post(
+    "/api/projects/:projectId/tag-values",
+    requireWriteAccess,
+    requireActiveTrial,
+    async (req, res) => {
+      const user = req.user as any;
+      const parsed = insertTagValueSchema.safeParse({
+        ...req.body,
+        projectId: req.params.projectId as string,
+        workspaceId: user.workspaceId,
+      });
+      if (!parsed.success)
+        return res
+          .status(400)
+          .json({ message: parsed.error.errors[0].message });
+      // Idempotent — reuses an existing case-insensitive match instead of
+      // fragmenting the dropdown (see storage.createTagValue).
+      const item = await storage.createTagValue(parsed.data);
+      res.status(201).json(item);
+    },
+  );
+
+  // ── Visit Routes (named inspection rounds) ───────────────────────────────────
+
+  app.get("/api/projects/:projectId/visits", requireAuth, async (req, res) => {
+    const user = req.user as any;
+    const items = await storage.getVisitsByProject(
+      req.params.projectId as string,
+      user.workspaceId,
+    );
+    res.json(items);
+  });
+
+  // The camera button always targets this — "current" is simply the most
+  // recently created visit, no separate flag needed. Returns 404 if the
+  // project has no visits yet, so the client knows to prompt "name this visit".
+  app.get(
+    "/api/projects/:projectId/visits/current",
+    requireAuth,
+    async (req, res) => {
+      const user = req.user as any;
+      const current = await storage.getCurrentVisit(
+        req.params.projectId as string,
+        user.workspaceId,
+      );
+      if (!current) return res.status(404).json({ message: "No visits yet" });
+      res.json(current);
+    },
+  );
+
+  app.post(
+    "/api/projects/:projectId/visits",
+    requireWriteAccess,
+    requireActiveTrial,
+    async (req, res) => {
+      const user = req.user as any;
+      const parsed = insertVisitSchema.safeParse({
+        ...req.body,
+        projectId: req.params.projectId as string,
+        workspaceId: user.workspaceId,
+      });
+      if (!parsed.success)
+        return res
+          .status(400)
+          .json({ message: parsed.error.errors[0].message });
+      try {
+        const item = await storage.createVisit(parsed.data);
+        res.status(201).json(item);
+      } catch (err: any) {
+        // Unique constraint (project + title, case-insensitive). Drizzle wraps
+        // the pg error — the SQLSTATE code lives on the original `cause`.
+        const pgCode = err?.code ?? err?.cause?.code;
+        if (pgCode === "23505") {
+          return res.status(409).json({
+            message: `A visit named "${parsed.data.title}" already exists in this project. Use a different name or open that visit instead.`,
+          });
+        }
+        throw err;
+      }
+    },
+  );
+
+  // Switch which visit the camera targets. "Current" is whichever has
+  // `active = true`; new captures always land there.
+  app.post(
+    "/api/projects/:projectId/visits/:visitId/activate",
+    requireWriteAccess,
+    requireActiveTrial,
+    async (req, res) => {
+      const user = req.user as any;
+      const updated = await storage.setActiveVisit(
+        req.params.projectId as string,
+        user.workspaceId,
+        req.params.visitId as string,
+      );
+      if (!updated) return res.status(404).json({ message: "Visit not found" });
+      res.json(updated);
     },
   );
 
@@ -917,11 +1305,29 @@ export async function registerRoutes(
     requireAuth,
     async (req, res) => {
       const user = req.user as any;
+      const visitId = req.query.visitId as string | undefined;
+      const tagValueIds = req.query.tagValueIds
+        ? (req.query.tagValueIds as string).split(",").filter(Boolean)
+        : undefined;
       const items = await spatialStorage.getCapturesByProject(
         req.params.projectId as string,
         user.workspaceId,
+        { visitId, tagValueIds },
       );
-      res.json(items);
+      // Hydrate each capture's tags in one query, so the grid/filter UI can
+      // show tag chips + power the "Untagged" filter without N+1 requests.
+      const tagRows = await spatialStorage.getTagsForCaptures(
+        items.map((c) => c.id),
+      );
+      const tagsByCapture = new Map<string, typeof tagRows>();
+      for (const row of tagRows) {
+        const list = tagsByCapture.get(row.captureId) ?? [];
+        list.push(row);
+        tagsByCapture.set(row.captureId, list);
+      }
+      res.json(
+        items.map((c) => ({ ...c, tags: tagsByCapture.get(c.id) ?? [] })),
+      );
     },
   );
 
@@ -931,6 +1337,7 @@ export async function registerRoutes(
     requireActiveTrial,
     async (req, res) => {
       const user = req.user as any;
+      const { tagValueIds, ...captureBody } = req.body;
 
       // Trial capture limit
       const workspace = await storage.getWorkspace(user.workspaceId);
@@ -949,8 +1356,28 @@ export async function registerRoutes(
         }
       }
 
+      // Every capture must belong to a visit. If the client didn't pass one
+      // explicitly (the common case — camera button just uses whatever's
+      // current), resolve it here. If the project truly has no visits yet,
+      // fail clearly so the client can prompt "name this visit" and retry —
+      // we never silently invent one on the server.
+      let visitId = captureBody.visitId;
+      if (!visitId) {
+        const current = await storage.getCurrentVisit(
+          req.params.projectId as string,
+          user.workspaceId,
+        );
+        if (!current)
+          return res.status(400).json({
+            message: "Create a visit before adding captures.",
+            needsVisit: true,
+          });
+        visitId = current.id;
+      }
+
       const parsed = insertCaptureSchema.safeParse({
-        ...req.body,
+        ...captureBody,
+        visitId,
         projectId: req.params.projectId as string,
         workspaceId: user.workspaceId,
       });
@@ -976,7 +1403,63 @@ export async function registerRoutes(
       }
 
       const item = await spatialStorage.createCapture(parsed.data);
+
+      if (Array.isArray(tagValueIds) && tagValueIds.length > 0) {
+        await spatialStorage.setCaptureTags(
+          item.id,
+          user.workspaceId,
+          tagValueIds,
+        );
+      }
+
       res.status(201).json(item);
+    },
+  );
+
+  // Replaces a capture's tag set (used by the capture edit form).
+  app.patch(
+    "/api/captures/:id/tags",
+    requireWriteAccess,
+    requireActiveTrial,
+    async (req, res) => {
+      const user = req.user as any;
+      const { tagValueIds } = req.body;
+      if (!Array.isArray(tagValueIds))
+        return res
+          .status(400)
+          .json({ message: "tagValueIds must be an array." });
+      const rows = await spatialStorage.setCaptureTags(
+        req.params.id as string,
+        user.workspaceId,
+        tagValueIds,
+      );
+      res.json(rows);
+    },
+  );
+
+  // Adds tags to several captures at once without removing existing ones —
+  // used by the "Untagged" bulk-apply cleanup action.
+  app.post(
+    "/api/projects/:projectId/captures/bulk-tag",
+    requireWriteAccess,
+    requireActiveTrial,
+    async (req, res) => {
+      const { captureIds, tagValueIds } = req.body;
+      const user = req.user as any;
+      if (!Array.isArray(captureIds) || !Array.isArray(tagValueIds))
+        return res
+          .status(400)
+          .json({ message: "captureIds and tagValueIds must be arrays." });
+      await Promise.all(
+        captureIds.map((captureId: string) =>
+          spatialStorage.addCaptureTags(
+            captureId,
+            user.workspaceId,
+            tagValueIds,
+          ),
+        ),
+      );
+      res.json({ success: true });
     },
   );
 
@@ -1310,6 +1793,7 @@ export async function registerRoutes(
     requireActiveTrial,
     async (req, res) => {
       const user = req.user as any;
+      const ws = await storage.getWorkspace(user.workspaceId);
       const {
         projectId,
         title,
@@ -1331,7 +1815,7 @@ export async function registerRoutes(
         projectId: projectId || null,
         workspaceId: user.workspaceId,
         title,
-        taxRate: taxRate ?? "18",
+        taxRate: taxRate ?? ws?.taxRate ?? "18",
         notes: notes ?? null,
         validityDays: validityDays ?? 30,
         clientName: clientName ?? null,
@@ -1354,6 +1838,7 @@ export async function registerRoutes(
     requireActiveTrial,
     async (req, res) => {
       const user = req.user as any;
+      const ws = await storage.getWorkspace(user.workspaceId);
       const {
         title,
         taxRate,
@@ -1374,7 +1859,7 @@ export async function registerRoutes(
         projectId: req.params.projectId as string,
         workspaceId: user.workspaceId,
         title,
-        taxRate: taxRate ?? "0",
+        taxRate: taxRate ?? ws?.taxRate ?? "18",
         notes: notes ?? null,
         validityDays: validityDays ?? 30,
         clientName: clientName ?? null,

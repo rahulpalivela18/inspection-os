@@ -5,6 +5,20 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+export function isValidEmail(email: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+export function isAdminRole(role?: string) {
+  return role === "admin" || role === "super_admin";
+}
+
+// Initials for avatars — falls back from name → email → "?".
+export function getInitials(name?: string, email?: string) {
+  const source = (name?.trim() || email?.trim() || "?").charAt(0);
+  return source.toUpperCase();
+}
+
 export function ensureJpeg(src: string): Promise<string> {
   return new Promise((resolve, reject) => {
     const img = new Image();

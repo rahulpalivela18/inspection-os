@@ -33,11 +33,14 @@ import {
   BarChart3,
   Trash2,
   Pin,
+  Home,
+  Building2,
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { formatDistanceToNow } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth";
+import { cn } from "@/lib/utils";
 
 export default function Dashboard() {
   const { user, refreshTrial } = useAuth();
@@ -53,6 +56,21 @@ export default function Dashboard() {
     clientName: "",
     address: "",
     description: "",
+  });
+
+  // ── Project-type questionnaire — "One Building" is the fast path used by
+  // most inspection companies (no extra questions at all). "Multi-Block
+  // Project" seeds the Block/Amenity tag dropdowns so builders don't have to
+  // type them in later while tagging a capture. ──
+  const [projectType, setProjectType] = useState<"single" | "multi">("single");
+  const [blockCount, setBlockCount] = useState("1");
+  const [selectedAmenities, setSelectedAmenities] = useState<string[]>([]);
+  const [customAmenity, setCustomAmenity] = useState("");
+
+  const { data: defaultAmenities = [] } = useQuery({
+    queryKey: ["defaultAmenities"],
+    queryFn: api.getDefaultAmenities,
+    enabled: isDialogOpen && projectType === "multi",
   });
 
   const { data: projects = [], isLoading } = useQuery({
@@ -77,6 +95,10 @@ export default function Dashboard() {
         address: "",
         description: "",
       });
+      setProjectType("single");
+      setBlockCount("1");
+      setSelectedAmenities([]);
+      setCustomAmenity("");
     },
     onError: (err: any) =>
       toast({
@@ -117,8 +139,26 @@ export default function Dashboard() {
 
   const handleCreateProject = () => {
     if (!newProject.title) return;
-    createMutation.mutate(newProject);
+    createMutation.mutate({
+      ...newProject,
+      projectType,
+      ...(projectType === "multi"
+        ? { blockCount: Number(blockCount) || 0, amenities: selectedAmenities }
+        : {}),
+    });
   };
+
+  function toggleAmenity(a: string) {
+    setSelectedAmenities((prev) =>
+      prev.includes(a) ? prev.filter((x) => x !== a) : [...prev, a],
+    );
+  }
+  function addCustomAmenity() {
+    const value = customAmenity.trim();
+    if (!value || selectedAmenities.includes(value)) return;
+    setSelectedAmenities((prev) => [...prev, value]);
+    setCustomAmenity("");
+  }
 
   const filteredProjects = projects.filter(
     (p: any) =>
@@ -213,11 +253,145 @@ export default function Dashboard() {
                       data-testid="input-project-description"
                     />
                   </div>
+
+                  {/* ── Project type — most inspection companies never need
+                      anything past this; builders get one extra step. ── */}
+                  <div className="grid gap-2">
+                    <Label>What kind of project is this?</Label>
+                    <div className="grid grid-cols-2 gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setProjectType("single")}
+                        className={cn(
+                          "flex flex-col items-start gap-1.5 rounded-xl border-2 p-3 text-left transition-colors",
+                          projectType === "single"
+                            ? "border-primary bg-primary/5"
+                            : "border-border hover:border-primary/40",
+                        )}
+                      >
+                        <Home className="h-5 w-5 text-primary" />
+                        <span className="text-sm font-semibold text-foreground">
+                          One Building
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          A single house or flat — no extra setup
+                        </span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setProjectType("multi")}
+                        className={cn(
+                          "flex flex-col items-start gap-1.5 rounded-xl border-2 p-3 text-left transition-colors",
+                          projectType === "multi"
+                            ? "border-primary bg-primary/5"
+                            : "border-border hover:border-primary/40",
+                        )}
+                      >
+                        <Building2 className="h-5 w-5 text-primary" />
+                        <span className="text-sm font-semibold text-foreground">
+                          Multi-Block Project
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          A site with several blocks, floors &amp; flats
+                        </span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {projectType === "multi" && (
+                    <>
+                      <div className="grid gap-2">
+                        <Label htmlFor="blockCount">Number of blocks</Label>
+                        <Input
+                          id="blockCount"
+                          type="number"
+                          min={1}
+                          max={50}
+                          value={blockCount}
+                          onChange={(e) => setBlockCount(e.target.value)}
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          We'll set up "Block 1" through "Block {blockCount || "N"}"
+                          for you — floors and flats fill in automatically as
+                          you tag your first photos in each one.
+                        </p>
+                      </div>
+
+                      <div className="grid gap-2">
+                        <Label>Amenities (optional)</Label>
+                        <div className="flex flex-wrap gap-2">
+                          {defaultAmenities.map((a: string) => (
+                            <button
+                              key={a}
+                              type="button"
+                              onClick={() => toggleAmenity(a)}
+                              className={cn(
+                                "rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
+                                selectedAmenities.includes(a)
+                                  ? "border-primary bg-primary/10 text-primary"
+                                  : "border-border text-muted-foreground hover:border-primary/40",
+                              )}
+                            >
+                              {a}
+                            </button>
+                          ))}
+                          {selectedAmenities
+                            .filter((a) => !defaultAmenities.includes(a))
+                            .map((a) => (
+                              <button
+                                key={a}
+                                type="button"
+                                onClick={() => toggleAmenity(a)}
+                                className="rounded-full border border-primary bg-primary/10 px-3 py-1.5 text-xs font-medium text-primary"
+                              >
+                                {a} ✕
+                              </button>
+                            ))}
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-2">
+                          Any other applicable commas to add below.
+                        </p>
+                        <div className="flex gap-2 mt-1">
+                          <Input
+                            placeholder="Add any other applicable e.g. Rooftop, CCTV..."
+                            value={customAmenity}
+                            onChange={(e) => setCustomAmenity(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                e.preventDefault();
+                                addCustomAmenity();
+                              }
+                            }}
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={addCustomAmenity}
+                            disabled={!customAmenity.trim()}
+                          >
+                            Add
+                          </Button>
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </div>
                 <DialogFooter>
                   <Button
                     variant="outline"
-                    onClick={() => setIsDialogOpen(false)}
+                    onClick={() => {
+                      setIsDialogOpen(false);
+                      setNewProject({
+                        title: "",
+                        clientName: "",
+                        address: "",
+                        description: "",
+                      });
+                      setProjectType("single");
+                      setBlockCount("1");
+                      setSelectedAmenities([]);
+                      setCustomAmenity("");
+                    }}
                   >
                     Cancel
                   </Button>
@@ -388,8 +562,17 @@ export default function Dashboard() {
                     <Calendar className="h-3 w-3" />
                     {formatDistanceToNow(new Date(project.createdAt))} ago
                   </span>
-                  <div className="flex items-center text-xs font-bold text-primary opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all">
-                    Open Project <ArrowRight className="ml-1 h-3 w-3" />
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs text-muted-foreground flex items-center gap-1" title={project.projectType === "multi" ? "Multi-Block Project" : "Single Building"}>
+                      {project.projectType === "multi" ? (
+                        <Building2 className="h-3.5 w-3.5" />
+                      ) : (
+                        <Home className="h-3.5 w-3.5" />
+                      )}
+                    </span>
+                    <div className="flex items-center text-xs font-bold text-primary opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all">
+                      Open Project <ArrowRight className="ml-1 h-3 w-3" />
+                    </div>
                   </div>
                 </CardFooter>
               </Card>

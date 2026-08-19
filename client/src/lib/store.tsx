@@ -12,6 +12,8 @@ export type ChecklistItem = {
    * 'yes': Show in PDF if answered 'Yes'.
    */
   triggerOn?: "yes" | "no";
+  /** Per-item work lifecycle: set when item is in its triggered (failed) state. */
+  workStatus?: "open" | "in_progress" | "resolved" | null;
 };
 
 export type DimensionUnit = "ft" | "m";

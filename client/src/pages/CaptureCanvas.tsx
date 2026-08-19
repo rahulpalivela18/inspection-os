@@ -42,7 +42,7 @@ import {
   FileDown,
   Plus,
 } from "lucide-react";
-import { useRoute, Link } from "wouter";
+import { useRoute, useSearchParams, Link } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { ensureJpeg } from "@/lib/utils";
 import CapturePDF from "@/components/CapturePDF";
@@ -119,6 +119,7 @@ const emptyDraft = (): PinDraft => ({
 // ─── Component ────────────────────────────────────────────────────────────────
 export default function CaptureCanvas() {
   const [, params] = useRoute("/project/:projectId/captures/:captureId");
+  const [searchParams] = useSearchParams();
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -171,6 +172,15 @@ export default function CaptureCanvas() {
 
   // Keep viewPinRef current
   viewPinRef.current = (id: string) => setViewingPinId(id);
+
+  // Deep link from the issues table: ?pin=<hotspotId> opens that hotspot once
+  // the capture's hotspots load.
+  useEffect(() => {
+    const pinId = searchParams.get("pin");
+    if (!pinId || hotspots.length === 0) return;
+    const found = hotspots.some((p: any) => p.id === pinId);
+    if (found) setViewingPinId(pinId);
+  }, [searchParams, hotspots]);
 
   // ── 360° detection from stored field ──────────────────────────────────────
   useEffect(() => {
@@ -536,7 +546,9 @@ export default function CaptureCanvas() {
         <div className="flex items-center justify-between px-6 py-3 border-b bg-white shrink-0">
           <div>
             <Link
-              href={`/project/${projectId}/captures`}
+              href={`/project/${projectId}/captures${
+                searchParams.toString() ? `?${searchParams.toString()}` : ""
+              }`}
               className="text-sm text-slate-500 hover:text-slate-700"
             >
               ← All Captures
