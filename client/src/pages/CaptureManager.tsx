@@ -72,6 +72,7 @@ import {
 } from "@/components/analytics/SharedAnalytics";
 
 const PAGE_SIZE = 8;
+const CAPTURES_PAGE_SIZE = 24;
 
 export default function CaptureManager() {
   const { user, workspace, refreshTrial } = useAuth();
@@ -188,6 +189,8 @@ export default function CaptureManager() {
   const [resultsView, setResultsView] = useState<"captures" | "issues">(
     () => (searchParams.get("view") === "issues" ? "issues" : "captures")
   );
+
+  const [visibleCount, setVisibleCount] = useState(CAPTURES_PAGE_SIZE);
 
   const hasActiveFilters =
     areaFilter !== "all" ||
@@ -483,6 +486,14 @@ export default function CaptureManager() {
   const untaggedCount = captures.filter(
     (c: any) => (c.tags?.length ?? 0) === 0
   ).length;
+
+  const visibleCaptures = filteredCaptures.slice(0, visibleCount);
+  const hasMoreCaptures = visibleCount < filteredCaptures.length;
+
+  // Reset visible count when filters change
+  useEffect(() => {
+    setVisibleCount(CAPTURES_PAGE_SIZE);
+  }, [areaFilter, severityFilter, statusFilter, search, visitFilter, untaggedOnly, tagFilters]);
 
   function readFileAsCapture(file: File) {
     return new Promise<{ dataUrl: string; width: number; height: number }>(
@@ -1185,8 +1196,9 @@ export default function CaptureManager() {
                   </div>
                 )
               ) : (
+                <>
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-                {filteredCaptures.map((fp: any) => {
+                {visibleCaptures.map((fp: any) => {
                   const capTotal =
                     captureHotspots.find((c: any) => c.capture.id === fp.id)
                       ?.hotspots.length ?? 0;
@@ -1209,6 +1221,7 @@ export default function CaptureManager() {
                           src={fp.imageUrl}
                           alt={fp.title}
                           className="w-full h-full object-cover"
+                          loading="lazy"
                         />
                         {user?.role !== "viewer" && (
                           <>
@@ -1225,7 +1238,7 @@ export default function CaptureManager() {
                                 setTagEditCapture(fp);
                               }}
                               title="Edit tags"
-                              className="absolute top-2 left-2 h-7 w-7 grid place-items-center rounded-lg bg-white/90 text-slate-600 shadow opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white"
+                              className="absolute top-2 left-2 h-7 w-7 grid place-items-center rounded-lg bg-white/90 text-slate-600 shadow opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity hover:bg-white"
                             >
                               <Tags className="h-3.5 w-3.5" />
                             </button>
@@ -1236,7 +1249,7 @@ export default function CaptureManager() {
                                 setRenameCapture(fp);
                               }}
                               title="Rename capture"
-                              className="absolute top-2 left-11 h-7 w-7 grid place-items-center rounded-lg bg-white/90 text-slate-600 shadow opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white"
+                              className="absolute top-2 left-11 h-7 w-7 grid place-items-center rounded-lg bg-white/90 text-slate-600 shadow opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity hover:bg-white"
                             >
                               <Pencil className="h-3.5 w-3.5" />
                             </button>
@@ -1245,7 +1258,7 @@ export default function CaptureManager() {
                                 e.stopPropagation();
                                 setDeleteId(fp.id);
                               }}
-                              className="absolute top-2 right-2 h-7 w-7 grid place-items-center rounded-lg bg-white/90 text-red-600 shadow opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white"
+                              className="absolute top-2 right-2 h-7 w-7 grid place-items-center rounded-lg bg-white/90 text-red-600 shadow opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity hover:bg-white"
                             >
                               <Trash2 className="h-3.5 w-3.5" />
                             </button>
@@ -1313,6 +1326,17 @@ export default function CaptureManager() {
                   );
                 })}
                 </div>
+                {hasMoreCaptures && (
+                  <div className="flex justify-center mt-6">
+                    <Button
+                      variant="outline"
+                      onClick={() => setVisibleCount((v) => v + CAPTURES_PAGE_SIZE)}
+                    >
+                      Load More ({filteredCaptures.length - visibleCount} remaining)
+                    </Button>
+                  </div>
+                )}
+                </>
               )}
             </div>
           </>
@@ -1361,6 +1385,7 @@ export default function CaptureManager() {
                   src={previewUrl}
                   alt="Preview"
                   className="w-full h-full object-contain"
+                  loading="lazy"
                 />
               </div>
             ) : selectedFiles.length > 1 ? (
