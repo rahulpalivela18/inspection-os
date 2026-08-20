@@ -149,7 +149,7 @@ export async function registerRoutes(
 
     const workspace = await storage.createWorkspace({
       name: companyName,
-      planStatus: "active",
+      planStatus: "inactive",
       trialEndsAt,
     });
     const hashed = await bcrypt.hash(password, 10);
