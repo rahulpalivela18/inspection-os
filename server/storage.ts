@@ -18,6 +18,10 @@ import {
   quotationItems,
   workspaceRates,
   projectMembers,
+  checklistItems,
+  reportDimensions,
+  reportIssues,
+  issueImages,
   type User,
   type InsertUser,
   type Workspace,
@@ -804,6 +808,171 @@ export class DatabaseStorage implements IStorage {
       .where(and(eq(reports.id, id), eq(reports.workspaceId, workspaceId)))
       .returning();
     return result.length > 0;
+  }
+
+  // ── Normalized Report Tables ────────────────────────────────────────────────
+
+  async getChecklistItems(reportId: string) {
+    return db
+      .select()
+      .from(checklistItems)
+      .where(eq(checklistItems.reportId, reportId))
+      .orderBy(asc(checklistItems.order));
+  }
+
+  async replaceChecklistItems(
+    reportId: string,
+    workspaceId: string,
+    items: Array<{
+      id: string;
+      category: string;
+      point: string;
+      status?: string | null;
+      severity?: string | null;
+      triggerOn?: string | null;
+      image?: string | null;
+      workStatus?: string | null;
+      order?: number;
+    }>,
+  ) {
+    // Delete existing then insert fresh — simplest for full-array replacement
+    await db
+      .delete(checklistItems)
+      .where(eq(checklistItems.reportId, reportId));
+    if (items.length === 0) return;
+    await db.insert(checklistItems).values(
+      items.map((item, idx) => ({
+        id: item.id,
+        reportId,
+        workspaceId,
+        category: item.category,
+        point: item.point,
+        status: item.status as any,
+        severity: item.severity as any,
+        triggerOn: (item.triggerOn as any) ?? "no",
+        imageUrl: item.image ?? null,
+        workStatus: (item.workStatus as any) ?? null,
+        order: item.order ?? idx,
+      })),
+    );
+  }
+
+  async updateChecklistItem(id: string, updates: Record<string, any>) {
+    const [row] = await db
+      .update(checklistItems)
+      .set(updates)
+      .where(eq(checklistItems.id, id))
+      .returning();
+    return row;
+  }
+
+  async getReportDimensions(reportId: string) {
+    return db
+      .select()
+      .from(reportDimensions)
+      .where(eq(reportDimensions.reportId, reportId))
+      .orderBy(asc(reportDimensions.order));
+  }
+
+  async replaceReportDimensions(
+    reportId: string,
+    workspaceId: string,
+    dims: Array<{
+      id: string;
+      space: string;
+      spaceName?: string | null;
+      length?: string | null;
+      width?: string | null;
+      unit?: string | null;
+      notes?: string | null;
+      order?: number;
+    }>,
+  ) {
+    await db
+      .delete(reportDimensions)
+      .where(eq(reportDimensions.reportId, reportId));
+    if (dims.length === 0) return;
+    await db.insert(reportDimensions).values(
+      dims.map((d, idx) => ({
+        id: d.id,
+        reportId,
+        workspaceId,
+        space: d.space,
+        spaceName: d.spaceName ?? null,
+        length: d.length ?? null,
+        width: d.width ?? null,
+        unit: (d.unit as any) ?? "ft",
+        notes: d.notes ?? null,
+        order: d.order ?? idx,
+      })),
+    );
+  }
+
+  async getReportIssues(reportId: string) {
+    return db
+      .select()
+      .from(reportIssues)
+      .where(eq(reportIssues.reportId, reportId))
+      .orderBy(asc(reportIssues.order));
+  }
+
+  async replaceReportIssues(
+    reportId: string,
+    workspaceId: string,
+    issues: Array<{
+      id: string;
+      title: string;
+      note?: string | null;
+      location?: string | null;
+      responsibleEngineer?: string | null;
+      severity?: string | null;
+      status?: string | null;
+      images?: string[];
+      order?: number;
+    }>,
+  ) {
+    // Delete existing issues (cascade deletes issue_images too)
+    await db.delete(reportIssues).where(eq(reportIssues.reportId, reportId));
+    if (issues.length === 0) return;
+    for (let idx = 0; idx < issues.length; idx++) {
+      const iss = issues[idx];
+      const [row] = await db
+        .insert(reportIssues)
+        .values({
+          id: iss.id,
+          reportId,
+          workspaceId,
+          title: iss.title,
+          note: iss.note ?? null,
+          location: iss.location ?? null,
+          responsibleEngineer: iss.responsibleEngineer ?? null,
+          severity: (iss.severity as any) ?? null,
+          status: (iss.status as any) ?? "Open",
+          order: iss.order ?? idx,
+        })
+        .returning();
+      // Insert issue images
+      if (iss.images && iss.images.length > 0) {
+        await db.insert(issueImages).values(
+          iss.images.map((url, imgIdx) => ({
+            issueId: row.id,
+            workspaceId,
+            gcpUrl: url,
+            sortOrder: imgIdx,
+          })),
+        );
+      }
+    }
+  }
+
+  async deleteReportNormalized(reportId: string) {
+    await db
+      .delete(checklistItems)
+      .where(eq(checklistItems.reportId, reportId));
+    await db
+      .delete(reportDimensions)
+      .where(eq(reportDimensions.reportId, reportId));
+    await db.delete(reportIssues).where(eq(reportIssues.reportId, reportId));
   }
 
   // Invoices

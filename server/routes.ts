@@ -7,6 +7,8 @@ import connectPgSimple from "connect-pg-simple";
 import { Pool } from "pg";
 import bcrypt from "bcryptjs";
 import { storage, spatialStorage } from "./storage";
+import { db } from "./db";
+import { inArray } from "drizzle-orm";
 import {
   loginSchema,
   registerSchema,
@@ -21,6 +23,7 @@ import {
   insertProgressLogSchema,
   insertTagValueSchema,
   insertVisitSchema,
+  issueImages,
 } from "@shared/schema";
 import { pick } from "@shared/cleanData";
 import { DEFAULT_CHECKLIST_POINTS } from "./defaultChecklist";
@@ -1074,6 +1077,42 @@ export async function registerRoutes(
           .status(400)
           .json({ message: parsed.error.errors[0].message });
       const item = await storage.createReport(parsed.data);
+
+      // ── Dual-write: also insert into normalized tables ──
+      if (
+        parsed.data.checklist &&
+        Array.isArray(parsed.data.checklist) &&
+        parsed.data.checklist.length > 0
+      ) {
+        await storage.replaceChecklistItems(
+          item.id,
+          user.workspaceId,
+          parsed.data.checklist,
+        );
+      }
+      if (
+        parsed.data.dimensions &&
+        Array.isArray(parsed.data.dimensions) &&
+        parsed.data.dimensions.length > 0
+      ) {
+        await storage.replaceReportDimensions(
+          item.id,
+          user.workspaceId,
+          parsed.data.dimensions,
+        );
+      }
+      if (
+        parsed.data.issues &&
+        Array.isArray(parsed.data.issues) &&
+        parsed.data.issues.length > 0
+      ) {
+        await storage.replaceReportIssues(
+          item.id,
+          user.workspaceId,
+          parsed.data.issues,
+        );
+      }
+
       res.status(201).json(item);
     },
   );
@@ -1085,7 +1124,62 @@ export async function registerRoutes(
       user.workspaceId,
     );
     if (!item) return res.status(404).json({ message: "Not found" });
-    res.json(item);
+
+    // ── Read from normalized tables, assemble into report shape ──
+    const [normChecklist, normDimensions, normIssues] = await Promise.all([
+      storage.getChecklistItems(item.id),
+      storage.getReportDimensions(item.id),
+      storage.getReportIssues(item.id),
+    ]);
+
+    // Fetch issue images for all issues
+    const issueIds = normIssues.map((i) => i.id);
+    let issueImagesMap: Record<string, any[]> = {};
+    if (issueIds.length > 0) {
+      const allImages = await db
+        .select()
+        .from(issueImages)
+        .where(inArray(issueImages.issueId, issueIds));
+      for (const img of allImages) {
+        if (!issueImagesMap[img.issueId]) issueImagesMap[img.issueId] = [];
+        issueImagesMap[img.issueId].push(img);
+      }
+    }
+
+    const report = {
+      ...item,
+      checklist: normChecklist.map((c) => ({
+        id: c.id,
+        category: c.category,
+        point: c.point,
+        status: c.status,
+        severity: c.severity,
+        triggerOn: c.triggerOn,
+        image: c.imageUrl,
+        workStatus: c.workStatus,
+      })),
+      dimensions: normDimensions.map((d) => ({
+        id: d.id,
+        space: d.space,
+        spaceName: d.spaceName,
+        length: d.length,
+        width: d.width,
+        unit: d.unit,
+        notes: d.notes,
+      })),
+      issues: normIssues.map((iss) => ({
+        id: iss.id,
+        title: iss.title,
+        note: iss.note,
+        location: iss.location,
+        responsibleEngineer: iss.responsibleEngineer,
+        severity: iss.severity,
+        status: iss.status,
+        images: (issueImagesMap[iss.id] ?? []).map((img) => img.gcpUrl),
+      })),
+    };
+
+    res.json(report);
   });
 
   app.patch(
@@ -1158,6 +1252,30 @@ export async function registerRoutes(
         updates,
       );
       if (!item) return res.status(404).json({ message: "Not found" });
+
+      // ── Dual-write: also sync to normalized tables ──
+      if (updates.checklist) {
+        await storage.replaceChecklistItems(
+          item.id,
+          user.workspaceId,
+          updates.checklist,
+        );
+      }
+      if (updates.dimensions) {
+        await storage.replaceReportDimensions(
+          item.id,
+          user.workspaceId,
+          updates.dimensions,
+        );
+      }
+      if (updates.issues) {
+        await storage.replaceReportIssues(
+          item.id,
+          user.workspaceId,
+          updates.issues,
+        );
+      }
+
       res.json(item);
     },
   );
@@ -1168,6 +1286,8 @@ export async function registerRoutes(
     requireActiveTrial,
     async (req, res) => {
       const user = req.user as any;
+      // Delete normalized tables first (cascade would handle it, but be explicit)
+      await storage.deleteReportNormalized(req.params.id as string);
       const ok = await storage.deleteReport(
         req.params.id as string,
         user.workspaceId,

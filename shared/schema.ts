@@ -290,6 +290,147 @@ export const insertReportSchema = createInsertSchema(reports).omit({
 export type InsertReport = z.infer<typeof insertReportSchema>;
 export type Report = typeof reports.$inferSelect;
 
+// ─── Checklist Items (normalized from reports.checklist JSONB) ────────────────
+// Each row is one checklist point. Individual PATCH per yes/no instead of
+// replacing the entire JSONB array.
+export const checklistItems = pgTable(
+  "checklist_items",
+  {
+    id: varchar("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    reportId: varchar("report_id")
+      .notNull()
+      .references(() => reports.id, { onDelete: "cascade" }),
+    workspaceId: varchar("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    category: text("category").notNull(),
+    point: text("point").notNull(),
+    status: text("status", { enum: ["Y", "N"] }),
+    severity: text("severity", { enum: ["MAJOR", "MINOR", "COSMETIC"] }),
+    triggerOn: text("trigger_on", { enum: ["yes", "no"] }).default("no"),
+    imageUrl: text("image_url"),
+    workStatus: text("work_status", {
+      enum: ["open", "in_progress", "resolved"],
+    }),
+    order: integer("order").notNull().default(0),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("checklist_items_report_idx").on(table.reportId),
+    index("checklist_items_workspace_idx").on(table.workspaceId),
+  ],
+);
+
+export const insertChecklistItemSchema = createInsertSchema(
+  checklistItems,
+).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertChecklistItem = z.infer<typeof insertChecklistItemSchema>;
+export type ChecklistItemRow = typeof checklistItems.$inferSelect;
+
+// ─── Report Dimensions (normalized from reports.dimensions JSONB) ─────────────
+// One row per room instance. `space` is the category (Bedroom, Kitchen...),
+// `spaceName` disambiguates (Bedroom 1, Bedroom 2...).
+export const reportDimensions = pgTable(
+  "report_dimensions",
+  {
+    id: varchar("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    reportId: varchar("report_id")
+      .notNull()
+      .references(() => reports.id, { onDelete: "cascade" }),
+    workspaceId: varchar("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    space: text("space").notNull(),
+    spaceName: text("space_name"),
+    length: text("length"),
+    width: text("width"),
+    unit: text("unit", { enum: ["ft", "m"] }).default("ft"),
+    notes: text("notes"),
+    order: integer("order").notNull().default(0),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [index("report_dimensions_report_idx").on(table.reportId)],
+);
+
+export const insertReportDimensionSchema = createInsertSchema(
+  reportDimensions,
+).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertReportDimension = z.infer<typeof insertReportDimensionSchema>;
+export type ReportDimensionRow = typeof reportDimensions.$inferSelect;
+
+// ─── Issues (normalized from reports.issues JSONB) ───────────────────────────
+// One row per issue found during inspection.
+export const reportIssues = pgTable(
+  "report_issues",
+  {
+    id: varchar("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    reportId: varchar("report_id")
+      .notNull()
+      .references(() => reports.id, { onDelete: "cascade" }),
+    workspaceId: varchar("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    note: text("note"),
+    location: text("location"),
+    responsibleEngineer: text("responsible_engineer"),
+    severity: text("severity", { enum: ["Critical", "High", "Medium", "Low"] }),
+    status: text("status", {
+      enum: ["Open", "In Progress", "Resolved"],
+    }).default("Open"),
+    order: integer("order").notNull().default(0),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [index("report_issues_report_idx").on(table.reportId)],
+);
+
+export const insertReportIssueSchema = createInsertSchema(reportIssues).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertReportIssue = z.infer<typeof insertReportIssueSchema>;
+export type ReportIssueRow = typeof reportIssues.$inferSelect;
+
+// ─── Issue Images (normalized from issues.images JSONB array) ────────────────
+// One row per photo attached to an issue. GCP URLs only — no base64.
+export const issueImages = pgTable(
+  "issue_images",
+  {
+    id: varchar("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    issueId: varchar("issue_id")
+      .notNull()
+      .references(() => reportIssues.id, { onDelete: "cascade" }),
+    workspaceId: varchar("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    gcpUrl: text("gcp_url").notNull(),
+    sortOrder: integer("sort_order").notNull().default(0),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [index("issue_images_issue_idx").on(table.issueId)],
+);
+
+export const insertIssueImageSchema = createInsertSchema(issueImages).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertIssueImage = z.infer<typeof insertIssueImageSchema>;
+export type IssueImageRow = typeof issueImages.$inferSelect;
+
 // ─── Invoices (Receipts) ─────────────────────────────────────────────────────
 export const invoices = pgTable("invoices", {
   id: varchar("id")
