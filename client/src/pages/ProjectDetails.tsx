@@ -27,7 +27,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import {
@@ -92,6 +91,9 @@ export default function ProjectDetails() {
   const [editProjectData, setEditProjectData] = useState<any>(null);
   const [isShareOpen, setIsShareOpen] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
+  const [isNewVisitOpen, setIsNewVisitOpen] = useState(false);
+  const [newVisitTitle, setNewVisitTitle] = useState("");
+  const [openReportAfterVisit, setOpenReportAfterVisit] = useState(false);
 
   const [newReport, setNewReport] = useState({
     title: "",
@@ -215,6 +217,26 @@ export default function ProjectDetails() {
       queryClient.invalidateQueries({ queryKey: ["reports", params?.id] });
       setReportToDelete(null);
       toast({ title: "Report deleted successfully" });
+    },
+    onError: (err: any) =>
+      toast({
+        title: "Error",
+        description: err.message,
+        variant: "destructive",
+      }),
+  });
+
+  const createVisitMutation = useMutation({
+    mutationFn: (title: string) => api.createVisit(params!.id, title),
+    onSuccess: (visit: any) => {
+      queryClient.invalidateQueries({ queryKey: ["visits", params?.id] });
+      setIsNewVisitOpen(false);
+      setNewVisitTitle("");
+      setNewReport((r) => ({ ...r, visitId: visit.id }));
+      if (openReportAfterVisit) {
+        setOpenReportAfterVisit(false);
+        setIsDialogOpen(true);
+      }
     },
     onError: (err: any) =>
       toast({
@@ -430,15 +452,24 @@ export default function ProjectDetails() {
               <div className="flex flex-col gap-3 shrink-0">
                 {user?.role !== "viewer" && (
                 <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                  <DialogTrigger asChild>
-                    <Button
-                      size="lg"
-                      className="w-full sm:w-auto shadow-lg shadow-primary/20"
-                      data-testid="button-create-report"
-                    >
-                      <Plus className="mr-2 h-4 w-4" /> New Report
-                    </Button>
-                  </DialogTrigger>
+                  <Button
+                    size="lg"
+                    className="w-full sm:w-auto shadow-lg shadow-primary/20"
+                    data-testid="button-create-report"
+                    onClick={() => {
+                      if (visits.length === 0) {
+                        setNewVisitTitle(
+                          new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+                        );
+                        setOpenReportAfterVisit(true);
+                        setIsNewVisitOpen(true);
+                      } else {
+                        setIsDialogOpen(true);
+                      }
+                    }}
+                  >
+                    <Plus className="mr-2 h-4 w-4" /> New Report
+                  </Button>
                   <DialogContent className="max-h-[92vh] overflow-hidden p-0 sm:max-w-[640px]">
                     <div className="flex max-h-[92vh] flex-col">
                       <DialogHeader className="border-b border-slate-100 px-4 py-4 text-left sm:px-6 sm:py-5">
@@ -1139,6 +1170,56 @@ export default function ProjectDetails() {
           </DialogContent>
         </Dialog>
       </div>
+
+      {/* Create Visit Dialog (prompted when no visits exist) */}
+      <Dialog
+        open={isNewVisitOpen}
+        onOpenChange={(open) => {
+          setIsNewVisitOpen(open);
+          if (!open) setOpenReportAfterVisit(false);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Create a Visit First</DialogTitle>
+            <DialogDescription>
+              Every report needs to be linked to a visit (inspection round). Give this visit a name to continue.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="visit-title">Visit name</Label>
+            <Input
+              id="visit-title"
+              autoFocus
+              value={newVisitTitle}
+              onChange={(e) => setNewVisitTitle(e.target.value)}
+              placeholder="e.g. Initial Inspection"
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && newVisitTitle.trim())
+                  createVisitMutation.mutate(newVisitTitle.trim());
+              }}
+            />
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsNewVisitOpen(false);
+                setOpenReportAfterVisit(false);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => createVisitMutation.mutate(newVisitTitle.trim())}
+              disabled={!newVisitTitle.trim() || createVisitMutation.isPending}
+            >
+              {createVisitMutation.isPending ? "Creating..." : "Create Visit & Continue"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
     </Layout>
   );
 }
