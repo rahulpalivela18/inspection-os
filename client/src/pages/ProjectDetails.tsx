@@ -686,7 +686,17 @@ export default function ProjectDetails() {
                 {user?.role !== "viewer" && (
                 <Button
                   variant="outline"
-                  onClick={() => setIsDialogOpen(true)}
+                  onClick={() => {
+                    if (visits.length === 0) {
+                      setNewVisitTitle(
+                        new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+                      );
+                      setOpenReportAfterVisit(true);
+                      setIsNewVisitOpen(true);
+                    } else {
+                      setIsDialogOpen(true);
+                    }
+                  }}
                   data-testid="button-create-first-report"
                 >
                   Create Report
