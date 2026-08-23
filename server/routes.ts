@@ -8,7 +8,7 @@ import { Pool } from "pg";
 import bcrypt from "bcryptjs";
 import { storage, spatialStorage } from "./storage";
 import { db } from "./db";
-import { inArray } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import {
   loginSchema,
   registerSchema,
@@ -24,6 +24,9 @@ import {
   insertTagValueSchema,
   insertVisitSchema,
   issueImages,
+  checklistItems,
+  reportDimensions,
+  reportIssues,
 } from "@shared/schema";
 import { pick } from "@shared/cleanData";
 import { DEFAULT_CHECKLIST_POINTS } from "./defaultChecklist";
@@ -1294,6 +1297,134 @@ export async function registerRoutes(
       );
       if (!ok) return res.status(404).json({ message: "Not found" });
       res.json({ success: true });
+    },
+  );
+
+  // ── Individual Normalized Table PATCH ───────────────────────────────────────
+  // These let the client update one checklist item / dimension / issue at a time
+  // instead of replacing entire arrays. Also syncs back to JSONB for backward compat.
+
+  app.patch(
+    "/api/checklist-items/:id",
+    requireWriteAccess,
+    requireActiveTrial,
+    async (req, res) => {
+      const user = req.user as any;
+      const { id, reportId, createdAt, workspaceId, ...updates } = req.body;
+
+      // Upload image to GCP if present
+      if (
+        updates.image &&
+        !isGCPUrl(updates.image) &&
+        updates.image.startsWith("data:")
+      ) {
+        try {
+          const gcpUrl = await uploadImageToGCP(
+            updates.image,
+            `checklist-${req.params.id as string}.jpg`,
+          );
+          if (gcpUrl) updates.image = gcpUrl;
+        } catch (err) {
+          console.error("Checklist item image upload error:", err);
+        }
+      }
+
+      // Map camelCase field names to snake_case DB columns
+      const dbUpdates: Record<string, any> = {};
+      if (updates.status !== undefined) dbUpdates.status = updates.status;
+      if (updates.severity !== undefined) dbUpdates.severity = updates.severity;
+      if (updates.workStatus !== undefined)
+        dbUpdates.workStatus = updates.workStatus;
+      if (updates.image !== undefined) dbUpdates.imageUrl = updates.image;
+      if (updates.triggerOn !== undefined)
+        dbUpdates.triggerOn = updates.triggerOn;
+
+      const item = await storage.updateChecklistItem(
+        req.params.id as string,
+        dbUpdates,
+      );
+      if (!item) return res.status(404).json({ message: "Not found" });
+
+      // Sync JSONB on report
+      await storage.syncReportJsonbFromNormalized(
+        item.reportId,
+        user.workspaceId,
+      );
+
+      res.json(item);
+    },
+  );
+
+  app.patch(
+    "/api/report-dimensions/:id",
+    requireWriteAccess,
+    requireActiveTrial,
+    async (req, res) => {
+      const user = req.user as any;
+      const { id, reportId, createdAt, workspaceId, ...updates } = req.body;
+
+      const dbUpdates: Record<string, any> = {};
+      if (updates.space !== undefined) dbUpdates.space = updates.space;
+      if (updates.spaceName !== undefined)
+        dbUpdates.spaceName = updates.spaceName;
+      if (updates.length !== undefined) dbUpdates.length = updates.length;
+      if (updates.width !== undefined) dbUpdates.width = updates.width;
+      if (updates.unit !== undefined) dbUpdates.unit = updates.unit;
+      if (updates.notes !== undefined) dbUpdates.notes = updates.notes;
+
+      const [item] = await db
+        .update(reportDimensions)
+        .set(dbUpdates)
+        .where(eq(reportDimensions.id, req.params.id as string))
+        .returning();
+      if (!item) return res.status(404).json({ message: "Not found" });
+
+      await storage.syncReportJsonbFromNormalized(
+        item.reportId,
+        user.workspaceId,
+      );
+
+      res.json(item);
+    },
+  );
+
+  app.patch(
+    "/api/report-issues/:id",
+    requireWriteAccess,
+    requireActiveTrial,
+    async (req, res) => {
+      const user = req.user as any;
+      const {
+        id,
+        reportId,
+        createdAt,
+        workspaceId,
+        images: _images,
+        ...updates
+      } = req.body;
+
+      const dbUpdates: Record<string, any> = {};
+      if (updates.title !== undefined) dbUpdates.title = updates.title;
+      if (updates.note !== undefined) dbUpdates.note = updates.note;
+      if (updates.location !== undefined) dbUpdates.location = updates.location;
+      if (updates.responsibleEngineer !== undefined)
+        dbUpdates.responsibleEngineer = updates.responsibleEngineer;
+      if (updates.severity !== undefined) dbUpdates.severity = updates.severity;
+      if (updates.status !== undefined) dbUpdates.status = updates.status;
+
+      const [item] = await db
+        .update(reportIssues)
+        .set(dbUpdates)
+        .where(eq(reportIssues.id, req.params.id as string))
+        .returning();
+      if (!item) return res.status(404).json({ message: "Not found" });
+
+      await storage.syncReportJsonbFromNormalized(
+        item.reportId,
+        user.workspaceId,
+      );
+
+      res.json(item);
     },
   );
 

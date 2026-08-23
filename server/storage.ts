@@ -975,6 +975,79 @@ export class DatabaseStorage implements IStorage {
     await db.delete(reportIssues).where(eq(reportIssues.reportId, reportId));
   }
 
+  async syncReportJsonbFromNormalized(reportId: string, workspaceId: string) {
+    const [normChecklist, normDimensions, normIssues] = await Promise.all([
+      this.getChecklistItems(reportId),
+      this.getReportDimensions(reportId),
+      this.getReportIssues(reportId),
+    ]);
+
+    // Fetch issue images
+    const issueIds = normIssues.map((i) => i.id);
+    let issueImagesMap: Record<string, any[]> = {};
+    if (issueIds.length > 0) {
+      const allImages = await db
+        .select()
+        .from(issueImages)
+        .where(inArray(issueImages.issueId, issueIds));
+      for (const img of allImages) {
+        if (!issueImagesMap[img.issueId]) issueImagesMap[img.issueId] = [];
+        issueImagesMap[img.issueId].push(img);
+      }
+    }
+
+    const checklistJsonb = normChecklist.map((c) => ({
+      id: c.id,
+      category: c.category,
+      point: c.point,
+      status: c.status,
+      severity: c.severity,
+      triggerOn: c.triggerOn,
+      image: c.imageUrl,
+      workStatus: c.workStatus,
+    }));
+
+    const dimensionsJsonb = normDimensions.map((d) => ({
+      id: d.id,
+      space: d.space,
+      spaceName: d.spaceName,
+      length: d.length,
+      width: d.width,
+      unit: d.unit,
+      notes: d.notes,
+    }));
+
+    const issuesJsonb = normIssues.map((iss) => ({
+      id: iss.id,
+      title: iss.title,
+      note: iss.note,
+      location: iss.location,
+      responsibleEngineer: iss.responsibleEngineer,
+      severity: iss.severity,
+      status: iss.status,
+      images: (issueImagesMap[iss.id] ?? []).map((img) => img.gcpUrl),
+    }));
+
+    // Compute spaceCounts from dimensions
+    const spaceCounts: Record<string, number> = {};
+    for (const d of normDimensions) {
+      const space = d.space || "other";
+      spaceCounts[space] = (spaceCounts[space] || 0) + 1;
+    }
+
+    await db
+      .update(reports)
+      .set({
+        checklist: checklistJsonb,
+        dimensions: dimensionsJsonb,
+        issues: issuesJsonb,
+        spaceCounts,
+      })
+      .where(
+        and(eq(reports.id, reportId), eq(reports.workspaceId, workspaceId)),
+      );
+  }
+
   // Invoices
   async createInvoice(data: InsertInvoice) {
     const [row] = await db.insert(invoices).values(data).returning();
