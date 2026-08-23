@@ -1,6 +1,6 @@
 -- Backfill script: reads JSONB from reports and inserts into normalized tables.
 -- Safe to run multiple times (uses ON CONFLICT to skip already-migrated data).
--- Run AFTER 0007_normalize_reports.sql
+-- Updated for composite PKs (report_id, id).
 
 -- ─── Checklist Items ─────────────────────────────────────────────────────────
 INSERT INTO checklist_items (id, report_id, workspace_id, category, point, status, severity, trigger_on, image_url, work_status, "order", created_at)
@@ -19,7 +19,7 @@ SELECT
   NOW()
 FROM reports r,
 LATERAL jsonb_array_elements(COALESCE(r.checklist, '[]'::jsonb)) WITH ORDINALITY AS t(item, idx)
-ON CONFLICT (id) DO NOTHING;
+ON CONFLICT (report_id, id) DO NOTHING;
 
 -- ─── Report Dimensions ───────────────────────────────────────────────────────
 INSERT INTO report_dimensions (id, report_id, workspace_id, space, space_name, length, width, unit, notes, "order", created_at)
@@ -37,7 +37,7 @@ SELECT
   NOW()
 FROM reports r,
 LATERAL jsonb_array_elements(COALESCE(r.dimensions, '[]'::jsonb)) WITH ORDINALITY AS t(dim, idx)
-ON CONFLICT (id) DO NOTHING;
+ON CONFLICT (report_id, id) DO NOTHING;
 
 -- ─── Report Issues + Issue Images ────────────────────────────────────────────
 INSERT INTO report_issues (id, report_id, workspace_id, title, note, location, responsible_engineer, severity, status, "order", created_at)
@@ -55,12 +55,13 @@ SELECT
   NOW()
 FROM reports r,
 LATERAL jsonb_array_elements(COALESCE(r.issues, '[]'::jsonb)) WITH ORDINALITY AS t(iss, idx)
-ON CONFLICT (id) DO NOTHING;
+ON CONFLICT (report_id, id) DO NOTHING;
 
 -- Issue images: extract from each issue's "images" array
-INSERT INTO issue_images (id, issue_id, workspace_id, gcp_url, sort_order, created_at)
+INSERT INTO issue_images (id, issue_report_id, issue_id, workspace_id, gcp_url, sort_order, created_at)
 SELECT
   gen_random_uuid()::varchar,
+  ri.report_id,
   ri.id,
   ri.workspace_id,
   img_url::text,

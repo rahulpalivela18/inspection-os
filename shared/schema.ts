@@ -1,4 +1,5 @@
 import { sql } from "drizzle-orm";
+import { primaryKey } from "drizzle-orm/pg-core";
 import {
   pgTable,
   pgSchema,
@@ -276,10 +277,9 @@ export const reports = pgTable("reports", {
     .default("Draft"),
   inspectionType: jsonb("inspection_type").default(["Home Inspection"]),
   dimensionUnit: text("dimension_unit", { enum: ["ft", "m"] }).default("ft"),
-  spaceCounts: jsonb("space_counts"),
-  checklist: jsonb("checklist"),
-  dimensions: jsonb("dimensions"),
-  issues: jsonb("issues"),
+  visitId: varchar("visit_id").references(() => visits.id, {
+    onDelete: "set null",
+  }),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -296,9 +296,7 @@ export type Report = typeof reports.$inferSelect;
 export const checklistItems = pgTable(
   "checklist_items",
   {
-    id: varchar("id")
-      .primaryKey()
-      .default(sql`gen_random_uuid()`),
+    id: varchar("id").notNull(),
     reportId: varchar("report_id")
       .notNull()
       .references(() => reports.id, { onDelete: "cascade" }),
@@ -318,7 +316,7 @@ export const checklistItems = pgTable(
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   (table) => [
-    index("checklist_items_report_idx").on(table.reportId),
+    primaryKey({ columns: [table.reportId, table.id] }),
     index("checklist_items_workspace_idx").on(table.workspaceId),
   ],
 );
@@ -338,9 +336,7 @@ export type ChecklistItemRow = typeof checklistItems.$inferSelect;
 export const reportDimensions = pgTable(
   "report_dimensions",
   {
-    id: varchar("id")
-      .primaryKey()
-      .default(sql`gen_random_uuid()`),
+    id: varchar("id").notNull(),
     reportId: varchar("report_id")
       .notNull()
       .references(() => reports.id, { onDelete: "cascade" }),
@@ -356,7 +352,10 @@ export const reportDimensions = pgTable(
     order: integer("order").notNull().default(0),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
-  (table) => [index("report_dimensions_report_idx").on(table.reportId)],
+  (table) => [
+    primaryKey({ columns: [table.reportId, table.id] }),
+    index("report_dimensions_workspace_idx").on(table.workspaceId),
+  ],
 );
 
 export const insertReportDimensionSchema = createInsertSchema(
@@ -373,9 +372,7 @@ export type ReportDimensionRow = typeof reportDimensions.$inferSelect;
 export const reportIssues = pgTable(
   "report_issues",
   {
-    id: varchar("id")
-      .primaryKey()
-      .default(sql`gen_random_uuid()`),
+    id: varchar("id").notNull(),
     reportId: varchar("report_id")
       .notNull()
       .references(() => reports.id, { onDelete: "cascade" }),
@@ -393,7 +390,10 @@ export const reportIssues = pgTable(
     order: integer("order").notNull().default(0),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
-  (table) => [index("report_issues_report_idx").on(table.reportId)],
+  (table) => [
+    primaryKey({ columns: [table.reportId, table.id] }),
+    index("report_issues_workspace_idx").on(table.workspaceId),
+  ],
 );
 
 export const insertReportIssueSchema = createInsertSchema(reportIssues).omit({
@@ -411,9 +411,8 @@ export const issueImages = pgTable(
     id: varchar("id")
       .primaryKey()
       .default(sql`gen_random_uuid()`),
-    issueId: varchar("issue_id")
-      .notNull()
-      .references(() => reportIssues.id, { onDelete: "cascade" }),
+    issueReportId: varchar("issue_report_id").notNull(),
+    issueId: varchar("issue_id").notNull(),
     workspaceId: varchar("workspace_id")
       .notNull()
       .references(() => workspaces.id, { onDelete: "cascade" }),
@@ -421,7 +420,9 @@ export const issueImages = pgTable(
     sortOrder: integer("sort_order").notNull().default(0),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
-  (table) => [index("issue_images_issue_idx").on(table.issueId)],
+  (table) => [
+    index("issue_images_issue_idx").on(table.issueReportId, table.issueId),
+  ],
 );
 
 export const insertIssueImageSchema = createInsertSchema(issueImages).omit({

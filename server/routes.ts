@@ -8,7 +8,7 @@ import { Pool } from "pg";
 import bcrypt from "bcryptjs";
 import { storage, spatialStorage } from "./storage";
 import { db } from "./db";
-import { eq, inArray } from "drizzle-orm";
+import { eq, and, inArray, sql } from "drizzle-orm";
 import {
   loginSchema,
   registerSchema,
@@ -27,6 +27,7 @@ import {
   checklistItems,
   reportDimensions,
   reportIssues,
+  reports,
 } from "@shared/schema";
 import { pick } from "@shared/cleanData";
 import { DEFAULT_CHECKLIST_POINTS } from "./defaultChecklist";
@@ -1058,10 +1059,7 @@ export async function registerRoutes(
       req.params.projectId as string,
       user.workspaceId,
     );
-    const summaries = items.map(
-      ({ checklist, dimensions, issues, ...rest }) => rest,
-    );
-    res.json(summaries);
+    res.json(items);
   });
 
   app.post(
@@ -1070,10 +1068,21 @@ export async function registerRoutes(
     requireActiveTrial,
     async (req, res) => {
       const user = req.user as any;
+      // Extract normalized fields from body before schema parse (they're no longer on reports table)
+      const {
+        checklist,
+        dimensions,
+        issues,
+        spaceCounts,
+        visitId,
+        ...bodyFields
+      } = req.body;
+
       const parsed = insertReportSchema.safeParse({
-        ...req.body,
+        ...bodyFields,
         projectId: req.params.projectId as string,
         workspaceId: user.workspaceId,
+        visitId: visitId ?? null,
       });
       if (!parsed.success)
         return res
@@ -1081,39 +1090,23 @@ export async function registerRoutes(
           .json({ message: parsed.error.errors[0].message });
       const item = await storage.createReport(parsed.data);
 
-      // ── Dual-write: also insert into normalized tables ──
-      if (
-        parsed.data.checklist &&
-        Array.isArray(parsed.data.checklist) &&
-        parsed.data.checklist.length > 0
-      ) {
+      // Insert into normalized tables
+      if (checklist && Array.isArray(checklist) && checklist.length > 0) {
         await storage.replaceChecklistItems(
           item.id,
           user.workspaceId,
-          parsed.data.checklist,
+          checklist,
         );
       }
-      if (
-        parsed.data.dimensions &&
-        Array.isArray(parsed.data.dimensions) &&
-        parsed.data.dimensions.length > 0
-      ) {
+      if (dimensions && Array.isArray(dimensions) && dimensions.length > 0) {
         await storage.replaceReportDimensions(
           item.id,
           user.workspaceId,
-          parsed.data.dimensions,
+          dimensions,
         );
       }
-      if (
-        parsed.data.issues &&
-        Array.isArray(parsed.data.issues) &&
-        parsed.data.issues.length > 0
-      ) {
-        await storage.replaceReportIssues(
-          item.id,
-          user.workspaceId,
-          parsed.data.issues,
-        );
+      if (issues && Array.isArray(issues) && issues.length > 0) {
+        await storage.replaceReportIssues(item.id, user.workspaceId, issues);
       }
 
       res.status(201).json(item);
@@ -1136,13 +1129,12 @@ export async function registerRoutes(
     ]);
 
     // Fetch issue images for all issues
-    const issueIds = normIssues.map((i) => i.id);
     let issueImagesMap: Record<string, any[]> = {};
-    if (issueIds.length > 0) {
+    if (normIssues.length > 0) {
       const allImages = await db
         .select()
         .from(issueImages)
-        .where(inArray(issueImages.issueId, issueIds));
+        .where(eq(issueImages.issueReportId, item.id));
       for (const img of allImages) {
         if (!issueImagesMap[img.issueId]) issueImagesMap[img.issueId] = [];
         issueImagesMap[img.issueId].push(img);
@@ -1180,6 +1172,15 @@ export async function registerRoutes(
         status: iss.status,
         images: (issueImagesMap[iss.id] ?? []).map((img) => img.gcpUrl),
       })),
+      // Compute spaceCounts from dimensions (was previously stored as JSONB)
+      spaceCounts: (() => {
+        const counts: Record<string, number> = {};
+        for (const d of normDimensions) {
+          const space = d.space || "other";
+          counts[space] = (counts[space] || 0) + 1;
+        }
+        return counts;
+      })(),
     };
 
     res.json(report);
@@ -1191,29 +1192,67 @@ export async function registerRoutes(
     requireActiveTrial,
     async (req, res) => {
       const user = req.user as any;
-      // Strip read-only / auto-generated fields before passing to Drizzle
-      let { id, createdAt, workspaceId, projectId, ...updates } = req.body;
+      // Strip read-only / auto-generated fields + normalized-only fields
+      let {
+        id,
+        createdAt,
+        workspaceId,
+        projectId,
+        visitId,
+        checklist,
+        dimensions,
+        issues,
+        spaceCounts,
+        ...reportUpdates
+      } = req.body;
+
+      // Handle visitId separately — Drizzle .set() strips null values
+      if (visitId !== undefined) {
+        const visitIdValue = visitId === null ? sql`NULL` : visitId;
+        await db
+          .update(reports)
+          .set({ visitId: visitIdValue as any })
+          .where(
+            and(
+              eq(reports.id, req.params.id as string),
+              eq(reports.workspaceId, user.workspaceId),
+            ),
+          );
+      }
+
+      // Update report scalar fields (title, author, status, date, etc.)
+      let item: any;
+      if (Object.keys(reportUpdates).length > 0) {
+        item = await storage.updateReport(
+          req.params.id as string,
+          user.workspaceId,
+          reportUpdates,
+        );
+      } else {
+        item = await storage.getReport(
+          req.params.id as string,
+          user.workspaceId,
+        );
+      }
+      if (!item) return res.status(404).json({ message: "Not found" });
 
       // Upload images to GCP if present in checklist (parallel)
-      if (updates.checklist) {
+      if (checklist) {
         await Promise.all(
-          updates.checklist.map(async (item: any) => {
+          checklist.map(async (ci: any) => {
             if (
-              item.image &&
-              !isGCPUrl(item.image) &&
-              item.image.startsWith("data:")
+              ci.image &&
+              !isGCPUrl(ci.image) &&
+              ci.image.startsWith("data:")
             ) {
               try {
                 const gcpUrl = await uploadImageToGCP(
-                  item.image,
-                  `checklist-${item.id}.jpg`,
+                  ci.image,
+                  `checklist-${ci.id}.jpg`,
                 );
-                if (gcpUrl) {
-                  item.image = gcpUrl;
-                }
+                if (gcpUrl) ci.image = gcpUrl;
               } catch (err) {
-                console.error("Image upload error:", err);
-                // Keep base64 if GCP fails
+                console.error("Checklist image upload error:", err);
               }
             }
           }),
@@ -1221,8 +1260,8 @@ export async function registerRoutes(
       }
 
       // Upload images to GCP if present in issues
-      if (updates.issues) {
-        for (const issue of updates.issues) {
+      if (issues) {
+        for (const issue of issues) {
           if (issue.images && Array.isArray(issue.images)) {
             issue.images = await Promise.all(
               issue.images.map(async (imageUrl: string) => {
@@ -1239,7 +1278,7 @@ export async function registerRoutes(
                     return gcpUrl || imageUrl;
                   } catch (err) {
                     console.error("Issue image upload error:", err);
-                    return imageUrl; // Keep base64 if GCP fails
+                    return imageUrl;
                   }
                 }
                 return imageUrl;
@@ -1249,34 +1288,23 @@ export async function registerRoutes(
         }
       }
 
-      const item = await storage.updateReport(
-        req.params.id as string,
-        user.workspaceId,
-        updates,
-      );
-      if (!item) return res.status(404).json({ message: "Not found" });
-
-      // ── Dual-write: also sync to normalized tables ──
-      if (updates.checklist) {
+      // Write to normalized tables
+      if (checklist) {
         await storage.replaceChecklistItems(
           item.id,
           user.workspaceId,
-          updates.checklist,
+          checklist,
         );
       }
-      if (updates.dimensions) {
+      if (dimensions) {
         await storage.replaceReportDimensions(
           item.id,
           user.workspaceId,
-          updates.dimensions,
+          dimensions,
         );
       }
-      if (updates.issues) {
-        await storage.replaceReportIssues(
-          item.id,
-          user.workspaceId,
-          updates.issues,
-        );
+      if (issues) {
+        await storage.replaceReportIssues(item.id, user.workspaceId, issues);
       }
 
       res.json(item);
@@ -1289,8 +1317,6 @@ export async function registerRoutes(
     requireActiveTrial,
     async (req, res) => {
       const user = req.user as any;
-      // Delete normalized tables first (cascade would handle it, but be explicit)
-      await storage.deleteReportNormalized(req.params.id as string);
       const ok = await storage.deleteReport(
         req.params.id as string,
         user.workspaceId,
@@ -1345,12 +1371,6 @@ export async function registerRoutes(
       );
       if (!item) return res.status(404).json({ message: "Not found" });
 
-      // Sync JSONB on report
-      await storage.syncReportJsonbFromNormalized(
-        item.reportId,
-        user.workspaceId,
-      );
-
       res.json(item);
     },
   );
@@ -1378,11 +1398,6 @@ export async function registerRoutes(
         .where(eq(reportDimensions.id, req.params.id as string))
         .returning();
       if (!item) return res.status(404).json({ message: "Not found" });
-
-      await storage.syncReportJsonbFromNormalized(
-        item.reportId,
-        user.workspaceId,
-      );
 
       res.json(item);
     },
@@ -1418,11 +1433,6 @@ export async function registerRoutes(
         .where(eq(reportIssues.id, req.params.id as string))
         .returning();
       if (!item) return res.status(404).json({ message: "Not found" });
-
-      await storage.syncReportJsonbFromNormalized(
-        item.reportId,
-        user.workspaceId,
-      );
 
       res.json(item);
     },

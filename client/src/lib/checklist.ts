@@ -1,5 +1,4 @@
 import type { ChecklistItem } from "@/lib/store";
-import { getSpaceCount } from "@/lib/defaultChecklist";
 
 export function buildChecklistWithPreservedResponses(
   templates: Array<{
@@ -17,27 +16,15 @@ export function buildChecklistWithPreservedResponses(
   const items: ChecklistItem[] = [];
   let runningId = currentChecklist.length;
 
-  const repeatableCategories = ["bedroom", "bathroom", "balcony"];
   const categorySet = Array.from(new Set(templates.map((t) => t.category)));
 
   for (const cat of categorySet) {
     const catTemplates = templates.filter((t) => t.category === cat);
-    const catLower = cat.toLowerCase().trim();
-    const isBuiltinRepeatable = repeatableCategories.includes(catLower);
-
-    let count = 1;
-    let isRepeatable = false;
-
-    if (isBuiltinRepeatable) {
-      count = getSpaceCount(spaceCounts, cat) || 1;
-      isRepeatable = true;
-    } else if (cat in spaceCounts) {
-      count = spaceCounts[cat];
-      isRepeatable = count > 0;
-    }
+    const count = cat in spaceCounts ? spaceCounts[cat] : 1;
+    if (count <= 0) continue;
 
     for (let i = 1; i <= count; i++) {
-      const category = isRepeatable ? `${cat} ${i}` : cat;
+      const category = count > 1 ? `${cat} ${i}` : cat;
 
       for (const template of catTemplates) {
         const key = `${category}:::${template.point}`;
