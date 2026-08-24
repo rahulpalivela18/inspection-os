@@ -50,6 +50,13 @@
       "when": 1786475956710,
       "tag": "0006_project_restricted",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1787381160967,
+      "tag": "0007_normalize_reports",
+      "breakpoints": true
     }
   ]
 }

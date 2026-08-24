@@ -27,7 +27,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import {
@@ -92,6 +91,9 @@ export default function ProjectDetails() {
   const [editProjectData, setEditProjectData] = useState<any>(null);
   const [isShareOpen, setIsShareOpen] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
+  const [isNewVisitOpen, setIsNewVisitOpen] = useState(false);
+  const [newVisitTitle, setNewVisitTitle] = useState("");
+  const [openReportAfterVisit, setOpenReportAfterVisit] = useState(false);
 
   const [newReport, setNewReport] = useState({
     title: "",
@@ -100,6 +102,7 @@ export default function ProjectDetails() {
     status: "Draft" as const,
     date: format(new Date(), "yyyy-MM-dd"),
     spaceCounts: { ...DEFAULT_SPACE_COUNTS },
+    visitId: null as string | null,
   });
   const [categoryCounts, setCategoryCounts] = useState<Record<string, number>>(
     {},
@@ -130,6 +133,12 @@ export default function ProjectDetails() {
     queryKey: ["share-links", params?.id],
     queryFn: () => api.getShareLinks(params!.id),
     enabled: !!params?.id && isShareOpen,
+  });
+
+  const { data: visits = [] } = useQuery({
+    queryKey: ["visits", params?.id],
+    queryFn: () => api.getVisits(params!.id),
+    enabled: !!params?.id,
   });
 
   const createShareLinkMutation = useMutation({
@@ -173,6 +182,7 @@ export default function ProjectDetails() {
         status: "Draft",
         date: format(new Date(), "yyyy-MM-dd"),
         spaceCounts: { ...DEFAULT_SPACE_COUNTS },
+        visitId: null,
       });
       setCategoryCounts({});
       setLocation(`/report/${report.id}`);
@@ -207,6 +217,26 @@ export default function ProjectDetails() {
       queryClient.invalidateQueries({ queryKey: ["reports", params?.id] });
       setReportToDelete(null);
       toast({ title: "Report deleted successfully" });
+    },
+    onError: (err: any) =>
+      toast({
+        title: "Error",
+        description: err.message,
+        variant: "destructive",
+      }),
+  });
+
+  const createVisitMutation = useMutation({
+    mutationFn: (title: string) => api.createVisit(params!.id, title),
+    onSuccess: (visit: any) => {
+      queryClient.invalidateQueries({ queryKey: ["visits", params?.id] });
+      setIsNewVisitOpen(false);
+      setNewVisitTitle("");
+      setNewReport((r) => ({ ...r, visitId: visit.id }));
+      if (openReportAfterVisit) {
+        setOpenReportAfterVisit(false);
+        setIsDialogOpen(true);
+      }
     },
     onError: (err: any) =>
       toast({
@@ -326,6 +356,7 @@ export default function ProjectDetails() {
         DEFAULT_DIMENSION_UNIT,
       ),
       spaceCounts: spaceCountsToSave,
+      visitId: newReport.visitId,
     };
     createReportMutation.mutate(reportData);
   };
@@ -344,7 +375,7 @@ export default function ProjectDetails() {
   const templatesToUse = checklistTemplates.filter((t: any) =>
     newReport.inspectionType.includes(t.checklistType),
   );
-  const repeatableCategories = Array.from(
+  const templateCategories = Array.from(
     new Set(templatesToUse.map((t: any) => t.category)),
   );
   const checklistPreviewCount =
@@ -352,6 +383,10 @@ export default function ProjectDetails() {
       ? buildChecklistWithPreservedResponses(templatesToUse, [], categoryCounts)
           .length
       : 0;
+
+  const filteredReports = newReport.visitId
+    ? reports.filter((r: any) => r.visitId === newReport.visitId)
+    : reports;
 
   return (
     <Layout>
@@ -417,15 +452,24 @@ export default function ProjectDetails() {
               <div className="flex flex-col gap-3 shrink-0">
                 {user?.role !== "viewer" && (
                 <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                  <DialogTrigger asChild>
-                    <Button
-                      size="lg"
-                      className="w-full sm:w-auto shadow-lg shadow-primary/20"
-                      data-testid="button-create-report"
-                    >
-                      <Plus className="mr-2 h-4 w-4" /> New Report
-                    </Button>
-                  </DialogTrigger>
+                  <Button
+                    size="lg"
+                    className="w-full sm:w-auto shadow-lg shadow-primary/20"
+                    data-testid="button-create-report"
+                    onClick={() => {
+                      if (visits.length === 0) {
+                        setNewVisitTitle(
+                          new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+                        );
+                        setOpenReportAfterVisit(true);
+                        setIsNewVisitOpen(true);
+                      } else {
+                        setIsDialogOpen(true);
+                      }
+                    }}
+                  >
+                    <Plus className="mr-2 h-4 w-4" /> New Report
+                  </Button>
                   <DialogContent className="max-h-[92vh] overflow-hidden p-0 sm:max-w-[640px]">
                     <div className="flex max-h-[92vh] flex-col">
                       <DialogHeader className="border-b border-slate-100 px-4 py-4 text-left sm:px-6 sm:py-5">
@@ -535,7 +579,7 @@ export default function ProjectDetails() {
                           <div className="rounded-2xl border border-slate-200 bg-white p-4">
                             <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                               <p className="text-sm font-semibold text-slate-900">
-                                Repeatable spaces
+                                Space Counts
                               </p>
                               <div
                                 className="rounded-full bg-slate-100 px-3 py-1 text-center text-xs font-semibold text-slate-600"
@@ -544,20 +588,20 @@ export default function ProjectDetails() {
                                 {checklistPreviewCount} points total
                               </div>
                             </div>
-                            {repeatableCategories.length === 0 ? (
+                            {templateCategories.length === 0 ? (
                               <p className="text-sm text-muted-foreground">
-                                No repeatable spaces for this inspection type.
+                                No spaces for this inspection type.
                               </p>
                             ) : (
                               <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                                {repeatableCategories.map((cat: any) => (
+                                {templateCategories.map((cat: any) => (
                                   <div key={cat} className="grid gap-2">
                                     <Label htmlFor={cat}>{cat}</Label>
                                     <Input
                                       id={cat}
                                       type="number"
                                       min="0"
-                                      value={categoryCounts[cat] || 0}
+                                      value={categoryCounts[cat] ?? 1}
                                       onChange={(e) =>
                                         setCategoryCounts((prev) => ({
                                           ...prev,
@@ -604,10 +648,27 @@ export default function ProjectDetails() {
         {/* Reports List */}
         <div className="flex-1 bg-muted/10 p-4 md:p-8">
           <div className="max-w-7xl mx-auto">
-            <div className="mb-6 flex items-center justify-between">
+            <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <h2 className="text-lg font-semibold md:text-xl">
-                Reports ({reports.length})
+                Reports ({filteredReports.length})
               </h2>
+              {visits.length > 0 && (
+                <select
+                  className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                  value={newReport.visitId || "all"}
+                  onChange={(e) => {
+                    const val = e.target.value === "all" ? null : e.target.value;
+                    setNewReport({ ...newReport, visitId: val });
+                  }}
+                >
+                  <option value="all">All Visits</option>
+                  {visits.map((v: any) => (
+                    <option key={v.id} value={v.id}>
+                      {v.title}
+                    </option>
+                  ))}
+                </select>
+              )}
             </div>
             {loadingReports ? (
               <div className="text-center py-12 text-muted-foreground">
@@ -625,7 +686,17 @@ export default function ProjectDetails() {
                 {user?.role !== "viewer" && (
                 <Button
                   variant="outline"
-                  onClick={() => setIsDialogOpen(true)}
+                  onClick={() => {
+                    if (visits.length === 0) {
+                      setNewVisitTitle(
+                        new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+                      );
+                      setOpenReportAfterVisit(true);
+                      setIsNewVisitOpen(true);
+                    } else {
+                      setIsDialogOpen(true);
+                    }
+                  }}
                   data-testid="button-create-first-report"
                 >
                   Create Report
@@ -634,7 +705,7 @@ export default function ProjectDetails() {
               </div>
             ) : (
               <div className="grid grid-cols-1 gap-3 md:gap-4">
-                {reports.map((report: any) => (
+                {filteredReports.map((report: any) => (
                   <Card
                     key={report.id}
                     className="hover:shadow-md transition-shadow cursor-pointer group"
@@ -674,6 +745,11 @@ export default function ProjectDetails() {
                             <Clock className="h-3 w-3" />
                             {format(new Date(report.createdAt), "MMM d")}
                           </span>
+                          {report.visitId && visits.length > 0 && (
+                            <span className="flex items-center gap-1 rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] font-medium text-indigo-600">
+                              {visits.find((v: any) => v.id === report.visitId)?.title || "Visit"}
+                            </span>
+                          )}
                         </div>
                         {report.spaceCounts && (
                             <div
@@ -694,6 +770,27 @@ export default function ProjectDetails() {
                           )}
                       </div>
                       <div className="shrink-0 flex flex-col md:flex-row items-center md:border-l md:pl-4 mt-2 md:mt-0 pt-2 md:pt-0 border-t md:border-t-0 gap-2">
+                        {user?.role !== "viewer" && visits.length > 0 && (
+                          <select
+                            className="h-8 rounded-lg border border-slate-200 bg-white px-2 text-xs outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                            value={report.visitId || ""}
+                            onClick={(e) => e.stopPropagation()}
+                            onChange={(e) => {
+                              e.stopPropagation();
+                              updateReportMutation.mutate({
+                                id: report.id,
+                                data: { visitId: e.target.value || null },
+                              });
+                            }}
+                          >
+                            <option value="">No visit</option>
+                            {visits.map((v: any) => (
+                              <option key={v.id} value={v.id}>
+                                {v.title}
+                              </option>
+                            ))}
+                          </select>
+                        )}
                         {user?.role !== "viewer" && (
                         <Button
                           variant="outline"
@@ -928,7 +1025,7 @@ export default function ProjectDetails() {
                     ).length > 0 && (
                       <>
                         <p className="text-sm font-semibold mb-3">
-                          Repeatable Spaces
+                          Space Counts
                         </p>
                         <div className="grid grid-cols-3 gap-3">
                           {Array.from(
@@ -1083,6 +1180,56 @@ export default function ProjectDetails() {
           </DialogContent>
         </Dialog>
       </div>
+
+      {/* Create Visit Dialog (prompted when no visits exist) */}
+      <Dialog
+        open={isNewVisitOpen}
+        onOpenChange={(open) => {
+          setIsNewVisitOpen(open);
+          if (!open) setOpenReportAfterVisit(false);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Create a Visit First</DialogTitle>
+            <DialogDescription>
+              Every report needs to be linked to a visit (inspection round). Give this visit a name to continue.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="visit-title">Visit name</Label>
+            <Input
+              id="visit-title"
+              autoFocus
+              value={newVisitTitle}
+              onChange={(e) => setNewVisitTitle(e.target.value)}
+              placeholder="e.g. Initial Inspection"
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && newVisitTitle.trim())
+                  createVisitMutation.mutate(newVisitTitle.trim());
+              }}
+            />
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsNewVisitOpen(false);
+                setOpenReportAfterVisit(false);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => createVisitMutation.mutate(newVisitTitle.trim())}
+              disabled={!newVisitTitle.trim() || createVisitMutation.isPending}
+            >
+              {createVisitMutation.isPending ? "Creating..." : "Create Visit & Continue"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
     </Layout>
   );
 }
