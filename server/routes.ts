@@ -111,7 +111,7 @@ export async function registerRoutes(
       { usernameField: "email" },
       async (email, password, done) => {
         try {
-          const user = await storage.getUserByEmail(email);
+          const user = await storage.getUserByEmail(email.toLowerCase());
           if (!user)
             return done(null, false, { message: "Invalid email or password" });
           const valid = await bcrypt.compare(password, user.password);
@@ -144,7 +144,8 @@ export async function registerRoutes(
     const parsed = registerSchema.safeParse(req.body);
     if (!parsed.success)
       return res.status(400).json({ message: parsed.error.errors[0].message });
-    const { name, email, password, companyName } = parsed.data;
+    const { name, email: rawEmail, password, companyName } = parsed.data;
+    const email = rawEmail.toLowerCase();
 
     const existing = await storage.getUserByEmail(email);
     if (existing)
@@ -156,7 +157,7 @@ export async function registerRoutes(
 
     const workspace = await storage.createWorkspace({
       name: companyName,
-      planStatus: "active",
+      planStatus: "inactive",
       trialEndsAt,
     });
     const hashed = await bcrypt.hash(password, 10);
@@ -415,7 +416,8 @@ export async function registerRoutes(
 
   app.post("/api/team", requireAdmin, requireActiveTrial, async (req, res) => {
     const admin = req.user as any;
-    const { name, email, password, role } = req.body;
+    const { name, email: rawEmail, password, role } = req.body;
+    const email = rawEmail?.toLowerCase();
     if (!name || !email || !password)
       return res
         .status(400)
