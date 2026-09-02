@@ -1123,26 +1123,21 @@ export async function registerRoutes(
         await storage.replaceReportIssues(item.id, user.workspaceId, issues);
       }
 
-      res.status(201).json(item);
+      res.status(201).json(await assembleReport(item));
     },
   );
 
-  app.get("/api/reports/:id", requireAuth, async (req, res) => {
-    const user = req.user as any;
-    const item = await storage.getReport(
-      req.params.id as string,
-      user.workspaceId,
-    );
-    if (!item) return res.status(404).json({ message: "Not found" });
+  // ── Report Assembly Helper ──────────────────────────────────────────────────
+  // Centralises the read-from-normalized-tables + compose shape logic so both
+  // GET and PATCH return the same complete report object to the client.
 
-    // ── Read from normalized tables, assemble into report shape ──
+  async function assembleReport(item: any) {
     const [normChecklist, normDimensions, normIssues] = await Promise.all([
       storage.getChecklistItems(item.id),
       storage.getReportDimensions(item.id),
       storage.getReportIssues(item.id),
     ]);
 
-    // Fetch issue images for all issues
     let issueImagesMap: Record<string, any[]> = {};
     if (normIssues.length > 0) {
       const allImages = await db
@@ -1155,7 +1150,7 @@ export async function registerRoutes(
       }
     }
 
-    const report = {
+    return {
       ...item,
       checklist: normChecklist.map((c) => ({
         id: c.id,
@@ -1188,7 +1183,6 @@ export async function registerRoutes(
           proxyUrl(img.gcpUrl),
         ),
       })),
-      // Compute spaceCounts from dimensions (was previously stored as JSONB)
       spaceCounts: (() => {
         const counts: Record<string, number> = {};
         for (const d of normDimensions) {
@@ -1198,8 +1192,17 @@ export async function registerRoutes(
         return counts;
       })(),
     };
+  }
 
-    res.json(report);
+  app.get("/api/reports/:id", requireAuth, async (req, res) => {
+    const user = req.user as any;
+    const item = await storage.getReport(
+      req.params.id as string,
+      user.workspaceId,
+    );
+    if (!item) return res.status(404).json({ message: "Not found" });
+
+    res.json(await assembleReport(item));
   });
 
   app.patch(
@@ -1323,7 +1326,7 @@ export async function registerRoutes(
         await storage.replaceReportIssues(item.id, user.workspaceId, issues);
       }
 
-      res.json(item);
+      res.json(await assembleReport(item));
     },
   );
 
