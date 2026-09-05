@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -1333,6 +1334,9 @@ export default function CaptureManager() {
                 ? `Add Capture — ${burstCount} captured here`
                 : "Add Capture"}
             </DialogTitle>
+            <DialogDescription className="sr-only">
+              Upload a site photo with an optional title and tags.
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div>
@@ -1481,6 +1485,9 @@ export default function CaptureManager() {
             <DialogTitle>
               {currentVisit ? "Start a new visit" : "Name this visit"}
             </DialogTitle>
+            <DialogDescription className="sr-only">
+              Name the inspection round new captures will belong to.
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-2">
             <p className="text-sm text-slate-500">
@@ -1531,6 +1538,9 @@ export default function CaptureManager() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Tag {untaggedCount} untagged captures</DialogTitle>
+            <DialogDescription className="sr-only">
+              Pick tags to apply to every untagged capture in this project.
+            </DialogDescription>
           </DialogHeader>
           <p className="text-sm text-slate-500">
             These tags will be added to every untagged capture in this
@@ -1595,6 +1605,9 @@ export default function CaptureManager() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Tag capture</DialogTitle>
+            <DialogDescription className="sr-only">
+              Edit the block, floor, flat, and amenity tags on this capture.
+            </DialogDescription>
           </DialogHeader>
           <p className="text-sm text-slate-500">
             {tagEditCapture?.title ?? ""}
@@ -1665,6 +1678,9 @@ export default function CaptureManager() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Rename capture</DialogTitle>
+            <DialogDescription className="sr-only">
+              Give this capture a new title.
+            </DialogDescription>
           </DialogHeader>
           <Input
             value={renameTitle}
