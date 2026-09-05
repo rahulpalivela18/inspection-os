@@ -45,6 +45,43 @@ export default defineConfig({
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
         navigateFallback: "/index.html",
         navigateFallbackDenylist: [/^\/api\//],
+        // Step 2 of offline MVP: cache image bytes so photos survive reloads
+        // with no network. Filenames are unique per upload (immutable), so
+        // CacheFirst is safe. API calls are deliberately NOT cached here —
+        // data correctness comes from IndexedDB in step 3/4, a raw HTTP
+        // cache can't queue mutations or resolve conflicts.
+        runtimeCaching: [
+          {
+            // Same-origin proxy responses (has CORS headers, inspectable)
+            urlPattern: /\/api\/image-proxy.*/i,
+            handler: "CacheFirst",
+            options: {
+              cacheName: "proxy-images",
+              expiration: { maxEntries: 300, maxAgeSeconds: 30 * 24 * 60 * 60 },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
+          {
+            // Direct GCP URLs (cross-origin, cached as opaque responses)
+            urlPattern: /^https:\/\/storage\.googleapis\.com\/.*/i,
+            handler: "CacheFirst",
+            options: {
+              cacheName: "gcp-images",
+              expiration: { maxEntries: 300, maxAgeSeconds: 30 * 24 * 60 * 60 },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
+          {
+            // Other same-origin images (logos, icons, og-image)
+            urlPattern: /.*\.(?:png|jpg|jpeg|webp|svg|gif)$/i,
+            handler: "CacheFirst",
+            options: {
+              cacheName: "local-images",
+              expiration: { maxEntries: 100, maxAgeSeconds: 30 * 24 * 60 * 60 },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
+        ],
       },
       devOptions: { enabled: false },
     }),
