@@ -1,5 +1,6 @@
 import { useState } from "react";
 import Layout from "@/components/Layout";
+import { OfflineDownloadButton } from "@/components/OfflineDownloadButton";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import {
@@ -450,6 +451,7 @@ export default function ProjectDetails() {
                 )}
               </div>
               <div className="flex flex-col gap-3 shrink-0">
+                <OfflineDownloadButton projectId={params.id} />
                 {user?.role !== "viewer" && (
                 <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                   <Button

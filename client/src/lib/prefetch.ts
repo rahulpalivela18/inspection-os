@@ -1,0 +1,211 @@
+import { api } from "./api";
+import { db } from "./db";
+
+export interface OfflinePackage {
+  projectId: string;
+  downloadedAt: number;
+  dataRequests: number;
+  imageCount: number;
+  imageBytes: number;
+  errors: number;
+}
+
+export interface PrefetchProgress {
+  phase: "data" | "images" | "done";
+  done: number;
+  total: number;
+}
+
+const META_KEY = (projectId: string) => `offlinePackage:${projectId}`;
+
+function imageCacheName(url: string): string {
+  if (url.includes("/api/image-proxy")) return "proxy-images";
+  if (url.includes("storage.googleapis.com")) return "gcp-images";
+  return "local-images";
+}
+
+function isHttpUrl(u: unknown): u is string {
+  return typeof u === "string" && /^https?:\/\//.test(u);
+}
+
+// Progress-log photo fields are schemaless JSONB — could be string arrays,
+// {url} objects, or keyed maps. Extract every http(s) string found inside.
+function extractUrlsDeep(value: unknown, out: Set<string>) {
+  if (isHttpUrl(value)) {
+    out.add(value);
+    return;
+  }
+  if (Array.isArray(value)) {
+    for (const v of value) extractUrlsDeep(v, out);
+    return;
+  }
+  if (value && typeof value === "object") {
+    for (const v of Object.values(value as Record<string, unknown>))
+      extractUrlsDeep(v, out);
+  }
+}
+
+export async function getOfflinePackage(
+  projectId: string,
+): Promise<OfflinePackage | null> {
+  const row = await db.offlineMeta
+    .get(META_KEY(projectId))
+    .catch(() => undefined);
+  return (row?.value as OfflinePackage) ?? null;
+}
+
+export async function clearOfflinePackage(projectId: string): Promise<void> {
+  // Drops the package record; image bytes stay in the SW caches until their
+  // normal 30-day expiry (shared cache, evicting per-project is unsafe).
+  await db.offlineMeta.delete(META_KEY(projectId)).catch(() => {});
+}
+
+// Downloads everything one project needs for offline field work. Data
+// requests go through api.* so they also populate the IndexedDB GET cache
+// from step 3. Image bytes go into the same Cache Storage buckets the
+// service worker serves (step 2), so <img> tags work offline untouched.
+export async function downloadProjectForOffline(
+  projectId: string,
+  onProgress?: (p: PrefetchProgress) => void,
+): Promise<OfflinePackage> {
+  const imageUrls = new Set<string>();
+  let dataRequests = 0;
+  let errors = 0;
+
+  // Best-effort: one failing endpoint (e.g. members for non-admins) must
+  // not abort the whole package.
+  async function safe<T>(fn: () => Promise<T>): Promise<T | null> {
+    try {
+      const result = await fn();
+      dataRequests++;
+      return result;
+    } catch {
+      errors++;
+      return null;
+    }
+  }
+
+  const progress = (
+    phase: PrefetchProgress["phase"],
+    done: number,
+    total: number,
+  ) => onProgress?.({ phase, done, total });
+
+  // ── Data phase ──
+  progress("data", 0, 1);
+  const [
+    project,
+    reports,
+    captures,
+    visits,
+    tagValues,
+    templates,
+    team,
+    amenities,
+  ] = await Promise.all([
+    safe(() => api.getProject(projectId)),
+    safe(() => api.getReports(projectId)),
+    safe(() => api.getCaptures(projectId)),
+    safe(() => api.getVisits(projectId)),
+    safe(() => api.getTagValues(projectId)),
+    safe(() => api.getChecklistTemplates()),
+    safe(() => api.getTeam()),
+    safe(() => api.getDefaultAmenities()),
+  ]);
+  progress("data", 1, 1);
+  void project;
+
+  await safe(() => api.getCurrentVisit(projectId));
+  await safe(() => api.getProjectMembers(projectId));
+
+  // Full detail per report (normalized tables assembled server-side).
+  if (reports) {
+    for (const r of reports) {
+      const full = await safe(() => api.getReport(r.id));
+      if (full?.checklist) {
+        for (const c of full.checklist)
+          if (isHttpUrl(c.image)) imageUrls.add(c.image);
+      }
+      if (full?.issues) {
+        for (const iss of full.issues) extractUrlsDeep(iss.images, imageUrls);
+      }
+      const logs = await safe(() => api.getProgressLogs(r.id));
+      if (logs) {
+        for (const log of logs) {
+          extractUrlsDeep(log.afterPhotos, imageUrls);
+          extractUrlsDeep(log.resolvedIssuePhotos, imageUrls);
+        }
+      }
+    }
+  }
+
+  // Captures + hotspots (captures list already carries tags).
+  if (captures) {
+    for (const c of captures) {
+      if (isHttpUrl(c.imageUrl)) imageUrls.add(c.imageUrl);
+      if (isHttpUrl(c.thumbnailUrl)) imageUrls.add(c.thumbnailUrl);
+      const hotspots = await safe(() => api.getHotspots(c.id));
+      if (hotspots) {
+        for (const h of hotspots) {
+          if (isHttpUrl(h.panoUrl)) imageUrls.add(h.panoUrl);
+          if (isHttpUrl(h.thumbnailUrl)) imageUrls.add(h.thumbnailUrl);
+          if (isHttpUrl(h.resolvedPhoto)) imageUrls.add(h.resolvedPhoto);
+        }
+      }
+    }
+  }
+  void visits;
+  void tagValues;
+  void templates;
+  void team;
+  void amenities;
+
+  // ── Image phase ──
+  const urls = Array.from(imageUrls);
+  let imageBytes = 0;
+  const canCache = typeof caches !== "undefined";
+  for (let i = 0; i < urls.length; i++) {
+    progress("images", i, urls.length);
+    try {
+      const res = await fetch(urls[i]);
+      if (!res.ok) {
+        errors++;
+        continue;
+      }
+      const blob = await res.blob();
+      imageBytes += blob.size;
+      if (canCache) {
+        const cache = await caches.open(imageCacheName(urls[i]));
+        await cache.put(
+          urls[i],
+          new Response(blob, {
+            headers: { "Content-Type": blob.type || "image/jpeg" },
+          }),
+        );
+      }
+    } catch {
+      errors++;
+    }
+  }
+  progress("images", urls.length, urls.length);
+
+  const pkg: OfflinePackage = {
+    projectId,
+    downloadedAt: Date.now(),
+    dataRequests,
+    imageCount: urls.length,
+    imageBytes,
+    errors,
+  };
+  await db.offlineMeta
+    .put({ key: META_KEY(projectId), value: pkg, updatedAt: Date.now() })
+    .catch(() => {});
+  progress("done", 1, 1);
+  return pkg;
+}
+
+export function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
