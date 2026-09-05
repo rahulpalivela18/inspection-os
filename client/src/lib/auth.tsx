@@ -6,6 +6,7 @@ import {
   useEffect,
 } from "react";
 import { api, setOnUnauthorized } from "./api";
+import { offlineFetch } from "./offline";
 import { queryClient, setQueryOnUnauthorized } from "./queryClient";
 
 type User = {
@@ -68,7 +69,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const fetchTrialStatus = async () => {
     try {
-      const res = await fetch("/api/workspace/trial-status", { credentials: "include" });
+      const res = await offlineFetch("/api/workspace/trial-status", { credentials: "include" });
       if (res.ok) {
         const data = await res.json();
         setTrial(data);
