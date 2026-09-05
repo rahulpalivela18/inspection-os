@@ -47,7 +47,7 @@ import {
 import { useRoute, useLocation, useSearchParams } from "wouter";
 import { ProjectTabs } from "@/components/ProjectTabs";
 import { useToast } from "@/hooks/use-toast";
-import { ensureJpeg, cn, isAdminRole } from "@/lib/utils";
+import { ensureJpeg, compressImageFile, cn, isAdminRole } from "@/lib/utils";
 import CapturePDF from "@/components/CapturePDF";
 import { pdf } from "@react-pdf/renderer";
 import { useAuth } from "@/lib/auth";
@@ -496,25 +496,7 @@ export default function CaptureManager() {
   }, [areaFilter, severityFilter, statusFilter, search, visitFilter, untaggedOnly, tagFilters]);
 
   function readFileAsCapture(file: File) {
-    return new Promise<{ dataUrl: string; width: number; height: number }>(
-      (resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => {
-          const dataUrl = reader.result as string;
-          const img = new Image();
-          img.onload = () =>
-            resolve({
-              dataUrl,
-              width: img.naturalWidth,
-              height: img.naturalHeight,
-            });
-          img.onerror = reject;
-          img.src = dataUrl;
-        };
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      }
-    );
+    return compressImageFile(file);
   }
 
   const uploadMutation = useMutation({
