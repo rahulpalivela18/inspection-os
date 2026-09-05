@@ -87,7 +87,17 @@ export async function offlineFetch(
   }
 
   try {
-    const res = await fetch(url, init);
+    // Dead networks (WiFi off but socket half-open, captive portals) can
+    // hang fetch for minutes. Abort generously — 45s covers even slow
+    // photo uploads post-compression — and treat it as flaky: queued.
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 45000);
+    let res: Response;
+    try {
+      res = await fetch(url, { ...init, signal: ctrl.signal });
+    } finally {
+      clearTimeout(timer);
+    }
     if (res.ok && cacheable) {
       res
         .clone()
