@@ -66,6 +66,7 @@ import { Link, useRoute } from "wouter";
 import NotFound from "./not-found";
 import { useReactToPrint } from "react-to-print";
 import { cn, compressImageFile } from "@/lib/utils";
+import { isQueuedResponse } from "@/lib/offline";
 import ReportPreview from "@/pages/ReportPreview";
 import IssuesView from "@/components/IssuesView";
 import {
@@ -157,7 +158,11 @@ export default function ReportEditor() {
       }
     },
     onSuccess: (updated: any) => {
-      queryClient.setQueryData(["report", params?.id], updated);
+      // Offline-queued echo: merge into cache instead of replacing, or the
+      // full report shape would collapse to just the sent fields.
+      queryClient.setQueryData(["report", params?.id], (old: any) =>
+        isQueuedResponse(updated) ? { ...old, ...updated } : updated,
+      );
     },
     onSettled: () => {
       // After mutation completes, send any pending data that accumulated during the save

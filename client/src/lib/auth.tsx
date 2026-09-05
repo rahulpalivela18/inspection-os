@@ -7,6 +7,24 @@ import {
 } from "react";
 import { api, setOnUnauthorized } from "./api";
 import { offlineFetch } from "./offline";
+import { isOfflineError } from "./offline";
+import { db } from "./db";
+
+const CACHED_AUTH_KEY = "cachedAuth";
+
+async function cacheAuth(user: User, workspace: Workspace) {
+  await db.offlineMeta
+    .put({ key: CACHED_AUTH_KEY, value: { user, workspace }, updatedAt: Date.now() })
+    .catch(() => {});
+}
+
+export async function getCachedAuth(): Promise<{
+  user: User;
+  workspace: Workspace;
+} | null> {
+  const row = await db.offlineMeta.get(CACHED_AUTH_KEY).catch(() => undefined);
+  return (row?.value as any) ?? null;
+}
 import { queryClient, setQueryOnUnauthorized } from "./queryClient";
 
 type User = {
@@ -102,9 +120,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .then(({ user, workspace }) => {
         setUser(user);
         setWorkspace(workspace);
+        cacheAuth(user, workspace);
         fetchTrialStatus();
       })
-      .catch(() => {})
+      .catch((err) => {
+        // Offline with a previous login → fall back to cached identity so
+        // the app opens instead of bouncing to /login (step 6).
+        if (isOfflineError(err)) {
+          getCachedAuth().then((cached) => {
+            if (cached) {
+              setUser(cached.user);
+              setWorkspace(cached.workspace);
+            }
+          });
+        }
+      })
       .finally(() => setIsLoading(false));
   }, []);
 
@@ -113,6 +143,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     queryClient.clear();
     setUser(data.user);
     setWorkspace(data.workspace);
+    cacheAuth(data.user, data.workspace);
     fetchTrialStatus();
   };
 
@@ -126,6 +157,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     queryClient.clear();
     setUser(data.user);
     setWorkspace(data.workspace);
+    cacheAuth(data.user, data.workspace);
     fetchTrialStatus();
   };
 
@@ -137,6 +169,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(null);
       setWorkspace(null);
       setTrial(null);
+      db.offlineMeta.delete(CACHED_AUTH_KEY).catch(() => {});
     }
   };
 

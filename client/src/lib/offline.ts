@@ -1,4 +1,32 @@
 import { db } from "./db";
+import { enqueueMutation } from "./sync";
+
+// Marker on synthetic responses + echoed bodies for mutations accepted
+// into the offline outbox (replayed by the sync engine in step 5).
+export const OFFLINE_QUEUED_MARKER = "__offlineQueued";
+
+export function isQueuedResponse(data: any): boolean {
+  return !!data && data[OFFLINE_QUEUED_MARKER] === true;
+}
+
+// Synthetic 200 echoing the request body so mutation onSuccess handlers
+// run normally (no error toasts anywhere). Consumers that REPLACE cache
+// with the response must merge instead — see ReportEditor saveMutation.
+function queuedResponse(body: string | undefined): Response {
+  let echo: any = { [OFFLINE_QUEUED_MARKER]: true };
+  try {
+    if (body) echo = { ...JSON.parse(body), [OFFLINE_QUEUED_MARKER]: true };
+  } catch {
+    // non-JSON body (shouldn't happen — all mutations send JSON)
+  }
+  return new Response(JSON.stringify(echo), {
+    status: 200,
+    headers: {
+      "Content-Type": "application/json",
+      "X-Offline-Queued": "1",
+    },
+  });
+}
 
 // Thrown when a request can't reach the network and there's nothing usable
 // cached. Callers (mutations, auth) surface this as "you're offline".
@@ -47,8 +75,15 @@ export async function offlineFetch(
     if (cacheable) {
       const hit = await db.apiCache.get(url).catch(() => undefined);
       if (hit) return cachedResponse(hit.data);
+      throw new OfflineError(url);
     }
-    throw new OfflineError(url);
+    // Mutation while offline → outbox it, pretend success (replayed later).
+    // Auth calls are never queued — login must really happen online.
+    if (url.includes("/api/auth")) throw new OfflineError(url);
+    const rawBody =
+      init?.body && typeof init.body === "string" ? init.body : undefined;
+    await enqueueMutation(method, url, rawBody);
+    return queuedResponse(rawBody);
   }
 
   try {
@@ -69,8 +104,14 @@ export async function offlineFetch(
     if (cacheable) {
       const hit = await db.apiCache.get(url).catch(() => undefined);
       if (hit) return cachedResponse(hit.data);
+      throw new OfflineError(url);
     }
-    throw new OfflineError(url);
+    // Flaky network (online flag lied): same outbox treatment.
+    if (url.includes("/api/auth")) throw new OfflineError(url);
+    const rawBody =
+      init?.body && typeof init.body === "string" ? init.body : undefined;
+    await enqueueMutation(method, url, rawBody).catch(() => {});
+    return queuedResponse(rawBody);
   }
 }
 
