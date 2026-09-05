@@ -229,6 +229,8 @@ export async function registerRoutes(
           "planStatus",
           "trialEndsAt",
         ]);
+        safeWs.logoUrl = proxyUrl(safeWs.logoUrl) ?? safeWs.logoUrl;
+        safe.avatarUrl = proxyUrl(safe.avatarUrl) ?? safe.avatarUrl;
         res.json({ user: safe, workspace: safeWs });
       });
     })(req, res, next);
@@ -255,6 +257,8 @@ export async function registerRoutes(
       "planStatus",
       "trialEndsAt",
     ]);
+    safeWs.logoUrl = proxyUrl(safeWs.logoUrl) ?? safeWs.logoUrl;
+    safe.avatarUrl = proxyUrl(safe.avatarUrl) ?? safe.avatarUrl;
     res.json({ user: safe, workspace: safeWs });
   });
 
@@ -403,7 +407,12 @@ export async function registerRoutes(
   app.get("/api/team", requireAuth, async (req, res) => {
     const user = req.user as any;
     const members = await storage.getUsersByWorkspace(user.workspaceId);
-    res.json(members.map(({ password: _, ...m }) => m));
+    res.json(
+      members.map(({ password: _, ...m }) => ({
+        ...m,
+        avatarUrl: proxyUrl(m.avatarUrl) ?? m.avatarUrl,
+      })),
+    );
   });
 
   const PLAN_INSPECTOR_LIMITS: Record<string, number> = {
@@ -577,7 +586,10 @@ export async function registerRoutes(
         ? targetWorkspaceId
         : user.workspaceId;
     const workspace = await storage.updateWorkspace(wsId, parsed.data);
-    res.json(workspace);
+    res.json({
+      ...workspace,
+      logoUrl: proxyUrl(workspace.logoUrl) ?? workspace.logoUrl,
+    });
   });
 
   // ── Admin Routes (super_admin only) ────────────────────────────────────────────
@@ -1111,26 +1123,21 @@ export async function registerRoutes(
         await storage.replaceReportIssues(item.id, user.workspaceId, issues);
       }
 
-      res.status(201).json(item);
+      res.status(201).json(await assembleReport(item));
     },
   );
 
-  app.get("/api/reports/:id", requireAuth, async (req, res) => {
-    const user = req.user as any;
-    const item = await storage.getReport(
-      req.params.id as string,
-      user.workspaceId,
-    );
-    if (!item) return res.status(404).json({ message: "Not found" });
+  // ── Report Assembly Helper ──────────────────────────────────────────────────
+  // Centralises the read-from-normalized-tables + compose shape logic so both
+  // GET and PATCH return the same complete report object to the client.
 
-    // ── Read from normalized tables, assemble into report shape ──
+  async function assembleReport(item: any) {
     const [normChecklist, normDimensions, normIssues] = await Promise.all([
       storage.getChecklistItems(item.id),
       storage.getReportDimensions(item.id),
       storage.getReportIssues(item.id),
     ]);
 
-    // Fetch issue images for all issues
     let issueImagesMap: Record<string, any[]> = {};
     if (normIssues.length > 0) {
       const allImages = await db
@@ -1143,7 +1150,7 @@ export async function registerRoutes(
       }
     }
 
-    const report = {
+    return {
       ...item,
       checklist: normChecklist.map((c) => ({
         id: c.id,
@@ -1152,7 +1159,7 @@ export async function registerRoutes(
         status: c.status,
         severity: c.severity,
         triggerOn: c.triggerOn,
-        image: c.imageUrl,
+        image: proxyUrl(c.imageUrl),
         workStatus: c.workStatus,
       })),
       dimensions: normDimensions.map((d) => ({
@@ -1172,9 +1179,10 @@ export async function registerRoutes(
         responsibleEngineer: iss.responsibleEngineer,
         severity: iss.severity,
         status: iss.status,
-        images: (issueImagesMap[iss.id] ?? []).map((img) => img.gcpUrl),
+        images: (issueImagesMap[iss.id] ?? []).map((img) =>
+          proxyUrl(img.gcpUrl),
+        ),
       })),
-      // Compute spaceCounts from dimensions (was previously stored as JSONB)
       spaceCounts: (() => {
         const counts: Record<string, number> = {};
         for (const d of normDimensions) {
@@ -1184,8 +1192,17 @@ export async function registerRoutes(
         return counts;
       })(),
     };
+  }
 
-    res.json(report);
+  app.get("/api/reports/:id", requireAuth, async (req, res) => {
+    const user = req.user as any;
+    const item = await storage.getReport(
+      req.params.id as string,
+      user.workspaceId,
+    );
+    if (!item) return res.status(404).json({ message: "Not found" });
+
+    res.json(await assembleReport(item));
   });
 
   app.patch(
@@ -1309,7 +1326,7 @@ export async function registerRoutes(
         await storage.replaceReportIssues(item.id, user.workspaceId, issues);
       }
 
-      res.json(item);
+      res.json(await assembleReport(item));
     },
   );
 
@@ -1589,7 +1606,11 @@ export async function registerRoutes(
         tagsByCapture.set(row.captureId, list);
       }
       res.json(
-        items.map((c) => ({ ...c, tags: tagsByCapture.get(c.id) ?? [] })),
+        items.map((c) => ({
+          ...c,
+          imageUrl: proxyUrl(c.imageUrl) ?? c.imageUrl,
+          tags: tagsByCapture.get(c.id) ?? [],
+        })),
       );
     },
   );
@@ -1733,7 +1754,7 @@ export async function registerRoutes(
       user.workspaceId,
     );
     if (!item) return res.status(404).json({ message: "Not found" });
-    res.json(item);
+    res.json({ ...item, imageUrl: proxyUrl(item.imageUrl) ?? item.imageUrl });
   });
 
   app.patch(
@@ -1796,7 +1817,13 @@ export async function registerRoutes(
         req.params.captureId as string,
         user.workspaceId,
       );
-      res.json(items);
+      res.json(
+        items.map((h) => ({
+          ...h,
+          panoUrl: proxyUrl(h.panoUrl) ?? h.panoUrl,
+          resolvedPhoto: proxyUrl(h.resolvedPhoto) ?? h.resolvedPhoto,
+        })),
+      );
     },
   );
 
@@ -1962,7 +1989,15 @@ export async function registerRoutes(
             capture.id,
             link.workspaceId,
           );
-          return { ...capture, hotspots };
+          return {
+            ...capture,
+            imageUrl: proxyUrl(capture.imageUrl) ?? capture.imageUrl,
+            hotspots: hotspots.map((h: any) => ({
+              ...h,
+              panoUrl: proxyUrl(h.panoUrl) ?? h.panoUrl,
+              resolvedPhoto: proxyUrl(h.resolvedPhoto) ?? h.resolvedPhoto,
+            })),
+          };
         }),
       );
 
@@ -2240,11 +2275,18 @@ export async function registerRoutes(
     },
   );
 
-  // ── Image proxy ────────────────────────────────────────────────────────────
+  // ── Image proxy — serves GCP images without exposing the bucket URL ────────
 
   app.get("/api/image-proxy", async (req, res) => {
     const url = req.query.url as string;
     if (!url) return res.status(400).json({ message: "Missing url param" });
+
+    // Only proxy our own GCP bucket images
+    if (
+      !url.startsWith("https://storage.googleapis.com/reportgen-images-rahul/")
+    ) {
+      return res.status(403).json({ message: "URL not allowed" });
+    }
 
     try {
       const response = await fetch(url);
@@ -2254,16 +2296,36 @@ export async function registerRoutes(
           .json({ message: "Failed to fetch image" });
 
       const contentType = response.headers.get("content-type") || "image/jpeg";
-      const buffer = Buffer.from(await response.arrayBuffer());
 
+      // Stream instead of buffering for large images
       res.set("Content-Type", contentType);
       res.set("Access-Control-Allow-Origin", "*");
-      res.set("Cache-Control", "public, max-age=86400");
-      res.send(buffer);
+      res.set("Cache-Control", "public, max-age=31536000, immutable");
+
+      const reader = response.body?.getReader();
+      if (!reader) {
+        const buffer = Buffer.from(await response.arrayBuffer());
+        return res.send(buffer);
+      }
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        res.write(value);
+      }
+      res.end();
     } catch (err) {
       res.status(502).json({ message: "Image proxy failed" });
     }
   });
+
+  // Helper: convert GCP URL → proxy URL
+  function proxyUrl(gcpUrl: string | null | undefined): string | null {
+    if (!gcpUrl) return null;
+    if (!gcpUrl.includes("storage.googleapis.com/reportgen-images-rahul"))
+      return gcpUrl;
+    return `/api/image-proxy?url=${encodeURIComponent(gcpUrl)}`;
+  }
 
   // ── Workspace Rates ──────────────────────────────────────────────────────
 
