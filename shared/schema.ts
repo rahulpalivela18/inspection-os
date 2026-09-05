@@ -122,7 +122,6 @@ export const projects = pgTable("projects", {
 });
 
 export const insertProjectSchema = createInsertSchema(projects).omit({
-  id: true,
   createdAt: true,
 });
 export type InsertProject = z.infer<typeof insertProjectSchema>;
@@ -251,7 +250,6 @@ export const visits = pgTable(
 );
 
 export const insertVisitSchema = createInsertSchema(visits).omit({
-  id: true,
   active: true,
   createdAt: true,
 });
@@ -284,7 +282,6 @@ export const reports = pgTable("reports", {
 });
 
 export const insertReportSchema = createInsertSchema(reports).omit({
-  id: true,
   createdAt: true,
 });
 export type InsertReport = z.infer<typeof insertReportSchema>;
@@ -478,7 +475,6 @@ export const progressLogs = pgTable("progress_logs", {
 });
 
 export const insertProgressLogSchema = createInsertSchema(progressLogs).omit({
-  id: true,
   createdAt: true,
 });
 export type InsertProgressLog = z.infer<typeof insertProgressLogSchema>;
@@ -651,7 +647,6 @@ export const captures = spatial.table("captures", {
 });
 
 export const insertCaptureSchema = createInsertSchema(captures).omit({
-  id: true,
   createdAt: true,
 });
 export type InsertCapture = z.infer<typeof insertCaptureSchema>;
@@ -715,7 +710,6 @@ export const hotspots = spatial.table("hotspots", {
 });
 
 export const insertHotspotSchema = createInsertSchema(hotspots).omit({
-  id: true,
   createdAt: true,
 });
 export type InsertHotspot = z.infer<typeof insertHotspotSchema>;

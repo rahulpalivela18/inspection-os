@@ -25,6 +25,19 @@ export async function getCachedAuth(): Promise<{
   const row = await db.offlineMeta.get(CACHED_AUTH_KEY).catch(() => undefined);
   return (row?.value as any) ?? null;
 }
+
+// Tiny, rarely-changing datasets a zero-bars site visit needs to CREATE
+// anything (new reports seed from templates, assignees from team).
+// Fire-and-forget: responses populate the step-3 GET cache via offlineFetch.
+function prefetchGlobalEssentials() {
+  try {
+    api.getChecklistTemplates().catch(() => {});
+    api.getTeam().catch(() => {});
+    api.getProjects().catch(() => {});
+  } catch {
+    // never block auth on prefetch
+  }
+}
 import { queryClient, setQueryOnUnauthorized } from "./queryClient";
 
 type User = {
@@ -122,6 +135,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setWorkspace(workspace);
         cacheAuth(user, workspace);
         fetchTrialStatus();
+        prefetchGlobalEssentials();
       })
       .catch((err) => {
         // Offline with a previous login → fall back to cached identity so
@@ -145,6 +159,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setWorkspace(data.workspace);
     cacheAuth(data.user, data.workspace);
     fetchTrialStatus();
+    prefetchGlobalEssentials();
   };
 
   const register = async (formData: {

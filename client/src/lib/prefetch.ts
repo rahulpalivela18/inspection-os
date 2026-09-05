@@ -209,3 +209,21 @@ export function formatBytes(bytes: number): string {
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
+
+// Seed/append the step-3 GET cache so offline-created rows are readable
+// before the sync engine replays them (lists would otherwise refetch stale).
+export async function seedCachedDetail(url: string, data: any): Promise<void> {
+  await db.apiCache.put({ url, data, cachedAt: Date.now() }).catch(() => {});
+}
+
+export async function appendToCachedList(
+  url: string,
+  item: any,
+): Promise<void> {
+  const hit = await db.apiCache.get(url).catch(() => undefined);
+  if (hit && Array.isArray(hit.data)) {
+    await db.apiCache
+      .put({ url, data: [...hit.data, item], cachedAt: Date.now() })
+      .catch(() => {});
+  }
+}

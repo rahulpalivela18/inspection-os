@@ -3,6 +3,8 @@ import Layout from "@/components/Layout";
 import { OfflineDownloadButton } from "@/components/OfflineDownloadButton";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import { isQueuedResponse, OFFLINE_QUEUED_MARKER } from "@/lib/offline";
+import { seedCachedDetail, appendToCachedList } from "@/lib/prefetch";
 import {
   buildDimensionsFromChecklist,
   DEFAULT_DIMENSION_UNIT,
@@ -174,7 +176,20 @@ export default function ProjectDetails() {
   const createReportMutation = useMutation({
     mutationFn: (data: any) => api.createReport(params!.id, data),
     onSuccess: (report: any) => {
-      queryClient.invalidateQueries({ queryKey: ["reports", params?.id] });
+      if (isQueuedResponse(report)) {
+        // Offline: seed caches so the newborn report opens immediately.
+        const { [OFFLINE_QUEUED_MARKER]: _, ...rest } = report;
+        const shaped = { ...rest, projectId: params!.id, issues: [] };
+        queryClient.setQueryData(["report", report.id], shaped);
+        queryClient.setQueryData(["reports", params?.id], (old: any[]) => [
+          ...(old ?? []),
+          shaped,
+        ]);
+        seedCachedDetail(`/api/reports/${report.id}`, shaped);
+        appendToCachedList(`/api/projects/${params!.id}/reports`, shaped);
+      } else {
+        queryClient.invalidateQueries({ queryKey: ["reports", params?.id] });
+      }
       setIsDialogOpen(false);
       setNewReport({
         title: "",
@@ -230,7 +245,16 @@ export default function ProjectDetails() {
   const createVisitMutation = useMutation({
     mutationFn: (title: string) => api.createVisit(params!.id, title),
     onSuccess: (visit: any) => {
-      queryClient.invalidateQueries({ queryKey: ["visits", params?.id] });
+      if (isQueuedResponse(visit)) {
+        const { [OFFLINE_QUEUED_MARKER]: _, ...rest } = visit;
+        queryClient.setQueryData(["visits", params?.id], (old: any[]) => [
+          ...(old ?? []),
+          rest,
+        ]);
+        appendToCachedList(`/api/projects/${params!.id}/visits`, rest);
+      } else {
+        queryClient.invalidateQueries({ queryKey: ["visits", params?.id] });
+      }
       setIsNewVisitOpen(false);
       setNewVisitTitle("");
       setNewReport((r) => ({ ...r, visitId: visit.id }));

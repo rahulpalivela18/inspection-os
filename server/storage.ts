@@ -441,13 +441,19 @@ export class DatabaseStorage implements IStorage {
         .update(visits)
         .set({ active: false })
         .where(eq(visits.projectId, data.projectId));
-      const [row] = await tx
+      const inserted = await tx
         .insert(visits)
         .values({ ...data, active: true })
+        .onConflictDoNothing({ target: visits.id })
         .returning();
-      return [row];
+      return inserted;
     });
-    return rows[0];
+    if (rows[0]) return rows[0];
+    const [existing] = await db
+      .select()
+      .from(visits)
+      .where(eq(visits.id, (data as any).id));
+    return existing;
   }
   async setActiveVisit(
     projectId: string,
@@ -543,9 +549,20 @@ export class DatabaseStorage implements IStorage {
       .where(and(eq(projects.id, id), eq(projects.workspaceId, workspaceId)));
     return row;
   }
+  // Idempotent on client-supplied id: an offline-created row replayed twice
+  // (ambiguous timeout) returns the existing row instead of 500ing.
   async createProject(data: InsertProject) {
-    const [row] = await db.insert(projects).values(data).returning();
-    return row;
+    const rows = await db
+      .insert(projects)
+      .values(data)
+      .onConflictDoNothing({ target: projects.id })
+      .returning();
+    if (rows[0]) return rows[0];
+    const [existing] = await db
+      .select()
+      .from(projects)
+      .where(eq(projects.id, (data as any).id));
+    return existing;
   }
   async updateProject(
     id: string,
@@ -790,8 +807,17 @@ export class DatabaseStorage implements IStorage {
     return row;
   }
   async createReport(data: InsertReport) {
-    const [row] = await db.insert(reports).values(data).returning();
-    return row;
+    const rows = await db
+      .insert(reports)
+      .values(data)
+      .onConflictDoNothing({ target: reports.id })
+      .returning();
+    if (rows[0]) return rows[0];
+    const [existing] = await db
+      .select()
+      .from(reports)
+      .where(eq(reports.id, (data as any).id));
+    return existing;
   }
   async updateReport(
     id: string,
@@ -999,11 +1025,17 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(progressLogs.createdAt));
   }
   async createProgressLog(data: InsertProgressLog & { afterPhotos?: any }) {
-    const [row] = await db
+    const rows = await db
       .insert(progressLogs)
       .values(data as any)
+      .onConflictDoNothing({ target: progressLogs.id })
       .returning();
-    return row;
+    if (rows[0]) return rows[0];
+    const [existing] = await db
+      .select()
+      .from(progressLogs)
+      .where(eq(progressLogs.id, (data as any).id));
+    return existing;
   }
   async updateProgressLog(
     id: string,
@@ -1214,8 +1246,17 @@ export class SpatialStorage {
   }
 
   async createCapture(data: InsertCapture) {
-    const [row] = await db.insert(captures).values(data).returning();
-    return row;
+    const rows = await db
+      .insert(captures)
+      .values(data)
+      .onConflictDoNothing({ target: captures.id })
+      .returning();
+    if (rows[0]) return rows[0];
+    const [existing] = await db
+      .select()
+      .from(captures)
+      .where(eq(captures.id, (data as any).id));
+    return existing;
   }
 
   async updateCapture(
@@ -1262,8 +1303,17 @@ export class SpatialStorage {
   }
 
   async createHotspot(data: InsertHotspot) {
-    const [row] = await db.insert(hotspots).values(data).returning();
-    return row;
+    const rows = await db
+      .insert(hotspots)
+      .values(data)
+      .onConflictDoNothing({ target: hotspots.id })
+      .returning();
+    if (rows[0]) return rows[0];
+    const [existing] = await db
+      .select()
+      .from(hotspots)
+      .where(eq(hotspots.id, (data as any).id));
+    return existing;
   }
 
   async updateHotspot(

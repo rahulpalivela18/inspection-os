@@ -2,6 +2,17 @@ export const PUBLIC_PATHS = ["/", "/login", "/register", "/contact"];
 
 import { offlineFetch } from "./offline";
 
+// Client-generated IDs for offline-first creation: a row created with zero
+// bars keeps this ID forever — the queued POST replays with the same ID, so
+// later edits referencing it need no remapping, and ambiguous-timeout
+// replays are idempotent server-side (conflict → return existing).
+export function newId(): string {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return crypto.randomUUID();
+  }
+  return `temp-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
 let onUnauthorized: (() => void) | null = null;
 
 export function setOnUnauthorized(handler: () => void) {
@@ -109,7 +120,7 @@ export const api = {
   createProject: (data: any) =>
     request<any>("/api/projects", {
       method: "POST",
-      body: JSON.stringify(data),
+      body: JSON.stringify({ id: newId(), ...data }),
     }),
   updateProject: (id: string, data: any) =>
     request<any>(`/api/projects/${id}`, {
@@ -161,7 +172,7 @@ export const api = {
   createReport: (projectId: string, data: any) =>
     request<any>(`/api/projects/${projectId}/reports`, {
       method: "POST",
-      body: JSON.stringify(data),
+      body: JSON.stringify({ id: newId(), ...data }),
     }),
   updateReport: (id: string, data: any) =>
     request<any>(`/api/reports/${id}`, {
@@ -189,7 +200,7 @@ export const api = {
   createCapture: (projectId: string, data: any) =>
     request<any>(`/api/projects/${projectId}/captures`, {
       method: "POST",
-      body: JSON.stringify(data),
+      body: JSON.stringify({ id: newId(), ...data }),
     }),
   updateCapture: (id: string, data: any) =>
     request<any>(`/api/captures/${id}`, {
@@ -236,7 +247,7 @@ export const api = {
   createVisit: (projectId: string, title: string) =>
     request<any>(`/api/projects/${projectId}/visits`, {
       method: "POST",
-      body: JSON.stringify({ title }),
+      body: JSON.stringify({ id: newId(), title }),
     }),
   activateVisit: (projectId: string, visitId: string) =>
     request<any>(`/api/projects/${projectId}/visits/${visitId}/activate`, {
@@ -249,7 +260,7 @@ export const api = {
   createHotspot: (captureId: string, data: any) =>
     request<any>(`/api/captures/${captureId}/hotspots`, {
       method: "POST",
-      body: JSON.stringify(data),
+      body: JSON.stringify({ id: newId(), ...data }),
     }),
   updateHotspot: (id: string, data: any) =>
     request<any>(`/api/hotspots/${id}`, {
@@ -265,7 +276,7 @@ export const api = {
   createProgressLog: (reportId: string, data: any) =>
     request<any>(`/api/reports/${reportId}/progress-logs`, {
       method: "POST",
-      body: JSON.stringify(data),
+      body: JSON.stringify({ id: newId(), ...data }),
     }),
   updateProgressLog: (id: string, data: any) =>
     request<any>(`/api/progress-logs/${id}`, {

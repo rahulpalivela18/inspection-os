@@ -2,6 +2,8 @@ import { useState } from "react";
 import Layout from "@/components/Layout";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import { isQueuedResponse, OFFLINE_QUEUED_MARKER } from "@/lib/offline";
+import { appendToCachedList } from "@/lib/prefetch";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -85,8 +87,18 @@ export default function Dashboard() {
 
   const createMutation = useMutation({
     mutationFn: (data: any) => api.createProject(data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["projects"] });
+    onSuccess: (project: any) => {
+      if (isQueuedResponse(project)) {
+        // Offline: show the newborn project immediately; it syncs later.
+        const { [OFFLINE_QUEUED_MARKER]: _, ...rest } = project;
+        queryClient.setQueryData(["projects"], (old: any[]) => [
+          ...(old ?? []),
+          rest,
+        ]);
+        appendToCachedList("/api/projects", rest);
+      } else {
+        queryClient.invalidateQueries({ queryKey: ["projects"] });
+      }
       refreshTrial();
       setIsDialogOpen(false);
       setNewProject({
