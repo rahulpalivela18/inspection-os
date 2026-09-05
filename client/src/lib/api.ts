@@ -1,5 +1,7 @@
 export const PUBLIC_PATHS = ["/", "/login", "/register", "/contact"];
 
+import { offlineFetch } from "./offline";
+
 let onUnauthorized: (() => void) | null = null;
 
 export function setOnUnauthorized(handler: () => void) {
@@ -8,7 +10,7 @@ export function setOnUnauthorized(handler: () => void) {
 
 // Typed API helpers
 async function request<T>(url: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(url, {
+  const res = await offlineFetch(url, {
     credentials: "include",
     headers: { "Content-Type": "application/json" },
     ...options,

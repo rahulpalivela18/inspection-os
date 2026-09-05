@@ -23,6 +23,7 @@ import Contact from "@/pages/Contact";
 import Quotations from "@/pages/Quotations";
 import QuotationEditor from "@/pages/QuotationEditor";
 import NotFound from "@/pages/not-found";
+import { OfflineBanner } from "@/components/OfflineBanner";
 import SharedPortal from "@/pages/SharedPortal";
 import { Loader2 } from "lucide-react";
 
@@ -142,6 +143,7 @@ function App() {
       <AuthProvider>
         <TooltipProvider>
           <Toaster />
+          <OfflineBanner />
           <Router />
         </TooltipProvider>
       </AuthProvider>
