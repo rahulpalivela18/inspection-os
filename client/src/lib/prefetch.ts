@@ -83,6 +83,10 @@ export async function downloadProjectForOffline(
   let dataRequests = 0;
   let errors = 0;
 
+  // The previous package (if any) — used to refuse overwriting a good
+  // download with an empty one when Update is tapped with no signal.
+  const prev = await getOfflinePackage(projectId).catch(() => null);
+
   // Best-effort: one failing endpoint (e.g. members for non-admins) must
   // not abort the whole package.
   async function safe<T>(fn: () => Promise<T>): Promise<T | null> {
@@ -205,6 +209,17 @@ export async function downloadProjectForOffline(
     }
   }
   progress("images", urls.length, urls.length);
+
+  // Never replace a good package with an empty one: no data at all means
+  // no connection; zero photo bytes when we previously had photos means
+  // the images were unreachable. The button surfaces this as a failure
+  // toast and keeps the old package.
+  if (dataRequests === 0) {
+    throw new Error("No connection — offline package unchanged.");
+  }
+  if (prev && prev.imageCount > 0 && imageBytes === 0) {
+    throw new Error("Photos unreachable — keeping previous download.");
+  }
 
   const pkg: OfflinePackage = {
     projectId,

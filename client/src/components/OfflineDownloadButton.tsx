@@ -7,6 +7,7 @@ import {
   CheckCircle2,
   Trash2,
 } from "lucide-react";
+import { subscribeOnlineStatus } from "@/lib/offline";
 import {
   downloadProjectForOffline,
   getOfflinePackage,
@@ -24,10 +25,15 @@ export function OfflineDownloadButton({ projectId }: { projectId: string }) {
   const [pkg, setPkg] = useState<OfflinePackage | null>(null);
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState<PrefetchProgress | null>(null);
+  const [online, setOnline] = useState(
+    typeof navigator === "undefined" ? true : navigator.onLine,
+  );
 
   useEffect(() => {
     getOfflinePackage(projectId).then(setPkg);
   }, [projectId]);
+
+  useEffect(() => subscribeOnlineStatus(setOnline), []);
 
   const handleDownload = async () => {
     setBusy(true);
@@ -91,6 +97,8 @@ export function OfflineDownloadButton({ projectId }: { projectId: string }) {
             size="sm"
             variant="outline"
             onClick={handleDownload}
+            disabled={!online}
+            title={online ? "Re-download" : "Reconnect to update"}
             className="flex-1"
           >
             <RefreshCw className="mr-1.5 h-3.5 w-3.5" /> Update
