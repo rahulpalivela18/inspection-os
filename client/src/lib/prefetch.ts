@@ -132,6 +132,9 @@ export async function downloadProjectForOffline(
 
   await safe(() => api.getCurrentVisit(projectId));
   await safe(() => api.getProjectMembers(projectId));
+  // Share-links are online-only, but the project page queries them — cache
+  // whatever exists so the page doesn't error offline.
+  await safe(() => api.getShareLinks(projectId));
 
   // Full detail per report (normalized tables assembled server-side).
   if (reports) {
@@ -155,9 +158,11 @@ export async function downloadProjectForOffline(
     }
   }
 
-  // Captures + hotspots (captures list already carries tags).
+  // Captures + hotspots (captures list already carries tags). Also seed the
+  // per-capture detail URL — the viewer page requests it, never the list.
   if (captures) {
     for (const c of captures) {
+      await seedCachedDetail(`/api/captures/${c.id}`, c);
       if (isFetchableImageUrl(c.imageUrl))
         imageUrls.add(normalizeUrl(c.imageUrl));
       if (isFetchableImageUrl(c.thumbnailUrl))
