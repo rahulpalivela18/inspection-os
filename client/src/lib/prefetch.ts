@@ -6,6 +6,8 @@ export interface OfflinePackage {
   downloadedAt: number;
   dataRequests: number;
   imageCount: number;
+  /** Photos found on the server (saved may be fewer — see budget below). */
+  imageTotal: number;
   imageBytes: number;
   errors: number;
 }
@@ -79,7 +81,17 @@ export async function downloadProjectForOffline(
   projectId: string,
   onProgress?: (p: PrefetchProgress) => void,
 ): Promise<OfflinePackage> {
+  // Two buckets: report content (the work surface — always fully saved)
+  // and captures/hotspots (newest-first, under the budget below).
   const imageUrls = new Set<string>();
+  const captureUrls: string[] = [];
+  const seenCapture = new Set<string>();
+  const addCaptureUrl = (u: string) => {
+    if (!seenCapture.has(u)) {
+      seenCapture.add(u);
+      captureUrls.push(u);
+    }
+  };
   let dataRequests = 0;
   let errors = 0;
 
@@ -160,22 +172,28 @@ export async function downloadProjectForOffline(
 
   // Captures + hotspots (captures list already carries tags). Also seed the
   // per-capture detail URL — the viewer page requests it, never the list.
+  // Newest first so the budget below keeps recent site photos.
   if (captures) {
-    for (const c of captures) {
+    const newestFirst = [...captures].sort(
+      (a, b) =>
+        new Date(b.createdAt || 0).getTime() -
+        new Date(a.createdAt || 0).getTime(),
+    );
+    for (const c of newestFirst) {
       await seedCachedDetail(`/api/captures/${c.id}`, c);
       if (isFetchableImageUrl(c.imageUrl))
-        imageUrls.add(normalizeUrl(c.imageUrl));
+        addCaptureUrl(normalizeUrl(c.imageUrl));
       if (isFetchableImageUrl(c.thumbnailUrl))
-        imageUrls.add(normalizeUrl(c.thumbnailUrl));
+        addCaptureUrl(normalizeUrl(c.thumbnailUrl));
       const hotspots = await safe(() => api.getHotspots(c.id));
       if (hotspots) {
         for (const h of hotspots) {
           if (isFetchableImageUrl(h.panoUrl))
-            imageUrls.add(normalizeUrl(h.panoUrl));
+            addCaptureUrl(normalizeUrl(h.panoUrl));
           if (isFetchableImageUrl(h.thumbnailUrl))
-            imageUrls.add(normalizeUrl(h.thumbnailUrl));
+            addCaptureUrl(normalizeUrl(h.thumbnailUrl));
           if (isFetchableImageUrl(h.resolvedPhoto))
-            imageUrls.add(normalizeUrl(h.resolvedPhoto));
+            addCaptureUrl(normalizeUrl(h.resolvedPhoto));
         }
       }
     }
@@ -187,11 +205,19 @@ export async function downloadProjectForOffline(
   void amenities;
 
   // ── Image phase ──
-  const urls = Array.from(imageUrls);
+  // Report content first (always all of it), then captures newest-first
+  // inside the budget. 1000s of captures must not eat the whole iPad:
+  // oldest site photos stay server-side and load on connection.
+  const MAX_OFFLINE_PHOTOS = 500;
+  const MAX_OFFLINE_BYTES = 300 * 1024 * 1024;
+  const urls = [...Array.from(imageUrls), ...captureUrls];
+  const imageTotal = urls.length;
+  let saved = 0;
   let imageBytes = 0;
   const canCache = typeof caches !== "undefined";
   for (let i = 0; i < urls.length; i++) {
     progress("images", i, urls.length);
+    if (saved >= MAX_OFFLINE_PHOTOS || imageBytes >= MAX_OFFLINE_BYTES) break;
     try {
       const res = await fetch(urls[i]);
       if (!res.ok) {
@@ -199,7 +225,14 @@ export async function downloadProjectForOffline(
         continue;
       }
       const blob = await res.blob();
+      if (
+        imageBytes + blob.size > MAX_OFFLINE_BYTES ||
+        saved >= MAX_OFFLINE_PHOTOS
+      ) {
+        break;
+      }
       imageBytes += blob.size;
+      saved++;
       if (canCache) {
         const cache = await caches.open(imageCacheName(urls[i]));
         await cache.put(
@@ -230,7 +263,8 @@ export async function downloadProjectForOffline(
     projectId,
     downloadedAt: Date.now(),
     dataRequests,
-    imageCount: urls.length,
+    imageCount: saved,
+    imageTotal,
     imageBytes,
     errors,
   };

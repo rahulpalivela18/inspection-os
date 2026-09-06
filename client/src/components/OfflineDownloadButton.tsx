@@ -53,8 +53,11 @@ export function OfflineDownloadButton({
       toast({
         title: "Available offline",
         description:
-          result.imageCount > 0
-            ? `${result.imageCount} photos (${formatBytes(result.imageBytes)}) saved on this device.`
+          result.imageTotal > 0
+            ? `${result.imageCount}/${result.imageTotal} photos (${formatBytes(result.imageBytes)}) saved` +
+              (result.imageTotal > result.imageCount
+                ? " — oldest skipped (budget)."
+                : ".")
             : "Project data saved. No photos found in this project yet.",
       });
     } catch {
@@ -126,6 +129,9 @@ export function OfflineDownloadButton({
         <div className="flex items-center gap-1.5 text-xs font-semibold text-emerald-700">
           <CheckCircle2 className="h-4 w-4" />
           Available offline • {formatBytes(pkg.imageBytes)}
+          {pkg.imageTotal > 0
+            ? ` • ${pkg.imageCount}/${pkg.imageTotal} photos`
+            : ""}
           {ageDays > 0 ? ` • ${ageDays}d ago` : " • today"}
           {pkg.errors > 0 ? ` • ${pkg.errors} skipped` : ""}
         </div>
