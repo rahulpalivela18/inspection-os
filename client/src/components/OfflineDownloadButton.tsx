@@ -20,7 +20,16 @@ import { useToast } from "@/hooks/use-toast";
 
 // Per-project "Make Available Offline" — downloads the project's data +
 // image bytes (see lib/prefetch.ts) so field work survives dead zones.
-export function OfflineDownloadButton({ projectId }: { projectId: string }) {
+// One package per project: every instance shares state via IndexedDB, so
+// the full button (reports page) and the compact pill (captures page) are
+// two fittings of the same download — tapping either does the same thing.
+export function OfflineDownloadButton({
+  projectId,
+  compact = false,
+}: {
+  projectId: string;
+  compact?: boolean;
+}) {
   const { toast } = useToast();
   const [pkg, setPkg] = useState<OfflinePackage | null>(null);
   const [busy, setBusy] = useState(false);
@@ -72,6 +81,16 @@ export function OfflineDownloadButton({ projectId }: { projectId: string }) {
         : progress.total > 0
           ? Math.round((progress.done / progress.total) * 100)
           : 0;
+    const label =
+      progress.phase === "data" ? "Saving…" : `Saving ${pct}%`;
+    if (compact) {
+      return (
+        <span className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg border border-slate-200 bg-white text-xs font-semibold text-slate-500">
+          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          {label}
+        </span>
+      );
+    }
     return (
       <Button size="lg" variant="outline" disabled className="w-full sm:w-auto">
         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -84,6 +103,24 @@ export function OfflineDownloadButton({ projectId }: { projectId: string }) {
 
   if (pkg) {
     const ageDays = Math.floor((Date.now() - pkg.downloadedAt) / 86400000);
+    if (compact) {
+      return (
+        <button
+          type="button"
+          onClick={handleDownload}
+          disabled={!online}
+          title={
+            online
+              ? `Offline ready • ${formatBytes(pkg.imageBytes)} — tap to update`
+              : "Offline ready — reconnect to update"
+          }
+          className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg border border-emerald-200 bg-emerald-50 text-xs font-semibold text-emerald-700 hover:border-emerald-300 disabled:opacity-70"
+        >
+          <CheckCircle2 className="h-3.5 w-3.5" />
+          Offline • {formatBytes(pkg.imageBytes)}
+        </button>
+      );
+    }
     return (
       <div className="flex flex-col gap-1.5">
         <div className="flex items-center gap-1.5 text-xs font-semibold text-emerald-700">
@@ -108,6 +145,20 @@ export function OfflineDownloadButton({ projectId }: { projectId: string }) {
           </Button>
         </div>
       </div>
+    );
+  }
+
+  if (compact && !pkg) {
+    return (
+      <button
+        type="button"
+        onClick={handleDownload}
+        className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg border border-slate-200 bg-white text-xs font-semibold text-slate-600 hover:border-slate-300"
+        data-testid="button-offline-download"
+      >
+        <CloudDownload className="h-3.5 w-3.5" />
+        Make offline
+      </button>
     );
   }
 

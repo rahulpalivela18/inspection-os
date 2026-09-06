@@ -867,7 +867,7 @@ export default function CaptureManager() {
             </div>
           </div>
           <div className="flex items-center gap-2.5 shrink-0 flex-wrap">
-            {projectId && <OfflineDownloadButton projectId={projectId} />}
+            {projectId && <OfflineDownloadButton projectId={projectId} compact />}
             {captures.length > 0 && (
               <Button
                 variant="outline"
