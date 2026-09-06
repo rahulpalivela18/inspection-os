@@ -28,11 +28,22 @@ function isHttpUrl(u: unknown): u is string {
   return typeof u === "string" && /^https?:\/\//.test(u);
 }
 
+// Server may return same-origin proxy paths (/api/image-proxy?url=...).
+// Those are fetchable images too — resolve to absolute for fetch + cache.
+function isFetchableImageUrl(u: unknown): u is string {
+  return isHttpUrl(u) || (typeof u === "string" && u.startsWith("/api/"));
+}
+
+function normalizeUrl(u: string): string {
+  if (isHttpUrl(u)) return u;
+  return new URL(u, window.location.origin).href;
+}
+
 // Progress-log photo fields are schemaless JSONB — could be string arrays,
 // {url} objects, or keyed maps. Extract every http(s) string found inside.
 function extractUrlsDeep(value: unknown, out: Set<string>) {
-  if (isHttpUrl(value)) {
-    out.add(value);
+  if (isFetchableImageUrl(value)) {
+    out.add(normalizeUrl(value));
     return;
   }
   if (Array.isArray(value)) {
@@ -124,7 +135,8 @@ export async function downloadProjectForOffline(
       const full = await safe(() => api.getReport(r.id));
       if (full?.checklist) {
         for (const c of full.checklist)
-          if (isHttpUrl(c.image)) imageUrls.add(c.image);
+          if (isFetchableImageUrl(c.image))
+            imageUrls.add(normalizeUrl(c.image));
       }
       if (full?.issues) {
         for (const iss of full.issues) extractUrlsDeep(iss.images, imageUrls);
@@ -142,14 +154,19 @@ export async function downloadProjectForOffline(
   // Captures + hotspots (captures list already carries tags).
   if (captures) {
     for (const c of captures) {
-      if (isHttpUrl(c.imageUrl)) imageUrls.add(c.imageUrl);
-      if (isHttpUrl(c.thumbnailUrl)) imageUrls.add(c.thumbnailUrl);
+      if (isFetchableImageUrl(c.imageUrl))
+        imageUrls.add(normalizeUrl(c.imageUrl));
+      if (isFetchableImageUrl(c.thumbnailUrl))
+        imageUrls.add(normalizeUrl(c.thumbnailUrl));
       const hotspots = await safe(() => api.getHotspots(c.id));
       if (hotspots) {
         for (const h of hotspots) {
-          if (isHttpUrl(h.panoUrl)) imageUrls.add(h.panoUrl);
-          if (isHttpUrl(h.thumbnailUrl)) imageUrls.add(h.thumbnailUrl);
-          if (isHttpUrl(h.resolvedPhoto)) imageUrls.add(h.resolvedPhoto);
+          if (isFetchableImageUrl(h.panoUrl))
+            imageUrls.add(normalizeUrl(h.panoUrl));
+          if (isFetchableImageUrl(h.thumbnailUrl))
+            imageUrls.add(normalizeUrl(h.thumbnailUrl));
+          if (isFetchableImageUrl(h.resolvedPhoto))
+            imageUrls.add(normalizeUrl(h.resolvedPhoto));
         }
       }
     }

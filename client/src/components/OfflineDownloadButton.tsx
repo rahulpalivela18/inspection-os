@@ -37,7 +37,10 @@ export function OfflineDownloadButton({ projectId }: { projectId: string }) {
       setPkg(result);
       toast({
         title: "Available offline",
-        description: `${result.imageCount} photos (${formatBytes(result.imageBytes)}) saved on this device.`,
+        description:
+          result.imageCount > 0
+            ? `${result.imageCount} photos (${formatBytes(result.imageBytes)}) saved on this device.`
+            : "Project data saved. No photos found in this project yet.",
       });
     } catch {
       toast({
