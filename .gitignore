@@ -9,3 +9,5 @@ vite.config.ts.*
 *.mov
 *.mp4
 server/gcp-credentials.json
+backups/
+*.dump
