@@ -47,6 +47,7 @@ import {
 } from "lucide-react";
 import { useRoute, useLocation, useSearchParams } from "wouter";
 import { ProjectTabs } from "@/components/ProjectTabs";
+import { OfflineDownloadButton } from "@/components/OfflineDownloadButton";
 import { useToast } from "@/hooks/use-toast";
 import { ensureJpeg, compressImageFile, cn, isAdminRole } from "@/lib/utils";
 import CapturePDF from "@/components/CapturePDF";
@@ -865,7 +866,8 @@ export default function CaptureManager() {
               )}
             </div>
           </div>
-          <div className="flex items-center gap-2.5 shrink-0">
+          <div className="flex items-center gap-2.5 shrink-0 flex-wrap">
+            {projectId && <OfflineDownloadButton projectId={projectId} />}
             {captures.length > 0 && (
               <Button
                 variant="outline"
