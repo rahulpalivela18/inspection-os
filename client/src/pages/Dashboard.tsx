@@ -33,6 +33,7 @@ import {
   BarChart3,
   Trash2,
   Pin,
+  Pencil,
   Home,
   Building2,
 } from "lucide-react";
@@ -49,6 +50,7 @@ export default function Dashboard() {
   const [, setLocation] = useLocation();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [projectToDelete, setProjectToDelete] = useState<string | null>(null);
+  const [editingProject, setEditingProject] = useState<any | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
 
   const [newProject, setNewProject] = useState({
@@ -137,6 +139,21 @@ export default function Dashboard() {
       }),
   });
 
+  const editMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: any }) =>
+      api.updateProject(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["projects"] });
+      setEditingProject(null);
+    },
+    onError: (err: any) =>
+      toast({
+        title: "Error",
+        description: err.message,
+        variant: "destructive",
+      }),
+  });
+
   const handleCreateProject = () => {
     if (!newProject.title) return;
     createMutation.mutate({
@@ -145,6 +162,19 @@ export default function Dashboard() {
       ...(projectType === "multi"
         ? { blockCount: Number(blockCount) || 0, amenities: selectedAmenities }
         : {}),
+    });
+  };
+
+  const handleUpdateProject = () => {
+    if (!editingProject?.id || !editingProject?.title?.trim()) return;
+    editMutation.mutate({
+      id: editingProject.id,
+      data: {
+        title: editingProject.title.trim(),
+        clientName: editingProject.clientName ?? "",
+        address: editingProject.address ?? "",
+        description: editingProject.description ?? "",
+      },
     });
   };
 
@@ -531,6 +561,24 @@ export default function Dashboard() {
                       <Button
                         variant="ghost"
                         size="icon"
+                        className="h-8 w-8 text-slate-400 hover:text-primary hover:bg-primary/5 -mt-1 -mr-2 opacity-100 pointer-fine:opacity-0 pointer-fine:group-hover:opacity-100 transition-opacity"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setEditingProject({
+                            id: project.id,
+                            title: project.title ?? "",
+                            clientName: project.clientName ?? "",
+                            address: project.address ?? "",
+                            description: project.description ?? "",
+                          });
+                        }}
+                        data-testid={`button-edit-project-${project.id}`}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
                         className="h-8 w-8 text-slate-400 hover:text-red-600 hover:bg-red-50 -mt-1 -mr-2 opacity-100 pointer-fine:opacity-0 pointer-fine:group-hover:opacity-100 transition-opacity"
                         onClick={(e) => {
                           e.stopPropagation();
@@ -580,6 +628,97 @@ export default function Dashboard() {
           </div>
         )}
       </div>
+
+      {/* Edit Project Dialog */}
+      <Dialog
+        open={!!editingProject}
+        onOpenChange={(open) => !open && setEditingProject(null)}
+      >
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Edit Project</DialogTitle>
+            <DialogDescription>
+              Update the project and client information.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="edit-title">Project Title</Label>
+              <Input
+                id="edit-title"
+                placeholder="e.g. Skyline Tower Inspection"
+                value={editingProject?.title ?? ""}
+                onChange={(e) =>
+                  setEditingProject({
+                    ...editingProject,
+                    title: e.target.value,
+                  })
+                }
+                data-testid="input-edit-project-title"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit-client">Client Name</Label>
+              <Input
+                id="edit-client"
+                placeholder="e.g. Acme Corp"
+                value={editingProject?.clientName ?? ""}
+                onChange={(e) =>
+                  setEditingProject({
+                    ...editingProject,
+                    clientName: e.target.value,
+                  })
+                }
+                data-testid="input-edit-client-name"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit-address">Location / Address</Label>
+              <Input
+                id="edit-address"
+                placeholder="123 Main St..."
+                value={editingProject?.address ?? ""}
+                onChange={(e) =>
+                  setEditingProject({
+                    ...editingProject,
+                    address: e.target.value,
+                  })
+                }
+                data-testid="input-edit-project-address"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit-description">Description</Label>
+              <Textarea
+                id="edit-description"
+                placeholder="Brief scope of work..."
+                value={editingProject?.description ?? ""}
+                onChange={(e) =>
+                  setEditingProject({
+                    ...editingProject,
+                    description: e.target.value,
+                  })
+                }
+                data-testid="input-edit-project-description"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingProject(null)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleUpdateProject}
+              disabled={
+                editMutation.isPending || !editingProject?.title?.trim()
+              }
+              data-testid="button-save-project-edit"
+            >
+              {editMutation.isPending ? "Saving..." : "Save Changes"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Delete Confirmation Dialog */}
       <Dialog
