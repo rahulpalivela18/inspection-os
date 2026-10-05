@@ -31,7 +31,7 @@ import {
 import { useRoute, useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth";
-import { isAdminRole } from "@/lib/utils";
+import { isAdminRole, ensureJpeg } from "@/lib/utils";
 import RatesManager from "@/components/RatesManager";
 import QuotationPDF from "@/components/QuotationPDF";
 import ConfirmDialog from "@/components/ConfirmDialog";
@@ -151,18 +151,22 @@ export default function QuotationEditor() {
     if (!quotation || !workspace) return;
     setExporting(true);
     try {
+      const logoUrl = workspace.logoUrl
+        ? await ensureJpeg(workspace.logoUrl)
+        : undefined;
       const blob = await pdf(
         <QuotationPDF
           quotation={quotation}
           items={items}
           project={project}
           workspace={workspace}
+          logoUrl={logoUrl}
         />,
       ).toBlob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `${quotation.title.replace(/\s+/g, "_")}_quotation.pdf`;
+      a.download = `${quotation.title.replace(/\s+/g, "_")}_invoice.pdf`;
       a.click();
       URL.revokeObjectURL(url);
     } catch (err: any) {
@@ -176,7 +180,7 @@ export default function QuotationEditor() {
     const client = quotation.clientName || "Client";
     const projectTitle = project?.title || "";
     const totalFormatted = `₹${total.toLocaleString("en-IN")}`;
-    const text = `Hi ${client},\n\nHere's your inspection quotation from ${workspace?.name || "Inspection OS"}:\n\n*${quotation.title}*\nProject: ${projectTitle}\nTotal: ${totalFormatted}\nValid for: ${quotation.validityDays || 30} days\n\nPlease review and let us know if you have any questions.`;
+    const text = `Hi ${client},\n\nHere's your invoice from ${workspace?.name || "Inspection OS"}:\n\n*${quotation.title}*\nProject: ${projectTitle}\nTotal: ${totalFormatted}\nPayment due within: ${quotation.validityDays || 30} days\n\nPlease review and let us know if you have any questions.`;
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
   };
 
@@ -184,9 +188,9 @@ export default function QuotationEditor() {
     const client = quotation.clientName || "Client";
     const projectTitle = project?.title || "";
     const totalFormatted = `₹${total.toLocaleString("en-IN")}`;
-    const subject = encodeURIComponent(`${quotation.title} — Inspection Quotation`);
+    const subject = encodeURIComponent(`${quotation.title} — Invoice`);
     const body = encodeURIComponent(
-      `Hi ${client},\n\nHere's your inspection quotation from ${workspace?.name || "Inspection OS"}:\n\n${quotation.title}\nProject: ${projectTitle}\nTotal: ${totalFormatted}\nValid for: ${quotation.validityDays || 30} days\n\nPlease review and let us know if you have any questions.\n\nRegards,\n${workspace?.name || ""}`
+      `Hi ${client},\n\nHere's your invoice from ${workspace?.name || "Inspection OS"}:\n\n${quotation.title}\nProject: ${projectTitle}\nTotal: ${totalFormatted}\nPayment due within: ${quotation.validityDays || 30} days\n\nPlease review and let us know if you have any questions.\n\nRegards,\n${workspace?.name || ""}`
     );
     window.open(`mailto:${quotation.clientEmail || ""}?subject=${subject}&body=${body}`, "_blank");
   };
@@ -213,7 +217,7 @@ export default function QuotationEditor() {
   if (!quotation) {
     return (
       <Layout>
-        <div className="p-8 text-center text-slate-500">Quotation not found.</div>
+        <div className="p-8 text-center text-slate-500">Invoice not found.</div>
       </Layout>
     );
   }
@@ -240,7 +244,7 @@ export default function QuotationEditor() {
                   {project.title} — {project.clientName}
                 </p>
               ) : (
-                <p className="text-sm text-slate-500">Quick quotation</p>
+                <p className="text-sm text-slate-500">Quick invoice</p>
               )}
             </div>
           </div>
@@ -415,7 +419,7 @@ export default function QuotationEditor() {
                   <thead>
                     <tr className="border-b text-left text-xs font-semibold text-slate-500">
                       <th className="pb-2 pr-2 w-8">#</th>
-                      <th className="pb-2 pr-2">Description</th>
+                      <th className="pb-2 pr-2">Service Description</th>
                       <th className="pb-2 pr-2 w-16">Qty</th>
                       <th className="pb-2 pr-2 w-16">Unit</th>
                       <th className="pb-2 pr-2 w-28 text-right">Rate (₹)</th>
@@ -472,7 +476,7 @@ export default function QuotationEditor() {
         open={!!deleteConfirmId}
         onOpenChange={(open) => { if (!open) setDeleteConfirmId(null); }}
         title="Delete Item?"
-        description="This will remove the item from this quotation."
+        description="This will remove the item from this invoice."
         confirmLabel="Delete"
         onConfirm={() => {
           if (deleteConfirmId) deleteItemMutation.mutate(deleteConfirmId);
@@ -488,7 +492,7 @@ export default function QuotationEditor() {
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-1">
-              <Label>Description *</Label>
+              <Label>Service Description *</Label>
               <Input
                 value={newItemForm.label}
                 onChange={(e) => setNewItemForm((f) => ({ ...f, label: e.target.value }))}
@@ -790,7 +794,7 @@ function QuotationSettingsCard({
 
   return (
     <SaveableCard
-      title="Quotation Settings"
+      title="Invoice Settings"
       hasChanges={hasChanges}
       saving={updateMutation.isPending}
       onSave={handleSave}
@@ -818,7 +822,7 @@ function QuotationSettingsCard({
         </div>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div className="space-y-1">
-            <Label className="text-xs">Valid for (days)</Label>
+            <Label className="text-xs">Payment Due (days)</Label>
             <Input
               type="number"
               value={form.validityDays}

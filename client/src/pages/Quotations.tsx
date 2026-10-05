@@ -72,7 +72,7 @@ export default function Quotations() {
     mutationFn: () =>
       api.createQuotation({
         projectId: selectedProjectId || null,
-        title: newTitle || "Quotation",
+        title: newTitle || "Invoice",
       }),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["quotations-all"] });
@@ -105,9 +105,9 @@ export default function Quotations() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-xl font-bold text-slate-900">Quotations</h1>
+            <h1 className="text-xl font-bold text-slate-900">Invoices</h1>
             <p className="text-sm text-slate-500">
-              Manage inspection quotations
+              Manage customer invoices
             </p>
           </div>
           <Button
@@ -116,7 +116,7 @@ export default function Quotations() {
             className="bg-indigo-600 hover:bg-indigo-700"
           >
             <Plus className="h-4 w-4 mr-1.5" />
-            New Quotation
+            New Invoice
           </Button>
         </div>
 
@@ -128,7 +128,7 @@ export default function Quotations() {
                 <Percent className="h-4 w-4" /> Default Tax Rate
               </CardTitle>
               <CardDescription>
-                GST rate applied by default to new quotations.
+                GST rate applied by default to new invoices.
               </CardDescription>
             </CardHeader>
             <CardContent className="flex items-end gap-3">
@@ -170,7 +170,7 @@ export default function Quotations() {
               </CardTitle>
               <CardDescription>
                 Shared inspection rates used by the Rate Calculator when
-                building quotations.
+                building invoices.
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -188,7 +188,7 @@ export default function Quotations() {
           <div className="rounded-xl border border-dashed border-slate-300 py-12 text-center">
             <FileText className="mx-auto h-10 w-10 text-slate-300 mb-3" />
             <p className="text-sm text-slate-500 mb-3">
-              No quotations yet. Create your first inspection quotation.
+              No invoices yet. Create your first invoice.
             </p>
             <Button
               size="sm"
@@ -196,7 +196,7 @@ export default function Quotations() {
               className="bg-indigo-600 hover:bg-indigo-700"
             >
               <Plus className="h-4 w-4 mr-1.5" />
-              Create First Quotation
+              Create First Invoice
             </Button>
           </div>
         ) : (
@@ -247,19 +247,19 @@ export default function Quotations() {
           </div>
         )}
 
-        {/* New Quotation Dialog */}
+        {/* New Invoice Dialog */}
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
-              <DialogTitle>New Quotation</DialogTitle>
+              <DialogTitle>New Invoice</DialogTitle>
             </DialogHeader>
             <div className="space-y-4 py-2">
               <div className="space-y-1">
-                <Label>Quotation Title *</Label>
+                <Label>Invoice Title *</Label>
                 <Input
                   value={newTitle}
                   onChange={(e) => setNewTitle(e.target.value)}
-                  placeholder="e.g. 2 BHK Inspection Quote"
+                  placeholder="e.g. 2 BHK Inspection Invoice"
                   autoFocus
                 />
               </div>
@@ -270,7 +270,7 @@ export default function Quotations() {
                   onChange={(e) => setSelectedProjectId(e.target.value)}
                   className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                 >
-                  <option value="">No project — quick quotation</option>
+                  <option value="">No project — quick invoice</option>
                   {projects.map((p: any) => (
                     <option key={p.id} value={p.id}>
                       {p.title} — {p.clientName}
@@ -302,8 +302,8 @@ export default function Quotations() {
         <ConfirmDialog
           open={deleteTargetId !== null}
           onOpenChange={(open) => { if (!open) setDeleteTargetId(null); }}
-          title="Delete Quotation"
-          description="This will permanently delete this quotation and all its line items. This cannot be undone."
+          title="Delete Invoice"
+          description="This will permanently delete this invoice and all its line items. This cannot be undone."
           onConfirm={() => {
             if (deleteTargetId) {
               deleteMutation.mutate(deleteTargetId);

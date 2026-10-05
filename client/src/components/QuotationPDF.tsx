@@ -3,6 +3,7 @@ import {
   Page,
   Text,
   View,
+  Image,
   StyleSheet,
 } from "@react-pdf/renderer";
 
@@ -21,6 +22,8 @@ const styles = StyleSheet.create({
   },
   brandName: { fontSize: 18, fontWeight: 700, color: PRIMARY },
   brandSub: { fontSize: 8, color: "#64748b", marginTop: 2 },
+  brandRow: { flexDirection: "row", alignItems: "center", gap: 10 },
+  logo: { width: 40, height: 40, objectFit: "contain" },
   meta: { alignItems: "flex-end" },
   metaLabel: {
     fontSize: 7,
@@ -57,10 +60,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
   },
   tableRowAlt: { backgroundColor: "#f8fafc" },
-  colNo: { width: 30 },
+  colNo: { width: 36 },
   colDesc: { flex: 1 },
   colQty: { width: 40, textAlign: "center" },
-  colUnit: { width: 50, textAlign: "center" },
   colRate: { width: 80, textAlign: "right" },
   colAmount: { width: 80, textAlign: "right" },
   totals: { marginTop: 12, alignItems: "flex-end" },
@@ -113,6 +115,7 @@ interface QuotationPDFProps {
   items: any[];
   project?: any;
   workspace: any;
+  logoUrl?: string;
 }
 
 export default function QuotationPDF({
@@ -120,6 +123,7 @@ export default function QuotationPDF({
   items,
   project,
   workspace,
+  logoUrl,
 }: QuotationPDFProps) {
   const subtotal = items.reduce(
     (sum, item) => sum + (Number(item.estimatedCost) || 0) * (item.quantity || 1),
@@ -134,12 +138,15 @@ export default function QuotationPDF({
       <Page size="A4" style={styles.page}>
         {/* Header */}
         <View style={styles.header}>
-          <View>
-            <Text style={styles.brandName}>{workspace?.name || "Inspection OS"}</Text>
-            <Text style={styles.brandSub}>Inspection Quotation</Text>
+          <View style={styles.brandRow}>
+            {logoUrl && <Image src={logoUrl} style={styles.logo} />}
+            <View>
+              <Text style={styles.brandName}>{workspace?.name || "Inspection OS"}</Text>
+              <Text style={styles.brandSub}>INVOICE / PAYMENT RECEIPT</Text>
+            </View>
           </View>
           <View style={styles.meta}>
-            <Text style={styles.metaLabel}>Quotation</Text>
+            <Text style={styles.metaLabel}>Invoice</Text>
             <Text style={styles.metaValue}>{quotation.title}</Text>
             <Text style={[styles.metaLabel, { marginTop: 6 }]}>Date</Text>
             <Text style={styles.metaValue}>
@@ -207,15 +214,14 @@ export default function QuotationPDF({
         )}
 
         {/* Line Items Table */}
-        <Text style={styles.sectionTitle}>Quotation Items</Text>
+        <Text style={styles.sectionTitle}>Service Details</Text>
         <View style={styles.table}>
           <View style={styles.tableHeader}>
-            <Text style={[styles.tableHeaderText, styles.colNo]}>#</Text>
-            <Text style={[styles.tableHeaderText, styles.colDesc]}>Description</Text>
+            <Text style={[styles.tableHeaderText, styles.colNo]}>S.No.</Text>
+            <Text style={[styles.tableHeaderText, styles.colDesc]}>Service Description</Text>
             <Text style={[styles.tableHeaderText, styles.colQty]}>Qty</Text>
-            <Text style={[styles.tableHeaderText, styles.colUnit]}>Unit</Text>
-            <Text style={[styles.tableHeaderText, styles.colRate]}>Rate</Text>
-            <Text style={[styles.tableHeaderText, styles.colAmount]}>Amount</Text>
+            <Text style={[styles.tableHeaderText, styles.colRate]}>Rate (₹)</Text>
+            <Text style={[styles.tableHeaderText, styles.colAmount]}>Amount (₹)</Text>
           </View>
           {items.map((item, i) => {
             const amount = (Number(item.estimatedCost) || 0) * (item.quantity || 1);
@@ -227,7 +233,6 @@ export default function QuotationPDF({
                 <Text style={styles.colNo}>{i + 1}</Text>
                 <Text style={styles.colDesc}>{item.label}</Text>
                 <Text style={styles.colQty}>{item.quantity || 1}</Text>
-                <Text style={styles.colUnit}>{item.unit || "nos"}</Text>
                 <Text style={styles.colRate}>{formatCurrency(Number(item.estimatedCost) || 0)}</Text>
                 <Text style={styles.colAmount}>{formatCurrency(amount)}</Text>
               </View>
@@ -261,10 +266,10 @@ export default function QuotationPDF({
           </View>
         )}
 
-        {/* Validity */}
+        {/* Payment Terms */}
         <View style={{ marginTop: 12 }}>
           <Text style={{ fontSize: 8, color: "#64748b" }}>
-            This quotation is valid for {quotation.validityDays || 30} days from the date of issue.
+            Payment due within {quotation.validityDays || 30} days from the date of issue.
           </Text>
         </View>
 

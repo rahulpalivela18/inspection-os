@@ -1,14 +1,21 @@
+# Full Road B: app (your Dockerfile) + db (official postgres) together.
+# Run: docker compose up --build  |  Down (keep data): docker compose down  |  Wipe DB: docker compose down -v
+
 services:
+  # House D: throwaway Postgres, NOT your Mac's report_generator
   db:
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_DB: reportgen
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: reportgen      # default DB created on first start
+      POSTGRES_USER: postgres     # default user (we use this in DATABASE_URL)
+      POSTGRES_PASSWORD: postgres # required, else container exits
     ports:
-      - "5432:5432"
+      # LEFT (Mac) : RIGHT (container fixed 5432)
+      # 5433 because your Mac's 5432 is taken by local Postgres (PID 24815 you saw in lsof)
+      - "5433:5432"
     volumes:
+      # locker so tables survive stop/rm/down. Only `down -v` wipes it.
       - pgdata:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
@@ -16,20 +23,21 @@ services:
       timeout: 5s
       retries: 5
 
+  # House A: your app packet built from ./Dockerfile
   app:
     build: .
     restart: unless-stopped
     ports:
-      - "5002:5002"
+      - "5002:5002" # browser localhost:5002 -> container 5002 (server/index.ts PORT || 5002)
+    env_file:
+      - .env.local # loads SESSION_SECRET, GCP_* at run, never baked into image
     environment:
-      DATABASE_URL: postgresql://postgres:postgres@db:5432/reportgen
-      SESSION_SECRET: ${SESSION_SECRET:-changeme-in-production}
       NODE_ENV: production
-      GCP_BUCKET_NAME: ${GCP_BUCKET_NAME:-}
-      GCP_PROJECT_ID: ${GCP_PROJECT_ID:-}
+      # Override file's localhost value: inside network, `db` = House D hostname, NOT localhost, NOT host.docker.internal
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/reportgen
     depends_on:
       db:
-        condition: service_healthy
+        condition: service_healthy # start app only after pg_isready passes
 
 volumes:
   pgdata:
