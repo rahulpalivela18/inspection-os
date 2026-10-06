@@ -116,6 +116,7 @@ interface QuotationPDFProps {
   project?: any;
   workspace: any;
   logoUrl?: string;
+  documentType?: "quotation" | "invoice";
 }
 
 export default function QuotationPDF({
@@ -124,7 +125,11 @@ export default function QuotationPDF({
   project,
   workspace,
   logoUrl,
+  documentType,
 }: QuotationPDFProps) {
+  const isInvoice =
+    (documentType ?? quotation.documentType) === "invoice";
+  const termDays = quotation.validityDays || 30;
   const subtotal = items.reduce(
     (sum, item) => sum + (Number(item.estimatedCost) || 0) * (item.quantity || 1),
     0,
@@ -142,11 +147,13 @@ export default function QuotationPDF({
             {logoUrl && <Image src={logoUrl} style={styles.logo} />}
             <View>
               <Text style={styles.brandName}>{workspace?.name || "Inspection OS"}</Text>
-              <Text style={styles.brandSub}>INVOICE / PAYMENT RECEIPT</Text>
+              <Text style={styles.brandSub}>
+                {isInvoice ? "INVOICE / PAYMENT RECEIPT" : "INSPECTION QUOTATION"}
+              </Text>
             </View>
           </View>
           <View style={styles.meta}>
-            <Text style={styles.metaLabel}>Invoice</Text>
+            <Text style={styles.metaLabel}>{isInvoice ? "Invoice" : "Quotation"}</Text>
             <Text style={styles.metaValue}>{quotation.title}</Text>
             <Text style={[styles.metaLabel, { marginTop: 6 }]}>Date</Text>
             <Text style={styles.metaValue}>
@@ -214,14 +221,24 @@ export default function QuotationPDF({
         )}
 
         {/* Line Items Table */}
-        <Text style={styles.sectionTitle}>Service Details</Text>
+        <Text style={styles.sectionTitle}>
+          {isInvoice ? "Service Details" : "Quotation Items"}
+        </Text>
         <View style={styles.table}>
           <View style={styles.tableHeader}>
-            <Text style={[styles.tableHeaderText, styles.colNo]}>S.No.</Text>
-            <Text style={[styles.tableHeaderText, styles.colDesc]}>Service Description</Text>
+            <Text style={[styles.tableHeaderText, styles.colNo]}>
+              {isInvoice ? "S.No." : "#"}
+            </Text>
+            <Text style={[styles.tableHeaderText, styles.colDesc]}>
+              {isInvoice ? "Service Description" : "Description"}
+            </Text>
             <Text style={[styles.tableHeaderText, styles.colQty]}>Qty</Text>
-            <Text style={[styles.tableHeaderText, styles.colRate]}>Rate (₹)</Text>
-            <Text style={[styles.tableHeaderText, styles.colAmount]}>Amount (₹)</Text>
+            <Text style={[styles.tableHeaderText, styles.colRate]}>
+              {isInvoice ? "Rate (₹)" : "Rate"}
+            </Text>
+            <Text style={[styles.tableHeaderText, styles.colAmount]}>
+              {isInvoice ? "Amount (₹)" : "Amount"}
+            </Text>
           </View>
           {items.map((item, i) => {
             const amount = (Number(item.estimatedCost) || 0) * (item.quantity || 1);
@@ -266,10 +283,12 @@ export default function QuotationPDF({
           </View>
         )}
 
-        {/* Payment Terms */}
+        {/* Validity / Payment Terms */}
         <View style={{ marginTop: 12 }}>
           <Text style={{ fontSize: 8, color: "#64748b" }}>
-            Payment due within {quotation.validityDays || 30} days from the date of issue.
+            {isInvoice
+              ? `Payment due within ${termDays} days from the date of issue.`
+              : `This quotation is valid for ${termDays} days from the date of issue.`}
           </Text>
         </View>
 

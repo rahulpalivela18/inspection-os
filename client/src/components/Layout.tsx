@@ -11,6 +11,7 @@ import {
   Clock,
   AlertTriangle,
   FileText,
+  ReceiptText,
   LogOut,
   User,
   Users,
@@ -45,7 +46,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const navigation = [
     { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
     { name: "Projects", href: "/dashboard", icon: FolderOpen },
-    { name: "Invoices", href: "/quotations", icon: FileText },
+    { name: "Quotations", href: "/quotations", icon: FileText },
+    { name: "Invoices", href: "/invoices", icon: ReceiptText },
     { name: "Templates", href: "/templates", icon: ClipboardList },
     ...(isAdminRole(user?.role)
       ? [{ name: "Team", href: "/team", icon: Users }]

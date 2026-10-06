@@ -1063,8 +1063,12 @@ export class DatabaseStorage implements IStorage {
     return result.length > 0;
   }
 
-  // Quotations
-  async getQuotationsByProject(projectId: string, workspaceId: string) {
+  // Quotations / Invoices
+  async getQuotationsByProject(
+    projectId: string,
+    workspaceId: string,
+    documentType?: "quotation" | "invoice",
+  ) {
     return db
       .select()
       .from(quotations)
@@ -1072,15 +1076,24 @@ export class DatabaseStorage implements IStorage {
         and(
           eq(quotations.projectId, projectId),
           eq(quotations.workspaceId, workspaceId),
+          ...(documentType ? [eq(quotations.documentType, documentType)] : []),
         ),
       )
       .orderBy(desc(quotations.createdAt));
   }
-  async getQuotationsByWorkspace(workspaceId: string) {
+  async getQuotationsByWorkspace(
+    workspaceId: string,
+    documentType?: "quotation" | "invoice",
+  ) {
     return db
       .select()
       .from(quotations)
-      .where(eq(quotations.workspaceId, workspaceId))
+      .where(
+        and(
+          eq(quotations.workspaceId, workspaceId),
+          ...(documentType ? [eq(quotations.documentType, documentType)] : []),
+        ),
+      )
       .orderBy(desc(quotations.createdAt));
   }
   async getQuotation(id: string, workspaceId: string) {

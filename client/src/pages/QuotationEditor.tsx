@@ -83,6 +83,35 @@ export default function QuotationEditor() {
     queryFn: () => api.getWorkspaceRates(),
   });
 
+  const docType: "quotation" | "invoice" =
+    quotation?.documentType === "invoice" ? "invoice" : "quotation";
+  const doc =
+    docType === "invoice"
+      ? {
+          singular: "Invoice",
+          backHref: "/invoices",
+          pdfSuffix: "invoice",
+          shareIntro: "Here's your invoice from",
+          shareSubject: "Invoice",
+          settingsTitle: "Invoice Settings",
+          termField: "Payment Due (days)",
+          termLine: (days: number) => `Payment due within ${days} days`,
+          termPdf: (days: number) =>
+            `Payment due within ${days} days from the date of issue.`,
+        }
+      : {
+          singular: "Quotation",
+          backHref: "/quotations",
+          pdfSuffix: "quotation",
+          shareIntro: "Here's your inspection quotation from",
+          shareSubject: "Inspection Quotation",
+          settingsTitle: "Quotation Settings",
+          termField: "Valid for (days)",
+          termLine: (days: number) => `Valid for: ${days} days`,
+          termPdf: (days: number) =>
+            `This quotation is valid for ${days} days from the date of issue.`,
+        };
+
   const updateMutation = useMutation({
     mutationFn: (data: any) => api.updateQuotation(quotationId!, data),
     onSuccess: () => {
@@ -161,12 +190,13 @@ export default function QuotationEditor() {
           project={project}
           workspace={workspace}
           logoUrl={logoUrl}
+          documentType={docType}
         />,
       ).toBlob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `${quotation.title.replace(/\s+/g, "_")}_invoice.pdf`;
+      a.download = `${quotation.title.replace(/\s+/g, "_")}_${doc.pdfSuffix}.pdf`;
       a.click();
       URL.revokeObjectURL(url);
     } catch (err: any) {
@@ -180,7 +210,7 @@ export default function QuotationEditor() {
     const client = quotation.clientName || "Client";
     const projectTitle = project?.title || "";
     const totalFormatted = `₹${total.toLocaleString("en-IN")}`;
-    const text = `Hi ${client},\n\nHere's your invoice from ${workspace?.name || "Inspection OS"}:\n\n*${quotation.title}*\nProject: ${projectTitle}\nTotal: ${totalFormatted}\nPayment due within: ${quotation.validityDays || 30} days\n\nPlease review and let us know if you have any questions.`;
+    const text = `Hi ${client},\n\n${doc.shareIntro} ${workspace?.name || "Inspection OS"}:\n\n*${quotation.title}*\nProject: ${projectTitle}\nTotal: ${totalFormatted}\n${doc.termLine(quotation.validityDays || 30)}\n\nPlease review and let us know if you have any questions.`;
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
   };
 
@@ -188,9 +218,9 @@ export default function QuotationEditor() {
     const client = quotation.clientName || "Client";
     const projectTitle = project?.title || "";
     const totalFormatted = `₹${total.toLocaleString("en-IN")}`;
-    const subject = encodeURIComponent(`${quotation.title} — Invoice`);
+    const subject = encodeURIComponent(`${quotation.title} — ${doc.shareSubject}`);
     const body = encodeURIComponent(
-      `Hi ${client},\n\nHere's your invoice from ${workspace?.name || "Inspection OS"}:\n\n${quotation.title}\nProject: ${projectTitle}\nTotal: ${totalFormatted}\nPayment due within: ${quotation.validityDays || 30} days\n\nPlease review and let us know if you have any questions.\n\nRegards,\n${workspace?.name || ""}`
+      `Hi ${client},\n\n${doc.shareIntro} ${workspace?.name || "Inspection OS"}:\n\n${quotation.title}\nProject: ${projectTitle}\nTotal: ${totalFormatted}\n${doc.termLine(quotation.validityDays || 30)}\n\nPlease review and let us know if you have any questions.\n\nRegards,\n${workspace?.name || ""}`
     );
     window.open(`mailto:${quotation.clientEmail || ""}?subject=${subject}&body=${body}`, "_blank");
   };
@@ -217,7 +247,7 @@ export default function QuotationEditor() {
   if (!quotation) {
     return (
       <Layout>
-        <div className="p-8 text-center text-slate-500">Invoice not found.</div>
+        <div className="p-8 text-center text-slate-500">{doc.singular} not found.</div>
       </Layout>
     );
   }
@@ -231,7 +261,7 @@ export default function QuotationEditor() {
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => setLocation("/quotations")}
+              onClick={() => setLocation(doc.backHref)}
             >
               <ArrowLeft className="h-4 w-4" />
             </Button>
@@ -244,7 +274,7 @@ export default function QuotationEditor() {
                   {project.title} — {project.clientName}
                 </p>
               ) : (
-                <p className="text-sm text-slate-500">Quick invoice</p>
+                <p className="text-sm text-slate-500">Quick {doc.singular.toLowerCase()}</p>
               )}
             </div>
           </div>
@@ -286,7 +316,12 @@ export default function QuotationEditor() {
 
         <ClientDetailsCard quotation={quotation} updateMutation={updateMutation} />
         <PropertyDetailsCard quotation={quotation} updateMutation={updateMutation} />
-        <QuotationSettingsCard quotation={quotation} updateMutation={updateMutation} />
+        <QuotationSettingsCard
+          quotation={quotation}
+          updateMutation={updateMutation}
+          title={doc.settingsTitle}
+          termField={doc.termField}
+        />
 
         {/* Line Items */}
         <Card>
@@ -476,7 +511,7 @@ export default function QuotationEditor() {
         open={!!deleteConfirmId}
         onOpenChange={(open) => { if (!open) setDeleteConfirmId(null); }}
         title="Delete Item?"
-        description="This will remove the item from this invoice."
+        description={`This will remove the item from this ${doc.singular.toLowerCase()}.`}
         confirmLabel="Delete"
         onConfirm={() => {
           if (deleteConfirmId) deleteItemMutation.mutate(deleteConfirmId);
@@ -766,9 +801,13 @@ function PropertyDetailsCard({
 function QuotationSettingsCard({
   quotation,
   updateMutation,
+  title,
+  termField,
 }: {
   quotation: any;
   updateMutation: any;
+  title: string;
+  termField: string;
 }) {
   const [form, setForm] = useState({
     title: quotation.title || "",
@@ -794,7 +833,7 @@ function QuotationSettingsCard({
 
   return (
     <SaveableCard
-      title="Invoice Settings"
+      title={title}
       hasChanges={hasChanges}
       saving={updateMutation.isPending}
       onSave={handleSave}
@@ -822,7 +861,7 @@ function QuotationSettingsCard({
         </div>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div className="space-y-1">
-            <Label className="text-xs">Payment Due (days)</Label>
+            <Label className="text-xs">{termField}</Label>
             <Input
               type="number"
               value={form.validityDays}

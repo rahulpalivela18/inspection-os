@@ -2063,11 +2063,23 @@ export async function registerRoutes(
     },
   );
 
-  // ── Quotations ─────────────────────────────────────────────────────────────
+  // ── Quotations / Invoices ──────────────────────────────────────────────────
+
+  const parseDocumentType = (
+    value: unknown,
+  ): "quotation" | "invoice" | undefined =>
+    value === "invoice"
+      ? "invoice"
+      : value === "quotation"
+        ? "quotation"
+        : undefined;
 
   app.get("/api/quotations", requireAuth, async (req, res) => {
     const user = req.user as any;
-    const quotations = await storage.getQuotationsByWorkspace(user.workspaceId);
+    const quotations = await storage.getQuotationsByWorkspace(
+      user.workspaceId,
+      parseDocumentType(req.query.type),
+    );
     res.json(quotations);
   });
 
@@ -2079,6 +2091,7 @@ export async function registerRoutes(
       const quotations = await storage.getQuotationsByProject(
         req.params.projectId as string,
         user.workspaceId,
+        parseDocumentType(req.query.type),
       );
       res.json(quotations);
     },
@@ -2095,6 +2108,7 @@ export async function registerRoutes(
       const {
         projectId,
         title,
+        documentType,
         taxRate,
         notes,
         validityDays,
@@ -2113,6 +2127,7 @@ export async function registerRoutes(
         projectId: projectId || null,
         workspaceId: user.workspaceId,
         title,
+        documentType: parseDocumentType(documentType) ?? "quotation",
         taxRate: taxRate ?? ws?.taxRate ?? "18",
         notes: notes ?? null,
         validityDays: validityDays ?? 30,
@@ -2139,6 +2154,7 @@ export async function registerRoutes(
       const ws = await storage.getWorkspace(user.workspaceId);
       const {
         title,
+        documentType,
         taxRate,
         notes,
         validityDays,
@@ -2157,6 +2173,7 @@ export async function registerRoutes(
         projectId: req.params.projectId as string,
         workspaceId: user.workspaceId,
         title,
+        documentType: parseDocumentType(documentType) ?? "quotation",
         taxRate: taxRate ?? ws?.taxRate ?? "18",
         notes: notes ?? null,
         validityDays: validityDays ?? 30,

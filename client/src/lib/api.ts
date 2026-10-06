@@ -285,10 +285,13 @@ export const api = {
     request(`/api/share-links/${id}`, { method: "DELETE" }),
   getSharedProject: (token: string) => request<any>(`/api/shared/${token}`),
 
-  // Quotations
-  getAllQuotations: () => request<any[]>("/api/quotations"),
-  getQuotations: (projectId: string) =>
-    request<any[]>(`/api/projects/${projectId}/quotations`),
+  // Quotations / Invoices
+  getAllQuotations: (type?: "quotation" | "invoice") =>
+    request<any[]>(`/api/quotations${type ? `?type=${type}` : ""}`),
+  getQuotations: (projectId: string, type?: "quotation" | "invoice") =>
+    request<any[]>(
+      `/api/projects/${projectId}/quotations${type ? `?type=${type}` : ""}`,
+    ),
   createQuotation: (data: any) =>
     request<any>("/api/quotations", {
       method: "POST",

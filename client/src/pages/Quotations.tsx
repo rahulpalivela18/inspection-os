@@ -35,8 +35,53 @@ import RatesManager from "@/components/RatesManager";
 import { useAuth } from "@/lib/auth";
 import { isAdminRole } from "@/lib/utils";
 
+type DocumentType = "quotation" | "invoice";
+
+const DOC_META: Record<
+  DocumentType,
+  {
+    plural: string;
+    singular: string;
+    description: string;
+    defaultTitle: string;
+    placeholder: string;
+    quick: string;
+    empty: string;
+    createFirst: string;
+    deleteTitle: string;
+    deleteDesc: string;
+  }
+> = {
+  quotation: {
+    plural: "Quotations",
+    singular: "Quotation",
+    description: "Manage inspection quotations",
+    defaultTitle: "Quotation",
+    placeholder: "e.g. 2 BHK Inspection Quote",
+    quick: "quick quotation",
+    empty: "No quotations yet. Create your first quotation.",
+    createFirst: "Create First Quotation",
+    deleteTitle: "Delete Quotation",
+    deleteDesc:
+      "This will permanently delete this quotation and all its line items. This cannot be undone.",
+  },
+  invoice: {
+    plural: "Invoices",
+    singular: "Invoice",
+    description: "Manage customer invoices",
+    defaultTitle: "Invoice",
+    placeholder: "e.g. 2 BHK Inspection Invoice",
+    quick: "quick invoice",
+    empty: "No invoices yet. Create your first invoice.",
+    createFirst: "Create First Invoice",
+    deleteTitle: "Delete Invoice",
+    deleteDesc:
+      "This will permanently delete this invoice and all its line items. This cannot be undone.",
+  },
+};
+
 export default function Quotations() {
-  const [, setLocation] = useLocation();
+  const [location, setLocation] = useLocation();
   const { toast } = useToast();
   const { user, workspace, refreshWorkspace } = useAuth();
   const queryClient = useQueryClient();
@@ -46,6 +91,11 @@ export default function Quotations() {
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const isAdmin = isAdminRole(user?.role);
   const [taxRate, setTaxRate] = useState(workspace?.taxRate || "18");
+
+  const docType: DocumentType = location.includes("invoice")
+    ? "invoice"
+    : "quotation";
+  const meta = DOC_META[docType];
 
   const taxRateMutation = useMutation({
     mutationFn: () => api.updateWorkspace({ taxRate }),
@@ -59,8 +109,8 @@ export default function Quotations() {
   });
 
   const { data: quotations = [], isLoading } = useQuery({
-    queryKey: ["quotations-all"],
-    queryFn: () => api.getAllQuotations(),
+    queryKey: ["quotations-all", docType],
+    queryFn: () => api.getAllQuotations(docType),
   });
 
   const { data: projects = [] } = useQuery({
@@ -72,7 +122,8 @@ export default function Quotations() {
     mutationFn: () =>
       api.createQuotation({
         projectId: selectedProjectId || null,
-        title: newTitle || "Invoice",
+        title: newTitle || meta.defaultTitle,
+        documentType: docType,
       }),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["quotations-all"] });
@@ -105,10 +156,8 @@ export default function Quotations() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-xl font-bold text-slate-900">Invoices</h1>
-            <p className="text-sm text-slate-500">
-              Manage customer invoices
-            </p>
+            <h1 className="text-xl font-bold text-slate-900">{meta.plural}</h1>
+            <p className="text-sm text-slate-500">{meta.description}</p>
           </div>
           <Button
             size="sm"
@@ -116,11 +165,28 @@ export default function Quotations() {
             className="bg-indigo-600 hover:bg-indigo-700"
           >
             <Plus className="h-4 w-4 mr-1.5" />
-            New Invoice
+            New {meta.singular}
           </Button>
         </div>
 
-        {/* Default Tax Rate (workspace default for new quotations) */}
+        {/* Document type tabs */}
+        <div className="inline-flex rounded-lg border border-slate-200 bg-slate-50 p-1">
+          {(["quotation", "invoice"] as DocumentType[]).map((t) => (
+            <button
+              key={t}
+              onClick={() => setLocation(t === "invoice" ? "/invoices" : "/quotations")}
+              className={`rounded-md px-4 py-1.5 text-sm font-medium transition-colors ${
+                docType === t
+                  ? "bg-white text-indigo-700 shadow-sm"
+                  : "text-slate-500 hover:text-slate-700"
+              }`}
+            >
+              {DOC_META[t].plural}
+            </button>
+          ))}
+        </div>
+
+        {/* Default Tax Rate (workspace default for new documents) */}
         {isAdmin && (
           <Card>
             <CardHeader className="pb-3">
@@ -128,7 +194,7 @@ export default function Quotations() {
                 <Percent className="h-4 w-4" /> Default Tax Rate
               </CardTitle>
               <CardDescription>
-                GST rate applied by default to new invoices.
+                GST rate applied by default to new {meta.plural.toLowerCase()}.
               </CardDescription>
             </CardHeader>
             <CardContent className="flex items-end gap-3">
@@ -170,7 +236,7 @@ export default function Quotations() {
               </CardTitle>
               <CardDescription>
                 Shared inspection rates used by the Rate Calculator when
-                building invoices.
+                building {meta.plural.toLowerCase()}.
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -187,16 +253,14 @@ export default function Quotations() {
         ) : quotations.length === 0 ? (
           <div className="rounded-xl border border-dashed border-slate-300 py-12 text-center">
             <FileText className="mx-auto h-10 w-10 text-slate-300 mb-3" />
-            <p className="text-sm text-slate-500 mb-3">
-              No invoices yet. Create your first invoice.
-            </p>
+            <p className="text-sm text-slate-500 mb-3">{meta.empty}</p>
             <Button
               size="sm"
               onClick={() => setIsDialogOpen(true)}
               className="bg-indigo-600 hover:bg-indigo-700"
             >
               <Plus className="h-4 w-4 mr-1.5" />
-              Create First Invoice
+              {meta.createFirst}
             </Button>
           </div>
         ) : (
@@ -247,19 +311,19 @@ export default function Quotations() {
           </div>
         )}
 
-        {/* New Invoice Dialog */}
+        {/* New Document Dialog */}
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
-              <DialogTitle>New Invoice</DialogTitle>
+              <DialogTitle>New {meta.singular}</DialogTitle>
             </DialogHeader>
             <div className="space-y-4 py-2">
               <div className="space-y-1">
-                <Label>Invoice Title *</Label>
+                <Label>{meta.singular} Title *</Label>
                 <Input
                   value={newTitle}
                   onChange={(e) => setNewTitle(e.target.value)}
-                  placeholder="e.g. 2 BHK Inspection Invoice"
+                  placeholder={meta.placeholder}
                   autoFocus
                 />
               </div>
@@ -270,7 +334,7 @@ export default function Quotations() {
                   onChange={(e) => setSelectedProjectId(e.target.value)}
                   className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                 >
-                  <option value="">No project — quick invoice</option>
+                  <option value="">No project — {meta.quick}</option>
                   {projects.map((p: any) => (
                     <option key={p.id} value={p.id}>
                       {p.title} — {p.clientName}
@@ -302,8 +366,8 @@ export default function Quotations() {
         <ConfirmDialog
           open={deleteTargetId !== null}
           onOpenChange={(open) => { if (!open) setDeleteTargetId(null); }}
-          title="Delete Invoice"
-          description="This will permanently delete this invoice and all its line items. This cannot be undone."
+          title={meta.deleteTitle}
+          description={meta.deleteDesc}
           onConfirm={() => {
             if (deleteTargetId) {
               deleteMutation.mutate(deleteTargetId);

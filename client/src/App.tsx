@@ -103,7 +103,13 @@ function Router() {
       <Route path="/quotations">
         <ProtectedRoute component={Quotations} />
       </Route>
+      <Route path="/invoices">
+        <ProtectedRoute component={Quotations} />
+      </Route>
       <Route path="/project/:id/quotations">
+        <ProtectedRoute component={Quotations} />
+      </Route>
+      <Route path="/project/:id/invoices">
         <ProtectedRoute component={Quotations} />
       </Route>
       <Route path="/quotation/:id">

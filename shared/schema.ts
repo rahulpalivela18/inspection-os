@@ -519,6 +519,9 @@ export const quotations = pgTable("quotations", {
     .notNull()
     .references(() => workspaces.id, { onDelete: "cascade" }),
   title: text("title").notNull(),
+  documentType: text("document_type", { enum: ["quotation", "invoice"] })
+    .notNull()
+    .default("quotation"),
   status: text("status", { enum: ["Draft", "Sent", "Accepted", "Rejected"] })
     .notNull()
     .default("Draft"),
