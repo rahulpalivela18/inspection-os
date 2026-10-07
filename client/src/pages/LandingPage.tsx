@@ -54,6 +54,14 @@ export default function LandingPage() {
             </motion.div>
           </Link>
           <div className="flex items-center gap-2">
+            <Link href="/about">
+              <Button
+                variant="ghost"
+                className="hidden rounded-xl font-semibold sm:inline-flex"
+              >
+                About
+              </Button>
+            </Link>
             {!isLoading &&
               (user ? (
                 <>

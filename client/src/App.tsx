@@ -12,6 +12,7 @@ import Templates from "@/pages/Templates";
 import CaptureManager from "@/pages/CaptureManager";
 import CaptureCanvas from "@/pages/CaptureCanvas";
 import LandingPage from "@/pages/LandingPage";
+import About from "@/pages/About";
 import Settings from "@/pages/Settings";
 import Profile from "@/pages/Profile";
 import Team from "@/pages/Team";
@@ -72,6 +73,7 @@ function Router() {
         <PublicRoute component={LandingPage} />
       </Route>
       <Route path="/home" component={LandingPage} />
+      <Route path="/about" component={About} />
       <Route path="/contact" component={Contact} />
       <Route path="/login">
         <PublicRoute component={Login} />
