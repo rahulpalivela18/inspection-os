@@ -5,7 +5,7 @@ import {
   useState,
   useEffect,
 } from "react";
-import { api, setOnUnauthorized } from "./api";
+import { api, PUBLIC_PATHS, setOnUnauthorized } from "./api";
 import { queryClient, setQueryOnUnauthorized } from "./queryClient";
 
 type User = {
@@ -84,7 +84,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(null);
       setWorkspace(null);
       setTrial(null);
-      if (!["/", "/login", "/register", "/contact"].includes(window.location.pathname) && !window.location.pathname.startsWith("/shared/")) {
+      if (!PUBLIC_PATHS.includes(window.location.pathname) && !window.location.pathname.startsWith("/shared/")) {
         window.location.href = "/";
       }
     };

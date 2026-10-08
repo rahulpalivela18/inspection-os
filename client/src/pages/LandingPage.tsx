@@ -57,7 +57,7 @@ export default function LandingPage() {
             <Link href="/about">
               <Button
                 variant="ghost"
-                className="hidden rounded-xl font-semibold sm:inline-flex"
+                className="rounded-xl px-2 font-semibold sm:px-4"
               >
                 About
               </Button>

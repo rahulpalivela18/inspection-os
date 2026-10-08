@@ -1,4 +1,11 @@
-export const PUBLIC_PATHS = ["/", "/login", "/register", "/contact"];
+export const PUBLIC_PATHS = [
+  "/",
+  "/home",
+  "/about",
+  "/login",
+  "/register",
+  "/contact",
+];
 
 let onUnauthorized: (() => void) | null = null;
 
