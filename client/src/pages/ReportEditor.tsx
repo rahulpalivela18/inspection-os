@@ -466,6 +466,23 @@ export default function ReportEditor() {
                 <div className="sm:hidden text-center py-4 bg-amber-50 text-amber-800 text-xs font-medium border-b border-amber-100 print:hidden">
                   Note: Preview layout is optimized for Desktop/A4 Print.
                 </div>
+                {workspace?.reportFrontPages &&
+                  workspace.reportFrontPages.length > 0 && (
+                    <div className="hidden print:block">
+                      {workspace.reportFrontPages.map((src, index) => (
+                        <div
+                          key={`${index}-${src.slice(-16)}`}
+                          className="w-[210mm] h-[297mm] overflow-hidden bg-white break-after-page"
+                        >
+                          <img
+                            src={src}
+                            alt=""
+                            className="h-full w-full object-contain"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 {project && (
                   <ReportPreview
                     report={report}

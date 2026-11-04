@@ -55,6 +55,14 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontFamily: "Helvetica",
   },
+  introPage: {
+    padding: 0,
+  },
+  introImage: {
+    width: "100%",
+    height: "100%",
+    objectFit: "contain",
+  },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -442,6 +450,7 @@ interface CapturePDFCover {
 interface CapturePDFProps {
   captures: CapturePDF[];
   cover?: CapturePDFCover;
+  introPages?: string[];
 }
 
 interface AreaSummary {
@@ -1259,7 +1268,11 @@ function ResolutionEvidencePage({
   );
 }
 
-export default function CapturePDF({ captures, cover }: CapturePDFProps) {
+export default function CapturePDF({
+  captures,
+  cover,
+  introPages,
+}: CapturePDFProps) {
   function chunkResolved(pins: PinPDF[]): PinPDF[][] {
     const chunks: PinPDF[][] = [];
     for (let i = 0; i < pins.length; i += 2) {
@@ -1270,6 +1283,11 @@ export default function CapturePDF({ captures, cover }: CapturePDFProps) {
 
   return (
     <Document>
+      {introPages?.map((src, index) => (
+        <Page key={`intro-${index}`} size="A4" style={styles.introPage}>
+          <Image src={src} style={styles.introImage} />
+        </Page>
+      ))}
       {cover && <CaptureCoverPage cover={cover} />}
       {cover && captures.length > 0 && (
         <AreaSummaryPage cover={cover} captures={captures} />

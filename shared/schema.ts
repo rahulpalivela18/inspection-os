@@ -27,6 +27,11 @@ export const workspaces = pgTable("workspaces", {
   email: text("email"),
   phone: text("phone"),
   taxRate: text("tax_rate").default("18"),
+  // Ordered list of page images prepended to every exported report PDF.
+  reportFrontPages: jsonb("report_front_pages")
+    .$type<string[]>()
+    .notNull()
+    .default(sql`'[]'::jsonb`),
   plan: text("plan", { enum: ["starter", "pro", "enterprise"] })
     .notNull()
     .default("starter"),

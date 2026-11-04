@@ -482,8 +482,12 @@ export default function CaptureCanvas() {
 
       const imageUrl = await ensureJpeg(capture.imageUrl);
       const logoUrl = workspace?.logoUrl ? await ensureJpeg(workspace.logoUrl) : undefined;
+      const introPages = workspace?.reportFrontPages?.length
+        ? await Promise.all(workspace.reportFrontPages.map(ensureJpeg))
+        : undefined;
       const blob = await pdf(
         <CapturePDF
+          introPages={introPages}
           captures={[{
             projectTitle: project.title,
             title: capture.title,

@@ -26,6 +26,7 @@ type Workspace = {
   email?: string;
   phone?: string;
   taxRate?: string;
+  reportFrontPages?: string[];
   plan?: string;
   planStatus?: string;
   trialEndsAt?: string | null;
