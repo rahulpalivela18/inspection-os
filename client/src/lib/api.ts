@@ -238,10 +238,19 @@ export const api = {
     request<any[]>(`/api/projects/${projectId}/visits`),
   getCurrentVisit: (projectId: string) =>
     request<any>(`/api/projects/${projectId}/visits/current`),
-  createVisit: (projectId: string, title: string) =>
+  createVisit: (projectId: string, title: string, date?: string) =>
     request<any>(`/api/projects/${projectId}/visits`, {
       method: "POST",
-      body: JSON.stringify({ title }),
+      body: JSON.stringify({ title, date }),
+    }),
+  updateVisit: (
+    projectId: string,
+    visitId: string,
+    data: { title?: string; date?: string },
+  ) =>
+    request<any>(`/api/projects/${projectId}/visits/${visitId}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
     }),
   activateVisit: (projectId: string, visitId: string) =>
     request<any>(`/api/projects/${projectId}/visits/${visitId}/activate`, {

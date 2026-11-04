@@ -93,6 +93,9 @@ export default function ProjectDetails() {
   const [copiedLink, setCopiedLink] = useState(false);
   const [isNewVisitOpen, setIsNewVisitOpen] = useState(false);
   const [newVisitTitle, setNewVisitTitle] = useState("");
+  const [newVisitDate, setNewVisitDate] = useState(
+    format(new Date(), "yyyy-MM-dd"),
+  );
   const [openReportAfterVisit, setOpenReportAfterVisit] = useState(false);
 
   const [newReport, setNewReport] = useState({
@@ -227,12 +230,14 @@ export default function ProjectDetails() {
   });
 
   const createVisitMutation = useMutation({
-    mutationFn: (title: string) => api.createVisit(params!.id, title),
+    mutationFn: (payload: { title: string; date: string }) =>
+      api.createVisit(params!.id, payload.title, payload.date),
     onSuccess: (visit: any) => {
       queryClient.invalidateQueries({ queryKey: ["visits", params?.id] });
       setIsNewVisitOpen(false);
       setNewVisitTitle("");
-      setNewReport((r) => ({ ...r, visitId: visit.id }));
+      setNewVisitDate(format(new Date(), "yyyy-MM-dd"));
+      setNewReport((r) => ({ ...r, visitId: visit.id, date: visit.date }));
       if (openReportAfterVisit) {
         setOpenReportAfterVisit(false);
         setIsDialogOpen(true);
@@ -461,6 +466,7 @@ export default function ProjectDetails() {
                         setNewVisitTitle(
                           new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
                         );
+                        setNewVisitDate(format(new Date(), "yyyy-MM-dd"));
                         setOpenReportAfterVisit(true);
                         setIsNewVisitOpen(true);
                       } else {
@@ -544,7 +550,7 @@ export default function ProjectDetails() {
                             </div>
                           </div>
                           <div className="grid gap-2">
-                            <Label htmlFor="date">Date</Label>
+                            <Label htmlFor="date">Inspection date</Label>
                             <Input
                               id="date"
                               type="date"
@@ -658,7 +664,14 @@ export default function ProjectDetails() {
                   value={newReport.visitId || "all"}
                   onChange={(e) => {
                     const val = e.target.value === "all" ? null : e.target.value;
-                    setNewReport({ ...newReport, visitId: val });
+                    const visit = val
+                      ? visits.find((v: any) => v.id === val)
+                      : null;
+                    setNewReport({
+                      ...newReport,
+                      visitId: val,
+                      ...(visit?.date ? { date: visit.date } : {}),
+                    });
                   }}
                 >
                   <option value="all">All Visits</option>
@@ -1003,7 +1016,7 @@ export default function ProjectDetails() {
                     </Select>
                   </div>
                   <div className="grid gap-2">
-                    <Label>Date</Label>
+                    <Label>Inspection date</Label>
                     <Input
                       type="date"
                       value={editingReport.date}
@@ -1206,8 +1219,18 @@ export default function ProjectDetails() {
               placeholder="e.g. Initial Inspection"
               onKeyDown={(e) => {
                 if (e.key === "Enter" && newVisitTitle.trim())
-                  createVisitMutation.mutate(newVisitTitle.trim());
+                  createVisitMutation.mutate({
+                    title: newVisitTitle.trim(),
+                    date: newVisitDate,
+                  });
               }}
+            />
+            <Label htmlFor="visit-date">Inspection date</Label>
+            <Input
+              id="visit-date"
+              type="date"
+              value={newVisitDate}
+              onChange={(e) => setNewVisitDate(e.target.value)}
             />
           </div>
           <DialogFooter>
@@ -1221,7 +1244,12 @@ export default function ProjectDetails() {
               Cancel
             </Button>
             <Button
-              onClick={() => createVisitMutation.mutate(newVisitTitle.trim())}
+              onClick={() =>
+                createVisitMutation.mutate({
+                  title: newVisitTitle.trim(),
+                  date: newVisitDate,
+                })
+              }
               disabled={!newVisitTitle.trim() || createVisitMutation.isPending}
             >
               {createVisitMutation.isPending ? "Creating..." : "Create Visit & Continue"}

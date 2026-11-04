@@ -451,6 +451,21 @@ interface CapturePDFProps {
   captures: CapturePDF[];
   cover?: CapturePDFCover;
   introPages?: string[];
+  inspectionDate?: string;
+}
+
+function formatInspectionDate(value?: string): string {
+  const options: Intl.DateTimeFormatOptions = {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  };
+  if (!value) return new Date().toLocaleDateString("en-US", options);
+  const [year, month, day] = value.split("-").map(Number);
+  if (!year || !month || !day) {
+    return new Date(value).toLocaleDateString("en-US", options);
+  }
+  return new Date(year, month - 1, day).toLocaleDateString("en-US", options);
 }
 
 interface AreaSummary {
@@ -553,15 +568,13 @@ function PdfDonutChart({
 function AreaSummaryPage({
   cover,
   captures,
+  inspectionDate,
 }: {
   cover: CapturePDFCover;
   captures: CapturePDF[];
+  inspectionDate?: string;
 }) {
-  const date = new Date().toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  });
+  const date = formatInspectionDate(inspectionDate);
 
   const summary = computeAreaSummary(captures);
   const allPins = captures.flatMap((c) => c.pins);
@@ -746,10 +759,14 @@ function AreaSummaryPage({
   );
 }
 
-function CaptureCoverPage({ cover }: { cover: CapturePDFCover }) {
-  const date = new Date().toLocaleDateString("en-US", {
-    year: "numeric", month: "long", day: "numeric",
-  });
+function CaptureCoverPage({
+  cover,
+  inspectionDate,
+}: {
+  cover: CapturePDFCover;
+  inspectionDate?: string;
+}) {
+  const date = formatInspectionDate(inspectionDate);
 
   const total = cover.severityBreakdown.reduce((s, b) => s + b.count, 0);
 
@@ -925,6 +942,7 @@ function CapturePageContent({
   totalPins,
   pageNumber,
   totalPages,
+  inspectionDate,
 }: {
   capture: CapturePDF;
   pinsToShow: PinPDF[];
@@ -932,10 +950,9 @@ function CapturePageContent({
   totalPins: number;
   pageNumber: number;
   totalPages: number;
+  inspectionDate?: string;
 }) {
-  const date = new Date().toLocaleDateString("en-US", {
-    year: "numeric", month: "long", day: "numeric",
-  });
+  const date = formatInspectionDate(inspectionDate);
 
   const allPins = capture.pins.map((p, i) => ({ ...p, number: i + 1 }));
   const visible = pinsToShow.map((p, i) => ({ ...p, number: pinOffset + i + 1 }));
@@ -1139,15 +1156,15 @@ function ResolutionEvidencePage({
   resolvedPins,
   pageNumber,
   totalPages,
+  inspectionDate,
 }: {
   capture: CapturePDF;
   resolvedPins: PinPDF[];
   pageNumber: number;
   totalPages: number;
+  inspectionDate?: string;
 }) {
-  const date = new Date().toLocaleDateString("en-US", {
-    year: "numeric", month: "long", day: "numeric",
-  });
+  const date = formatInspectionDate(inspectionDate);
 
   const count = resolvedPins.length;
   const imgH = count === 1 ? 340 : 220;
@@ -1272,6 +1289,7 @@ export default function CapturePDF({
   captures,
   cover,
   introPages,
+  inspectionDate,
 }: CapturePDFProps) {
   function chunkResolved(pins: PinPDF[]): PinPDF[][] {
     const chunks: PinPDF[][] = [];
@@ -1288,9 +1306,15 @@ export default function CapturePDF({
           <Image src={src} style={styles.introImage} />
         </Page>
       ))}
-      {cover && <CaptureCoverPage cover={cover} />}
+      {cover && (
+        <CaptureCoverPage cover={cover} inspectionDate={inspectionDate} />
+      )}
       {cover && captures.length > 0 && (
-        <AreaSummaryPage cover={cover} captures={captures} />
+        <AreaSummaryPage
+          cover={cover}
+          captures={captures}
+          inspectionDate={inspectionDate}
+        />
       )}
       {captures.map((capture) => {
         const chunks = chunkPins(capture.pins);
@@ -1309,6 +1333,7 @@ export default function CapturePDF({
               totalPins={capture.pins.length}
               pageNumber={i + 1}
               totalPages={chunks.length}
+              inspectionDate={inspectionDate}
             />
           );
         });
@@ -1320,6 +1345,7 @@ export default function CapturePDF({
             resolvedPins={chunk}
             pageNumber={i + 1}
             totalPages={resolvedChunks.length}
+            inspectionDate={inspectionDate}
           />
         ));
 
