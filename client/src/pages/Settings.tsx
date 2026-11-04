@@ -14,6 +14,22 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   Building2,
   Save,
   Image as ImageIcon,
@@ -45,6 +61,8 @@ export default function Settings() {
     workspace?.reportFrontPages || [],
   );
   const [uploadingPages, setUploadingPages] = useState(false);
+  const [previewPage, setPreviewPage] = useState<string | null>(null);
+  const [pageToDelete, setPageToDelete] = useState<number | null>(null);
 
   const saveMutation = useMutation({
     mutationFn: () => api.updateWorkspace(profile),
@@ -296,7 +314,8 @@ export default function Settings() {
                 />
                 <p className="text-xs text-muted-foreground">
                   Upload one or more PDFs or images. PDF pages are converted to
-                  images automatically. Use the arrows to reorder pages.
+                  images automatically. Click a page to preview it, and use the
+                  arrows to reorder.
                 </p>
               </div>
             )}
@@ -318,11 +337,18 @@ export default function Settings() {
                     key={`${index}-${page.slice(-16)}`}
                     className="relative overflow-hidden rounded-lg border bg-white"
                   >
-                    <img
-                      src={page}
-                      alt={`Intro page ${index + 1}`}
-                      className="aspect-[210/297] w-full object-contain bg-white"
-                    />
+                    <button
+                      type="button"
+                      onClick={() => setPreviewPage(page)}
+                      className="block w-full cursor-zoom-in"
+                      aria-label={`Preview intro page ${index + 1}`}
+                    >
+                      <img
+                        src={page}
+                        alt={`Intro page ${index + 1}`}
+                        className="aspect-[210/297] w-full object-contain bg-white"
+                      />
+                    </button>
                     <div className="absolute left-1 top-1 rounded bg-slate-900/70 px-1.5 py-0.5 text-[10px] font-semibold text-white">
                       {index + 1}
                     </div>
@@ -355,7 +381,7 @@ export default function Settings() {
                           size="icon"
                           variant="secondary"
                           className="h-6 w-6"
-                          onClick={() => removeIntroPage(index)}
+                          onClick={() => setPageToDelete(index)}
                           aria-label="Remove page"
                         >
                           <Trash2 className="h-3 w-3" />
@@ -389,6 +415,56 @@ export default function Settings() {
             )}
           </CardContent>
         </Card>
+
+        <AlertDialog
+          open={pageToDelete !== null}
+          onOpenChange={(open) => {
+            if (!open) setPageToDelete(null);
+          }}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete this intro page?</AlertDialogTitle>
+              <AlertDialogDescription>
+                {pageToDelete !== null
+                  ? `Page ${pageToDelete + 1} will be removed. Click "Save Intro Pages" to apply the change.`
+                  : ""}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                onClick={() => {
+                  if (pageToDelete !== null) removeIntroPage(pageToDelete);
+                  setPageToDelete(null);
+                }}
+              >
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        <Dialog
+          open={previewPage !== null}
+          onOpenChange={(open) => {
+            if (!open) setPreviewPage(null);
+          }}
+        >
+          <DialogContent className="w-[95vw] max-w-4xl p-3 sm:p-4">
+            <DialogHeader>
+              <DialogTitle>Intro page preview</DialogTitle>
+            </DialogHeader>
+            {previewPage && (
+              <img
+                src={previewPage}
+                alt="Intro page preview"
+                className="max-h-[80vh] w-full object-contain"
+              />
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
     </Layout>
   );
