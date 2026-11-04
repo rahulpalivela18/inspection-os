@@ -687,8 +687,12 @@ export default function CaptureManager() {
         status: st,
         count: allPdfPins.filter((p) => p.status === st).length,
       }));
+      const introPages = workspace?.reportFrontPages?.length
+        ? await Promise.all(workspace.reportFrontPages.map(ensureJpeg))
+        : undefined;
       const blob = await pdf(
         <CapturePDF
+          introPages={introPages}
           captures={captureData}
           cover={{
             projectTitle: projectData.title,

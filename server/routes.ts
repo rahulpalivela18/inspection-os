@@ -195,10 +195,12 @@ export async function registerRoutes(
         "email",
         "phone",
         "taxRate",
+        "reportFrontPages",
         "plan",
         "planStatus",
         "trialEndsAt",
       ]);
+      safeWs.reportFrontPages = proxyFrontPages(safeWs.reportFrontPages);
       res.status(201).json({ user: safe, workspace: safeWs });
     });
   });
@@ -225,11 +227,13 @@ export async function registerRoutes(
           "address",
           "email",
           "phone",
+          "reportFrontPages",
           "plan",
           "planStatus",
           "trialEndsAt",
         ]);
         safeWs.logoUrl = proxyUrl(safeWs.logoUrl) ?? safeWs.logoUrl;
+        safeWs.reportFrontPages = proxyFrontPages(safeWs.reportFrontPages);
         safe.avatarUrl = proxyUrl(safe.avatarUrl) ?? safe.avatarUrl;
         res.json({ user: safe, workspace: safeWs });
       });
@@ -253,11 +257,13 @@ export async function registerRoutes(
       "address",
       "email",
       "phone",
+      "reportFrontPages",
       "plan",
       "planStatus",
       "trialEndsAt",
     ]);
     safeWs.logoUrl = proxyUrl(safeWs.logoUrl) ?? safeWs.logoUrl;
+    safeWs.reportFrontPages = proxyFrontPages(safeWs.reportFrontPages);
     safe.avatarUrl = proxyUrl(safe.avatarUrl) ?? safe.avatarUrl;
     res.json({ user: safe, workspace: safeWs });
   });
@@ -581,6 +587,23 @@ export async function registerRoutes(
         console.error("Logo upload error:", err);
       }
     }
+
+    // Upload any new report intro page images to GCP. Existing pages (already
+    // URLs) are kept as-is; if GCP is unavailable locally the data URL is
+    // stored directly so the feature still works.
+    if (Array.isArray(parsed.data.reportFrontPages)) {
+      const pages: string[] = [];
+      for (const page of parsed.data.reportFrontPages) {
+        if (typeof page !== "string" || !page) continue;
+        if (page.startsWith("data:")) {
+          const gcpUrl = await uploadImageToGCP(page, "report-page.jpg");
+          pages.push(gcpUrl ?? page);
+        } else {
+          pages.push(page);
+        }
+      }
+      parsed.data.reportFrontPages = pages;
+    }
     const wsId =
       user.role === "super_admin" && targetWorkspaceId
         ? targetWorkspaceId
@@ -589,6 +612,7 @@ export async function registerRoutes(
     res.json({
       ...workspace,
       logoUrl: proxyUrl(workspace.logoUrl) ?? workspace.logoUrl,
+      reportFrontPages: proxyFrontPages(workspace.reportFrontPages),
     });
   });
 
@@ -2342,6 +2366,10 @@ export async function registerRoutes(
     if (!gcpUrl.includes("storage.googleapis.com/reportgen-images-rahul"))
       return gcpUrl;
     return `/api/image-proxy?url=${encodeURIComponent(gcpUrl)}`;
+  }
+
+  function proxyFrontPages(urls: string[] | null | undefined): string[] {
+    return (urls ?? []).map((url) => proxyUrl(url) ?? url);
   }
 
   // ── Workspace Rates ──────────────────────────────────────────────────────
