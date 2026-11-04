@@ -260,7 +260,7 @@ export default function ReportPreview({
             <div className="space-y-8">
               <div>
                 <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">
-                  Report Date
+                  Inspection Date
                 </h3>
                 <p className="text-xl md:text-2xl font-black text-slate-900">
                   {report.date

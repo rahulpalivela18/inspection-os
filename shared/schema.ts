@@ -238,6 +238,9 @@ export const visits = pgTable(
       .notNull()
       .references(() => projects.id, { onDelete: "cascade" }),
     title: text("title").notNull(),
+    // Date the inspection round actually took place (yyyy-mm-dd). Defaults to
+    // the creation day; set it to the real date when creating a backdated visit.
+    date: text("date").notNull(),
     // The visit the camera targets. Only one can be active per project; a
     // fresh "+ New Visit" becomes active automatically, and the client can
     // switch between existing rounds.

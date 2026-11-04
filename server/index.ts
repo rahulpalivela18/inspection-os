@@ -146,6 +146,13 @@ app.use((req, res, next) => {
     },
   );
 
+  // Unknown /api routes must return JSON, never the SPA's index.html — the
+  // client parses every API response as JSON and would otherwise throw a
+  // confusing "Unexpected token '<'" error.
+  app.use("/api", (_req: Request, res: Response) => {
+    res.status(404).json({ message: "API route not found" });
+  });
+
   // -------------------- Static / Vite --------------------
 
   if (process.env.NODE_ENV === "production") {

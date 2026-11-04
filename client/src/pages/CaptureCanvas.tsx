@@ -170,6 +170,12 @@ export default function CaptureCanvas() {
     enabled: !!captureId,
   });
 
+  const { data: visits = [] } = useQuery({
+    queryKey: ["visits", projectId],
+    queryFn: () => api.getVisits(projectId!),
+    enabled: !!projectId,
+  });
+
   // Keep viewPinRef current
   viewPinRef.current = (id: string) => setViewingPinId(id);
 
@@ -485,9 +491,13 @@ export default function CaptureCanvas() {
       const introPages = workspace?.reportFrontPages?.length
         ? await Promise.all(workspace.reportFrontPages.map(ensureJpeg))
         : undefined;
+      const inspectionDate = visits.find(
+        (v: any) => v.id === capture.visitId,
+      )?.date;
       const blob = await pdf(
         <CapturePDF
           introPages={introPages}
+          inspectionDate={inspectionDate}
           captures={[{
             projectTitle: project.title,
             title: capture.title,

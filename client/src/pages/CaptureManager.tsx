@@ -1,4 +1,5 @@
 import { useState, useRef, useMemo, useEffect } from "react";
+import { format } from "date-fns";
 import Layout from "@/components/Layout";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
@@ -133,6 +134,12 @@ export default function CaptureManager() {
   /* ── Visits (named inspection rounds) ── */
   const [isNewVisitOpen, setIsNewVisitOpen] = useState(false);
   const [newVisitTitle, setNewVisitTitle] = useState("");
+  const [newVisitDate, setNewVisitDate] = useState(
+    format(new Date(), "yyyy-MM-dd"),
+  );
+  const [isEditVisitOpen, setIsEditVisitOpen] = useState(false);
+  const [editVisitTitle, setEditVisitTitle] = useState("");
+  const [editVisitDate, setEditVisitDate] = useState("");
   const [openCameraAfterVisit, setOpenCameraAfterVisit] = useState(false);
 
   /* ── "Untagged" bulk cleanup ── */
@@ -546,12 +553,14 @@ export default function CaptureManager() {
   });
 
   const createVisitMutation = useMutation({
-    mutationFn: (title: string) => api.createVisit(projectId!, title),
+    mutationFn: (payload: { title: string; date: string }) =>
+      api.createVisit(projectId!, payload.title, payload.date),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["visits", projectId] });
       queryClient.invalidateQueries({ queryKey: ["currentVisit", projectId] });
       setIsNewVisitOpen(false);
       setNewVisitTitle("");
+      setNewVisitDate(format(new Date(), "yyyy-MM-dd"));
       if (openCameraAfterVisit) {
         setOpenCameraAfterVisit(false);
         setIsUploadOpen(true);
@@ -560,6 +569,29 @@ export default function CaptureManager() {
     onError: (err: any) =>
       toast({ title: "Error", description: err.message, variant: "destructive" }),
   });
+
+  const updateVisitMutation = useMutation({
+    mutationFn: (payload: { id: string; title: string; date: string }) =>
+      api.updateVisit(projectId!, payload.id, {
+        title: payload.title,
+        date: payload.date,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["visits", projectId] });
+      queryClient.invalidateQueries({ queryKey: ["currentVisit", projectId] });
+      setIsEditVisitOpen(false);
+      toast({ title: "Visit updated" });
+    },
+    onError: (err: any) =>
+      toast({ title: "Error", description: err.message, variant: "destructive" }),
+  });
+
+  function openEditVisit() {
+    if (!currentVisit) return;
+    setEditVisitTitle(currentVisit.title);
+    setEditVisitDate(currentVisit.date ?? format(new Date(), "yyyy-MM-dd"));
+    setIsEditVisitOpen(true);
+  }
 
   const activateVisitMutation = useMutation({
     mutationFn: (visitId: string) => api.activateVisit(projectId!, visitId),
@@ -690,9 +722,14 @@ export default function CaptureManager() {
       const introPages = workspace?.reportFrontPages?.length
         ? await Promise.all(workspace.reportFrontPages.map(ensureJpeg))
         : undefined;
+      const exportVisit =
+        visitFilter !== "all"
+          ? visits.find((v: any) => v.id === visitFilter)
+          : currentVisit ?? visits[0];
       const blob = await pdf(
         <CapturePDF
           introPages={introPages}
+          inspectionDate={exportVisit?.date}
           captures={captureData}
           cover={{
             projectTitle: projectData.title,
@@ -741,6 +778,7 @@ export default function CaptureManager() {
   // created. No auto-detection, no guessing: the user is always in control.
   function handleCameraClick() {
     if (!currentVisit) {
+      setNewVisitDate(format(new Date(), "yyyy-MM-dd"));
       setOpenCameraAfterVisit(true);
       setIsNewVisitOpen(true);
       return;
@@ -864,6 +902,16 @@ export default function CaptureManager() {
                         </option>
                       ))}
                     </select>
+                    {user?.role !== "viewer" && (
+                      <button
+                        type="button"
+                        onClick={openEditVisit}
+                        title="Edit visit name and inspection date"
+                        className="rounded-md p-0.5 text-indigo-500 hover:bg-indigo-50"
+                      >
+                        <Pencil className="h-3 w-3" />
+                      </button>
+                    )}
                   </span>
                 </>
               )}
@@ -900,6 +948,7 @@ export default function CaptureManager() {
                         year: "numeric",
                       })
                     );
+                    setNewVisitDate(format(new Date(), "yyyy-MM-dd"));
                     setOpenCameraAfterVisit(false);
                     setIsNewVisitOpen(true);
                   }}
@@ -1508,8 +1557,18 @@ export default function CaptureManager() {
               placeholder="e.g. Initial Inspection"
               onKeyDown={(e) => {
                 if (e.key === "Enter" && newVisitTitle.trim())
-                  createVisitMutation.mutate(newVisitTitle.trim());
+                  createVisitMutation.mutate({
+                    title: newVisitTitle.trim(),
+                    date: newVisitDate,
+                  });
               }}
+            />
+            <Label htmlFor="visit-date">Inspection date</Label>
+            <Input
+              id="visit-date"
+              type="date"
+              value={newVisitDate}
+              onChange={(e) => setNewVisitDate(e.target.value)}
             />
           </div>
           <DialogFooter>
@@ -1523,7 +1582,12 @@ export default function CaptureManager() {
               Cancel
             </Button>
             <Button
-              onClick={() => createVisitMutation.mutate(newVisitTitle.trim())}
+              onClick={() =>
+                createVisitMutation.mutate({
+                  title: newVisitTitle.trim(),
+                  date: newVisitDate,
+                })
+              }
               disabled={!newVisitTitle.trim() || createVisitMutation.isPending}
             >
               {createVisitMutation.isPending ? (
@@ -1532,6 +1596,61 @@ export default function CaptureManager() {
                 <CalendarPlus className="h-4 w-4 mr-2" />
               )}
               Start Visit
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Edit Visit ── */}
+      <Dialog open={isEditVisitOpen} onOpenChange={setIsEditVisitOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit visit</DialogTitle>
+            <DialogDescription className="sr-only">
+              Update the visit name and inspection date.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="edit-visit-title">Visit name</Label>
+            <Input
+              id="edit-visit-title"
+              value={editVisitTitle}
+              onChange={(e) => setEditVisitTitle(e.target.value)}
+            />
+            <Label htmlFor="edit-visit-date">Inspection date</Label>
+            <Input
+              id="edit-visit-date"
+              type="date"
+              value={editVisitDate}
+              onChange={(e) => setEditVisitDate(e.target.value)}
+            />
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsEditVisitOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() =>
+                currentVisit &&
+                updateVisitMutation.mutate({
+                  id: currentVisit.id,
+                  title: editVisitTitle.trim(),
+                  date: editVisitDate,
+                })
+              }
+              disabled={
+                !editVisitTitle.trim() ||
+                !editVisitDate ||
+                updateVisitMutation.isPending
+              }
+            >
+              {updateVisitMutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : null}
+              Save
             </Button>
           </DialogFooter>
         </DialogContent>

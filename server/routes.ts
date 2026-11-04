@@ -1047,6 +1047,7 @@ export async function registerRoutes(
       const user = req.user as any;
       const parsed = insertVisitSchema.safeParse({
         ...req.body,
+        date: req.body.date || new Date().toISOString().slice(0, 10),
         projectId: req.params.projectId as string,
         workspaceId: user.workspaceId,
       });
@@ -1064,6 +1065,42 @@ export async function registerRoutes(
         if (pgCode === "23505") {
           return res.status(409).json({
             message: `A visit named "${parsed.data.title}" already exists in this project. Use a different name or open that visit instead.`,
+          });
+        }
+        throw err;
+      }
+    },
+  );
+
+  // Edit a visit's name and/or inspection date.
+  app.patch(
+    "/api/projects/:projectId/visits/:visitId",
+    requireWriteAccess,
+    requireActiveTrial,
+    async (req, res) => {
+      const user = req.user as any;
+      const patch: { title?: string; date?: string } = {};
+      if (typeof req.body?.title === "string" && req.body.title.trim())
+        patch.title = req.body.title.trim();
+      if (typeof req.body?.date === "string" && req.body.date)
+        patch.date = req.body.date;
+      if (!patch.title && !patch.date)
+        return res.status(400).json({ message: "Nothing to update" });
+      try {
+        const updated = await storage.updateVisit(
+          req.params.projectId as string,
+          user.workspaceId,
+          req.params.visitId as string,
+          patch,
+        );
+        if (!updated)
+          return res.status(404).json({ message: "Visit not found" });
+        res.json(updated);
+      } catch (err: any) {
+        const pgCode = err?.code ?? err?.cause?.code;
+        if (pgCode === "23505") {
+          return res.status(409).json({
+            message: `A visit named "${patch.title}" already exists in this project. Use a different name.`,
           });
         }
         throw err;

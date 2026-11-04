@@ -243,6 +243,12 @@ export interface IStorage {
     workspaceId: string,
   ): Promise<Visit | undefined>;
   createVisit(data: InsertVisit): Promise<Visit>;
+  updateVisit(
+    projectId: string,
+    workspaceId: string,
+    visitId: string,
+    data: { title?: string; date?: string },
+  ): Promise<Visit | undefined>;
   setActiveVisit(
     projectId: string,
     workspaceId: string,
@@ -448,6 +454,25 @@ export class DatabaseStorage implements IStorage {
       return [row];
     });
     return rows[0];
+  }
+  async updateVisit(
+    projectId: string,
+    workspaceId: string,
+    visitId: string,
+    data: { title?: string; date?: string },
+  ) {
+    const [row] = await db
+      .update(visits)
+      .set(data)
+      .where(
+        and(
+          eq(visits.id, visitId),
+          eq(visits.projectId, projectId),
+          eq(visits.workspaceId, workspaceId),
+        ),
+      )
+      .returning();
+    return row;
   }
   async setActiveVisit(
     projectId: string,
